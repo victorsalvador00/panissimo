@@ -1,0 +1,162 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--sgo-space-2);
+  top: -100px;
+  z-index: 100;
+  padding: var(--sgo-space-2) var(--sgo-space-3);
+  background: var(--mat-sys-primary);
+  color: var(--mat-sys-on-primary);
+  border-radius: var(--sgo-radius);
+
+  &:focus {
+    top: var(--sgo-space-2);
+  }
+}
+
+.topbar {
+  flex: 0 0 auto;
+  gap: var(--sgo-space-2);
+  height: var(--sgo-topbar-height);
+
+  .mat-mdc-icon-button {
+    color: inherit;
+  }
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sgo-space-2);
+  min-width: 48px;
+  min-height: 48px;
+  color: inherit;
+  text-decoration: none;
+}
+
+// Placa clara: el azul marino del logo se pierde sobre la barra oscura.
+.brand-logo {
+  display: grid;
+  place-items: center;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: #fff;
+
+  img {
+    display: block;
+    width: auto;
+    height: 32px;
+  }
+}
+
+.brand-name {
+  font: var(--mat-sys-title-large);
+  font-weight: 600;
+
+  // En celular el selector de ubicación necesita el espacio; queda el ícono (el enlace tiene aria-label).
+  @media (max-width: 599.98px) {
+    display: none;
+  }
+}
+
+.brand-subtitle,
+.location-label {
+  font: var(--mat-sys-body-medium);
+  opacity: 0.85;
+}
+
+.brand-subtitle {
+  @media (max-width: 1023.98px) {
+    display: none;
+  }
+}
+
+.location-select {
+  width: min(280px, 45vw);
+
+  @media (max-width: 599.98px) {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+  // Píldora compacta sin etiqueta flotante (el nombre va en aria-label) dentro de la barra superior.
+  @include mat.form-field-density(-4);
+  font: var(--mat-sys-body-medium);
+}
+
+.menu-label {
+  padding: var(--sgo-space-2) var(--sgo-space-4) 0;
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Opción de tema: la marca de la elegida va al final del renglón.
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sgo-space-4);
+  min-width: 10rem;
+}
+
+.checked {
+  margin: 0;
+  color: var(--mat-sys-primary);
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  padding: var(--sgo-space-3) var(--sgo-space-4);
+
+  span {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.container {
+  flex: 1 1 auto;
+}
+
+.sidenav {
+  width: var(--sgo-sidebar-width);
+  border-right: 1px solid var(--mat-sys-outline-variant);
+  transition: width 150ms ease;
+
+  &.collapsed {
+    width: var(--sgo-sidebar-collapsed-width);
+  }
+}
+
+// Nombres largos ("Órdenes de producción") en dos líneas en lugar de cortarse.
+.item-label {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidenav {
+    transition: none;
+  }
+}
+
+.section-label {
+  margin: var(--sgo-space-4) var(--sgo-space-4) 0;
+  font: var(--mat-sys-label-medium);
+  color: var(--mat-sys-on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.content {
+  min-height: 100%;
+  outline: none;
+}

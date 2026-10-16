@@ -1,0 +1,7 @@
+// Color primario del tema. Para cambiarlo usa otra paleta de Material 3:
+// $azure-palette, $blue-palette, $cyan-palette, $green-palette, $orange-palette,
+// $red-palette, $violet-palette, $magenta-palette, $rose-palette, etc.
+@use '@angular/material' as mat;
+
+$primary-palette: mat.$azure-palette;
+$tertiary-palette: mat.$blue-palette;

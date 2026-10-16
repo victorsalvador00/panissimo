@@ -1,0 +1,254 @@
+<section class="sgo-page sgo-stack">
+  @if (id() && !recipe()) {
+    @if (loadError()) {
+      <p class="notice notice-error">No se encontró la receta.</p>
+      <a mat-button routerLink="/produccion/recetas">Volver a recetas</a>
+    } @else {
+      <p class="muted">Cargando…</p>
+    }
+  } @else {
+    @let r = recipe();
+    <app-page-header
+      [title]="r ? 'Receta de ' + r.outputSku + ' · v' + r.recipeVersion : 'Nueva receta'"
+      [subtitle]="
+        r ? r.outputName : 'Lista de materiales para producir un intermedio o un terminado.'
+      "
+      [crumbs]="[
+        { label: 'Producción' },
+        { label: 'Recetas', url: '/produccion/recetas' },
+        { label: r ? r.outputSku + ' · v' + r.recipeVersion : 'Nueva' },
+      ]"
+    >
+      @if (r) {
+        <app-status-tag
+          [label]="r.isActive ? 'Activa' : 'Inactiva'"
+          [color]="r.isActive ? 'green' : 'gray'"
+        />
+      }
+    </app-page-header>
+
+    @if (r && !r.isActive) {
+      <p class="notice notice-info">
+        Versión anterior en solo lectura. Las órdenes de producción creadas con ella la conservan.
+      </p>
+    }
+    @if (notice(); as text) {
+      <p class="notice notice-warn" role="status">
+        <mat-icon aria-hidden="true">history</mat-icon>
+        {{ text }}
+      </p>
+    }
+
+    @if (editable()) {
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="sgo-stack">
+        <mat-card appearance="outlined">
+          <mat-card-content class="header">
+            @if (r) {
+              <div class="fixed">
+                <span class="label">Producto</span>
+                <strong>{{ r.outputSku }} · {{ r.outputName }}</strong>
+              </div>
+            } @else {
+              <div>
+                <app-item-picker
+                  formControlName="output"
+                  label="Producto"
+                  [filter]="outputFilter"
+                />
+                @if (existing.value(); as activeId) {
+                  <p class="sgo-field-error">
+                    Este producto ya tiene una receta activa.
+                    <a [routerLink]="['/produccion/recetas', activeId]">Ábrela para editarla</a>.
+                  </p>
+                }
+              </div>
+            }
+            <app-qty-input
+              formControlName="yieldQty"
+              label="Rendimiento"
+              [unit]="outputUom()"
+              hint="Producto que sale con estas cantidades."
+              subscriptSizing="dynamic"
+            />
+            <mat-form-field appearance="outline" class="notes">
+              <mat-label>Notas</mat-label>
+              <textarea matInput formControlName="notes" rows="2"></textarea>
+              <mat-error>Máximo 1000 caracteres.</mat-error>
+            </mat-form-field>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card appearance="outlined">
+          <mat-card-content>
+            <h2>Componentes</h2>
+            <p class="muted help">
+              Cantidad en la unidad base de cada componente, para producir el rendimiento. La merma
+              esperada se suma al consumo teórico.
+            </p>
+            <app-lines-editor
+              [lines]="form.controls.lines"
+              [createLine]="newLine"
+              [minLines]="1"
+              addLabel="Agregar componente"
+            >
+              <ng-template
+                appLineColumn="Componente"
+                [appLineColumnOf]="form.controls.lines"
+                let-line
+              >
+                <app-item-picker
+                  [formControl]="line.controls.component"
+                  label="Componente"
+                  subscriptSizing="dynamic"
+                />
+                @if (line.controls.component.value?.type === 'Intermediate') {
+                  <span class="meta">Intermedio: se produce con su propia receta.</span>
+                }
+              </ng-template>
+              <ng-template
+                appLineColumn="Cantidad"
+                width="180px"
+                [appLineColumnOf]="form.controls.lines"
+                let-line
+              >
+                <app-qty-input
+                  [formControl]="line.controls.quantity"
+                  label="Cantidad"
+                  [unit]="line.controls.component.value?.baseUomCode"
+                  subscriptSizing="dynamic"
+                />
+              </ng-template>
+              <ng-template
+                appLineColumn="Merma"
+                width="130px"
+                [appLineColumnOf]="form.controls.lines"
+                let-line
+              >
+                <app-qty-input
+                  [formControl]="line.controls.wastePct"
+                  label="Merma"
+                  unit="%"
+                  [allowZero]="true"
+                  [max]="100"
+                  [decimals]="2"
+                  subscriptSizing="dynamic"
+                />
+              </ng-template>
+            </app-lines-editor>
+          </mat-card-content>
+        </mat-card>
+
+        <div class="sgo-row actions">
+          <button mat-flat-button type="submit" [disabled]="busy()">
+            {{ notice() ? 'Guardar como versión ' + (r!.recipeVersion + 1) : 'Guardar' }}
+          </button>
+          <a mat-button routerLink="/produccion/recetas">Cancelar</a>
+          @if (r) {
+            <span class="spacer"></span>
+            <button mat-button type="button" [disabled]="busy()" (click)="deactivate()">
+              Desactivar receta
+            </button>
+          }
+        </div>
+      </form>
+    } @else if (r) {
+      @if (canManage && !r.isActive) {
+        <div class="sgo-row actions">
+          <button mat-flat-button type="button" [disabled]="busy()" (click)="activate()">
+            Activar esta versión
+          </button>
+        </div>
+      }
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <dl>
+            <div>
+              <dt>Rendimiento</dt>
+              <dd>{{ r.yieldQty | qty: r.outputUomCode }}</dd>
+            </div>
+            <div>
+              <dt>Usada en órdenes</dt>
+              <dd>{{ r.isUsed ? 'Sí' : 'No' }}</dd>
+            </div>
+            <div>
+              <dt>Creada</dt>
+              <dd><app-stamp [at]="r.createdAt" [by]="r.createdByName" /></dd>
+            </div>
+            @if (r.notes) {
+              <div>
+                <dt>Notas</dt>
+                <dd>{{ r.notes }}</dd>
+              </div>
+            }
+          </dl>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Componentes</h2>
+          <ul class="lines">
+            @for (line of r.lines; track line.id) {
+              <li>
+                <div class="info">
+                  <span class="name">{{ line.name }}</span>
+                  <span class="meta">
+                    {{ line.sku }} · {{ line.type | statusLabel: 'ItemType' }}
+                    @if (line.type !== 'RawMaterial' && !line.hasRecipe) {
+                      · <span class="out">sin receta activa</span>
+                    }
+                  </span>
+                </div>
+                <div class="qty">
+                  <span>{{ line.quantity | qty: line.baseUomCode }}</span>
+                  <span class="meta">Merma {{ line.wastePct }} %</span>
+                </div>
+              </li>
+            }
+          </ul>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    @if (r) {
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Versiones</h2>
+          <ul class="lines versions">
+            @for (version of versions.value() ?? []; track version.id) {
+              <li [class.current]="version.id === r.id">
+                <div class="info">
+                  @if (version.id === r.id) {
+                    <span class="name">Versión {{ version.recipeVersion }} (la que ves)</span>
+                  } @else {
+                    <a class="name" [routerLink]="['/produccion/recetas', version.id]">
+                      Versión {{ version.recipeVersion }}
+                    </a>
+                  }
+                  <span class="meta">
+                    Creada {{ version.createdAt | date: 'dd/MM/yyyy HH:mm'
+                    }}{{ version.createdByName ? ' por ' + version.createdByName : '' }}
+                    · rinde
+                    {{ version.yieldQty | qty: version.outputUomCode }} ·
+                    {{ version.lineCount }} componentes ·
+                    {{ version.isUsed ? 'usada en órdenes' : 'sin usar' }}
+                  </span>
+                </div>
+                <app-status-tag
+                  [label]="version.isActive ? 'Activa' : 'Inactiva'"
+                  [color]="version.isActive ? 'green' : 'gray'"
+                />
+              </li>
+            }
+          </ul>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <app-audit-panel [entityId]="r.id" [refresh]="r.version" />
+        </mat-card-content>
+      </mat-card>
+    }
+  }
+</section>

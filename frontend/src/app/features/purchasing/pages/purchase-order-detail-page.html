@@ -1,0 +1,208 @@
+<section class="sgo-page sgo-stack">
+  @if (order(); as o) {
+    <app-page-header
+      [title]="'Orden de compra ' + o.folio"
+      [subtitle]="o.supplier.name + ' · entrega en ' + o.deliveryLocation.code"
+      [crumbs]="[
+        { label: 'Compras' },
+        { label: 'Órdenes de compra', url: '/compras/ordenes' },
+        { label: o.folio },
+      ]"
+    >
+      <app-status-tag [status]="o.status" kind="PurchaseOrderStatus" />
+    </app-page-header>
+
+    @if (hasActions()) {
+      @if (actions(); as a) {
+        <div class="sgo-row state-actions">
+          @if (a.receive) {
+            <a mat-flat-button routerLink="/compras/recepciones/nueva" [queryParams]="{ oc: o.id }">
+              <mat-icon>inventory</mat-icon>
+              Recibir
+            </a>
+          }
+          @if (a.submit) {
+            <button mat-flat-button type="button" [disabled]="busy()" (click)="submit()">
+              Enviar
+            </button>
+          }
+          @if (a.edit) {
+            <a mat-stroked-button [routerLink]="['/compras/ordenes', o.id, 'editar']">Editar</a>
+          }
+          @if (a.approve) {
+            <button mat-flat-button type="button" [disabled]="busy()" (click)="approve()">
+              Aprobar
+            </button>
+          }
+          @if (a.reject) {
+            <button mat-stroked-button type="button" [disabled]="busy()" (click)="reject()">
+              Rechazar
+            </button>
+          }
+          @if (a.close) {
+            <button mat-stroked-button type="button" [disabled]="busy()" (click)="close()">
+              Cerrar con saldo
+            </button>
+          }
+          @if (a.cancel) {
+            <button mat-button type="button" [disabled]="busy()" (click)="cancel()">
+              Cancelar orden
+            </button>
+          }
+        </div>
+      }
+    }
+
+    @if (o.status === 'Rejected') {
+      <p class="notice notice-error" role="status">
+        Rechazada el {{ o.rejectedAt | date: 'dd/MM/yyyy HH:mm'
+        }}{{ o.rejectedByName ? ' por ' + o.rejectedByName : '' }}. Motivo:
+        {{ o.rejectionReason }}
+      </p>
+    }
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <dl>
+          <div>
+            <dt>RFC</dt>
+            <dd>{{ o.supplier.taxId }}</dd>
+          </div>
+          <div>
+            <dt>Fecha esperada</dt>
+            <dd>{{ o.expectedDate ? (o.expectedDate | date: 'dd/MM/yyyy') : '—' }}</dd>
+          </div>
+          <div>
+            <dt>Creada</dt>
+            <dd><app-stamp [at]="o.createdAt" [by]="o.createdByName" /></dd>
+          </div>
+          @if (o.submittedAt) {
+            <div>
+              <dt>Enviada</dt>
+              <dd><app-stamp [at]="o.submittedAt" [by]="o.submittedByName" /></dd>
+            </div>
+          }
+          @if (o.approvedAt) {
+            <div>
+              <dt>Aprobada</dt>
+              <dd>
+                <app-stamp [at]="o.approvedAt" [by]="o.approvedByName" />
+                @if (!o.approvalRequired) {
+                  <span class="meta">(sin aprobación por monto)</span>
+                }
+              </dd>
+            </div>
+          }
+          @if (o.closedAt) {
+            <div>
+              <dt>Cerrada</dt>
+              <dd><app-stamp [at]="o.closedAt" [by]="o.closedByName" /></dd>
+            </div>
+          }
+          @if (o.notes) {
+            <div>
+              <dt>Notas</dt>
+              <dd>{{ o.notes }}</dd>
+            </div>
+          }
+        </dl>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <h2>Artículos</h2>
+        <ul class="lines">
+          @for (line of o.lines; track line.id) {
+            <li>
+              <div class="info">
+                <span class="name">{{ line.sku }} · {{ line.itemName }}</span>
+                <span class="meta">
+                  {{ line.quantity | qty: line.purchaseUomCode }} ×
+                  {{ line.unitPrice | mxn: '1.2-4' }} · IVA {{ tax(line.taxRate) }}
+                  @if (line.requisitionFolio) {
+                    ·
+                    <a [routerLink]="['/compras/requisiciones', line.requisitionId]">{{
+                      line.requisitionFolio
+                    }}</a>
+                  }
+                </span>
+                @if (receiving()) {
+                  <span class="meta" [class.out]="line.pendingQty > 0 && o.status === 'Closed'">
+                    Recibido {{ line.receivedQty | qty: line.purchaseUomCode }}
+                    @if (line.pendingQty > 0) {
+                      · pendiente {{ line.pendingQty | qty: line.purchaseUomCode }}
+                    }
+                  </span>
+                }
+              </div>
+              <div class="qty">
+                <span>{{ line.subtotal | mxn }}</span>
+                @if (line.taxAmount) {
+                  <span class="meta">IVA {{ line.taxAmount | mxn }}</span>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+        <div class="total sub">
+          <span>Subtotal</span>
+          <span>{{ o.subtotal | mxn }}</span>
+        </div>
+        <div class="total sub">
+          <span>IVA</span>
+          <span>{{ o.taxTotal | mxn }}</span>
+        </div>
+        <div class="total">
+          <span>Total</span>
+          <span>{{ o.total | mxn }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    @if (receiving()) {
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Recepciones</h2>
+          @if (receipts.value(); as list) {
+            @if (list.length) {
+              <ul class="lines">
+                @for (receipt of list; track receipt.id) {
+                  <li>
+                    <div class="info">
+                      <a class="name" [routerLink]="['/compras/recepciones', receipt.id]">{{
+                        receipt.folio
+                      }}</a>
+                      <span class="meta">
+                        {{ receipt.receivedAt | date: 'dd/MM/yyyy HH:mm' }}
+                        @if (receipt.supplierInvoiceNumber) {
+                          · factura {{ receipt.supplierInvoiceNumber }}
+                        }
+                      </span>
+                    </div>
+                    <div class="qty">{{ receipt.totalCost | mxn }}</div>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="muted">Todavía no se recibe nada.</p>
+            }
+          } @else {
+            <p class="muted">Cargando…</p>
+          }
+        </mat-card-content>
+      </mat-card>
+    }
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <app-audit-panel [entityId]="o.id" [refresh]="o.version" />
+      </mat-card-content>
+    </mat-card>
+  } @else if (loadError()) {
+    <p class="notice notice-error">No se encontró la orden de compra.</p>
+    <a mat-button routerLink="/compras/ordenes">Volver a órdenes de compra</a>
+  } @else {
+    <p class="muted">Cargando…</p>
+  }
+</section>

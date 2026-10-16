@@ -1,0 +1,145 @@
+<mat-card appearance="outlined">
+  <mat-card-content>
+    <h2>1. Prepara el archivo</h2>
+    <p>Descarga la plantilla, llénala en Excel y guárdala como CSV (UTF-8). {{ intro() }}</p>
+    <button mat-stroked-button type="button" (click)="downloadTemplate()">
+      <mat-icon>download</mat-icon>
+      Descargar plantilla
+    </button>
+    <div class="scroll guide">
+      <table>
+        <caption class="sgo-visually-hidden">
+          Columnas de la plantilla
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Columna</th>
+            <th scope="col">Valores válidos</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of guide(); track row.column) {
+            <tr>
+              <td>
+                <code>{{ row.column }}</code>
+              </td>
+              <td>{{ row.values }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<mat-card appearance="outlined">
+  <mat-card-content>
+    <h2>2. Elige el archivo</h2>
+    <input
+      #fileInput
+      type="file"
+      accept=".csv,text/csv"
+      class="sgo-visually-hidden"
+      aria-label="Archivo CSV"
+      (change)="onFile(fileInput)"
+    />
+    <div class="sgo-row">
+      <button mat-flat-button type="button" (click)="fileInput.click()">
+        <mat-icon>upload_file</mat-icon>
+        Elegir archivo CSV
+      </button>
+      @if (file(); as current) {
+        <span>
+          <strong>{{ current.name }}</strong> · {{ totalRows() }} filas de datos
+        </span>
+      }
+    </div>
+    @if (fileError(); as message) {
+      <p class="notice notice-error" role="alert">{{ message }}</p>
+    }
+    @for (warning of headerWarnings(); track warning) {
+      <p class="notice notice-error" role="status">{{ warning }}</p>
+    }
+
+    @if (table(); as csv) {
+      <h3>Vista previa ({{ preview().length }} de {{ totalRows() }} filas)</h3>
+      <div class="scroll">
+        <table class="preview">
+          <thead>
+            <tr>
+              <th scope="col">Fila</th>
+              @for (header of csv.headers; track $index) {
+                <th scope="col">{{ header }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of preview(); track row.line) {
+              <tr [class.has-error]="errorLines().has(row.line)">
+                <td class="line">{{ row.line }}</td>
+                @for (cell of row.cells; track $index) {
+                  <td>{{ cell }}</td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </mat-card-content>
+</mat-card>
+
+@if (file()) {
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <h2>3. Importa</h2>
+      @if (done()) {
+        <p class="notice notice-info" role="status">Importación terminada.</p>
+        <button mat-button type="button" (click)="reset()">Importar otro archivo</button>
+      } @else {
+        <button mat-flat-button type="button" (click)="import()" [disabled]="importing()">
+          {{ importing() ? 'Importando…' : 'Importar ' + totalRows() + ' filas' }}
+        </button>
+      }
+
+      @if (importError(); as message) {
+        <p class="notice notice-error" role="alert">{{ message }}</p>
+      }
+
+      @if (rowErrors().length) {
+        <div class="errors" role="alert">
+          <p class="notice notice-error">
+            El archivo tiene {{ rowErrors().length }}
+            {{ rowErrors().length === 1 ? 'error' : 'errores' }}. No se importó nada: corrígelos y
+            vuelve a elegir el archivo.
+          </p>
+          <div class="scroll">
+            <table data-testid="import-errors">
+              <caption class="sgo-visually-hidden">
+                Errores por fila
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Fila</th>
+                  <th scope="col">Columna</th>
+                  <th scope="col">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (error of rowErrors(); track $index) {
+                  <tr>
+                    <td class="line">{{ error.row }}</td>
+                    <td>
+                      <code>{{ error.column ?? '—' }}</code>
+                    </td>
+                    <td>{{ error.message }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+}

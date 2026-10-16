@@ -1,0 +1,59 @@
+# Demo environment (Oracle Cloud Always Free, Ampere arm64): same stack as production plus a local Postgres.
+# It is an overlay of docker-compose.yml. Set in deploy/.env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.demo.yml
+#   SGO__ConnectionStrings__Default=Host=db;Port=5432;Database=sgo;Username=sgo;Password=<POSTGRES_PASSWORD>
+# Procedure: deploy/README.md, "Demo en Oracle Cloud".
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sgo}
+      POSTGRES_USER: ${POSTGRES_USER:-sgo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    # Not published: only the api, migrate and backup containers reach it.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # Compressed pg_dump into deploy/backups at start and every BACKUP_INTERVAL_HOURS.
+  backup:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGDATABASE: ${POSTGRES_DB:-sgo}
+      PGUSER: ${POSTGRES_USER:-sgo}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+    entrypoint: ["/bin/sh", "-c", "while true; do /scripts/backup.sh || echo 'El respaldo falló' >&2; sleep $$((BACKUP_INTERVAL_HOURS * 3600)); done"]
+    volumes:
+      - ./backup:/scripts:ro
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    depends_on:
+      db:
+        condition: service_healthy
+
+  migrate:
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

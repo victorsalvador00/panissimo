@@ -1,0 +1,162 @@
+<section class="sgo-page sgo-stack">
+  @if (requisition(); as r) {
+    <app-page-header
+      [title]="'Requisición ' + r.folio"
+      [subtitle]="r.location.code + ' · ' + r.location.name"
+      [crumbs]="[
+        { label: 'Compras' },
+        { label: 'Requisiciones', url: '/compras/requisiciones' },
+        { label: r.folio },
+      ]"
+    >
+      <app-status-tag [status]="r.status" kind="RequisitionStatus" />
+    </app-page-header>
+
+    @if (hasActions()) {
+      @if (actions(); as a) {
+        <div class="sgo-row state-actions">
+          @if (a.submit) {
+            <button mat-flat-button type="button" [disabled]="busy()" (click)="submit()">
+              Enviar a aprobación
+            </button>
+          }
+          @if (a.edit) {
+            <a mat-stroked-button [routerLink]="['/compras/requisiciones', r.id, 'editar']">
+              Editar
+            </a>
+          }
+          @if (a.approve) {
+            <button mat-flat-button type="button" [disabled]="busy()" (click)="approve()">
+              Aprobar
+            </button>
+          }
+          @if (a.reject) {
+            <button mat-stroked-button type="button" [disabled]="busy()" (click)="reject()">
+              Rechazar
+            </button>
+          }
+          @if (a.convert) {
+            <button mat-flat-button type="button" [disabled]="busy()" (click)="convert()">
+              <mat-icon>shopping_cart_checkout</mat-icon>
+              Convertir a OC
+            </button>
+          }
+          @if (a.cancel) {
+            <button mat-button type="button" [disabled]="busy()" (click)="cancel()">
+              Cancelar requisición
+            </button>
+          }
+        </div>
+      }
+    }
+
+    @if (r.status === 'Rejected') {
+      <p class="notice notice-error" role="status">
+        Rechazada el {{ r.rejectedAt | date: 'dd/MM/yyyy HH:mm'
+        }}{{ r.rejectedByName ? ' por ' + r.rejectedByName : '' }}. Motivo:
+        {{ r.rejectionReason }}
+      </p>
+    }
+    @if (r.status === 'Draft' && missingSupplier()) {
+      <p class="notice notice-warn" role="status">
+        Hay artículos sin proveedor sugerido. Edita la requisición y elige uno antes de enviarla.
+      </p>
+    }
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <dl>
+          <div>
+            <dt>Se requiere</dt>
+            <dd>{{ r.neededBy | date: 'dd/MM/yyyy' }}</dd>
+          </div>
+          <div>
+            <dt>Creada</dt>
+            <dd><app-stamp [at]="r.createdAt" [by]="r.createdByName" /></dd>
+          </div>
+          @if (r.submittedAt) {
+            <div>
+              <dt>Enviada</dt>
+              <dd><app-stamp [at]="r.submittedAt" [by]="r.submittedByName" /></dd>
+            </div>
+          }
+          @if (r.approvedAt) {
+            <div>
+              <dt>Aprobada</dt>
+              <dd><app-stamp [at]="r.approvedAt" [by]="r.approvedByName" /></dd>
+            </div>
+          }
+          @if (r.convertedAt) {
+            <div>
+              <dt>Convertida</dt>
+              <dd><app-stamp [at]="r.convertedAt" [by]="r.convertedByName" /></dd>
+            </div>
+          }
+          @if (r.purchaseOrders.length) {
+            <div>
+              <dt>Órdenes de compra</dt>
+              <dd>
+                @for (po of r.purchaseOrders; track po.id; let last = $last) {
+                  <a [routerLink]="['/compras/ordenes', po.id]">{{ po.folio }}</a
+                  >{{ last ? '' : ', ' }}
+                }
+              </dd>
+            </div>
+          }
+          @if (r.notes) {
+            <div>
+              <dt>Notas</dt>
+              <dd>{{ r.notes }}</dd>
+            </div>
+          }
+        </dl>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <h2>Artículos</h2>
+        <ul class="lines">
+          @for (line of r.lines; track line.id) {
+            <li>
+              <div class="info">
+                <span class="name">{{ line.sku }} · {{ line.itemName }}</span>
+                @if (line.suggestedSupplier; as supplier) {
+                  <span class="meta">
+                    {{ supplier.name }}
+                    @if (line.estimatedPrice !== null) {
+                      · {{ line.estimatedPrice | mxn: '1.2-4' }} / {{ line.purchaseUomCode }}
+                    }
+                  </span>
+                } @else {
+                  <span class="meta out">Sin proveedor sugerido</span>
+                }
+              </div>
+              <div class="qty">
+                <span>{{ line.quantity | qty: line.purchaseUomCode }}</span>
+                @if (line.estimatedPrice !== null) {
+                  <span class="meta">{{ line.estimatedPrice * line.quantity | mxn }}</span>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+        <div class="total">
+          <span>Total estimado sin IVA</span>
+          <span>{{ estimatedTotal() | mxn }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <app-audit-panel [entityId]="r.id" [refresh]="r.version" />
+      </mat-card-content>
+    </mat-card>
+  } @else if (loadError()) {
+    <p class="notice notice-error">No se encontró la requisición.</p>
+    <a mat-button routerLink="/compras/requisiciones">Volver a requisiciones</a>
+  } @else {
+    <p class="muted">Cargando…</p>
+  }
+</section>

@@ -1,0 +1,132 @@
+<section class="sgo-page sgo-stack">
+  <app-page-header
+    title="Nuevo ajuste"
+    subtitle="Mermas, caducados, dañados, uso interno y correcciones de existencia."
+    [crumbs]="[
+      { label: 'Inventario' },
+      { label: 'Ajustes', url: '/inventario/ajustes' },
+      { label: 'Nuevo' },
+    ]"
+  />
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="sgo-stack">
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <div class="header">
+          <app-location-picker formControlName="locationId" label="Ubicación" />
+          <mat-form-field appearance="outline">
+            <mat-label>Motivo</mat-label>
+            <mat-select formControlName="reason">
+              @for (reason of reasons; track reason) {
+                <mat-option [value]="reason">{{ reasonLabels[reason] }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Notas</mat-label>
+            <input matInput formControlName="notes" autocomplete="off" />
+          </mat-form-field>
+        </div>
+        <p class="hint">{{ reasonHint() }}</p>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <h2>Líneas</h2>
+        <app-lines-editor [lines]="form.controls.lines" [createLine]="newLine" [minLines]="1">
+          <ng-template appLineColumn="Artículo" [appLineColumnOf]="form.controls.lines" let-line>
+            <app-item-picker
+              [formControl]="line.controls.item"
+              [showStock]="true"
+              [stockLocationId]="locationId()"
+              subscriptSizing="dynamic"
+            />
+          </ng-template>
+          <ng-template
+            appLineColumn="Cantidad"
+            width="190px"
+            [appLineColumnOf]="form.controls.lines"
+            let-line
+          >
+            <app-qty-input
+              [formControl]="line.controls.quantity"
+              [label]="exitOnly() ? 'A dar de baja' : '+ entrada / − salida'"
+              [unit]="line.controls.item.value?.baseUomCode"
+              [allowNegative]="!exitOnly()"
+              subscriptSizing="dynamic"
+            />
+          </ng-template>
+          <ng-template
+            appLineColumn="Lote"
+            width="300px"
+            [appLineColumnOf]="form.controls.lines"
+            let-line
+          >
+            @if (line.controls.item.value; as item) {
+              @if (!item.tracksLots) {
+                <span class="none">Sin lotes</span>
+              } @else if (isEntryLine(line)) {
+                <div class="entry-lot">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Lote</mat-label>
+                    <input matInput [formControl]="line.controls.lotNumber" autocomplete="off" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Caducidad</mat-label>
+                    <input
+                      matInput
+                      [matDatepicker]="expiration"
+                      [formControl]="line.controls.expirationDate"
+                    />
+                    <mat-datepicker-toggle matIconSuffix [for]="expiration" />
+                    <mat-datepicker #expiration />
+                  </mat-form-field>
+                </div>
+                @if (line.hasError('lotRequired') && line.touched) {
+                  <p class="sgo-field-error">Captura el lote de la entrada.</p>
+                }
+              } @else {
+                <app-lot-select
+                  [control]="line.controls.lotId"
+                  [locationId]="locationId()"
+                  [itemId]="item.id"
+                  [uom]="item.baseUomCode"
+                  [allowExpired]="reason() === 'Expired'"
+                  (loaded)="rememberLots($event)"
+                />
+              }
+            }
+          </ng-template>
+          <ng-template
+            appLineColumn="Costo unitario"
+            width="160px"
+            [appLineColumnOf]="form.controls.lines"
+            let-line
+          >
+            @if (isEntryLine(line)) {
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Costo</mat-label>
+                <span matTextPrefix>$&nbsp;</span>
+                <input
+                  matInput
+                  type="number"
+                  inputmode="decimal"
+                  min="0"
+                  [formControl]="line.controls.unitCost"
+                />
+              </mat-form-field>
+            } @else {
+              <span class="none">Promedio</span>
+            }
+          </ng-template>
+        </app-lines-editor>
+      </mat-card-content>
+    </mat-card>
+
+    <div class="sgo-row">
+      <button mat-flat-button type="submit" [disabled]="saving()">Registrar ajuste</button>
+      <a mat-button routerLink="/inventario/ajustes">Cancelar</a>
+    </div>
+  </form>
+</section>

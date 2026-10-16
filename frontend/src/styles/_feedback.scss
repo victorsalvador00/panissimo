@@ -1,0 +1,67 @@
+// Mensajes, estados vacíos y avisos (toasts).
+@use '@angular/material' as mat;
+
+.notice {
+  margin: 0 0 var(--sgo-space-4);
+  padding: var(--sgo-space-3) var(--sgo-space-4);
+  border-radius: var(--sgo-radius);
+  font: var(--mat-sys-body-medium);
+}
+
+.notice-info {
+  background: var(--sgo-status-blue-bg);
+  color: var(--sgo-status-blue-fg);
+}
+
+.notice-warn {
+  background: var(--sgo-status-yellow-bg);
+  color: var(--sgo-status-yellow-fg);
+}
+
+.notice-error {
+  background: var(--sgo-status-red-bg);
+  color: var(--sgo-status-red-fg);
+}
+
+.sgo-field-error {
+  margin: 0 0 var(--sgo-space-3);
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-error);
+}
+
+.sgo-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sgo-space-3);
+  padding-block: var(--sgo-space-8);
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 48px;
+  }
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-small);
+    color: var(--mat-sys-on-surface);
+  }
+
+  p {
+    margin: 0;
+    max-width: 48ch;
+  }
+}
+
+.sgo-toast-error {
+  @include mat.snack-bar-overrides(
+    (
+      container-color: var(--mat-sys-error-container),
+      supporting-text-color: var(--mat-sys-on-error-container),
+      button-color: var(--mat-sys-on-error-container),
+    )
+  );
+}

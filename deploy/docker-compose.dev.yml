@@ -1,0 +1,77 @@
+# Local development: Postgres + API with hot reload.
+#   docker compose -f deploy/docker-compose.dev.yml up            (everything)
+#   docker compose -f deploy/docker-compose.dev.yml up -d postgres (only the DB; run the API with `dotnet run`)
+#   docker compose -f deploy/docker-compose.dev.yml exec backup /scripts/backup.sh   (backup now)
+# Variables are read from deploy/.env (copy .env.example). Backups and restore: deploy/README.md, "Uso local".
+
+name: sgo-dev
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sgo}
+      POSTGRES_USER: ${POSTGRES_USER:-sgo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Daily compressed pg_dump into deploy/backups (kept BACKUP_RETENTION_DAYS days). Runs while the stack is up;
+  # the first backup is taken at start, then every BACKUP_INTERVAL_HOURS.
+  backup:
+    image: postgres:16
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:-sgo}
+      PGUSER: ${POSTGRES_USER:-sgo}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+    entrypoint: ["/bin/sh", "-c", "while true; do /scripts/backup.sh || echo 'El respaldo falló' >&2; sleep $$((BACKUP_INTERVAL_HOURS * 3600)); done"]
+    volumes:
+      - ./backup:/scripts:ro
+      - ./backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /src
+    command: ["dotnet", "watch", "--project", "src/Sgo.Api", "run", "--no-launch-profile"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      SGO_CONTAINER_BUILD: "1"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      DOTNET_WATCH_RESTART_ON_RUDE_EDIT: "1"
+      SGO__ConnectionStrings__Default: Host=postgres;Port=5432;Database=${POSTGRES_DB:-sgo};Username=${POSTGRES_USER:-sgo};Password=${POSTGRES_PASSWORD}
+      SGO__Jwt__Key: ${SGO__Jwt__Key:?Set SGO__Jwt__Key in deploy/.env (32+ bytes)}
+      SGO__Jwt__Issuer: ${SGO__Jwt__Issuer:-sgo}
+      SGO__Jwt__Audience: ${SGO__Jwt__Audience:-sgo}
+      SGO__Seed__AdminEmail: ${SGO__Seed__AdminEmail:-}
+      SGO__Seed__AdminPassword: ${SGO__Seed__AdminPassword:-}
+      # Solo desarrollo: las pruebas E2E inician sesión muchas veces por minuto (producción: 10/min por IP).
+      SGO__RateLimiting__LoginPermitLimit: ${SGO__RateLimiting__LoginPermitLimit:-60}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - ../backend:/src
+      - nuget:/root/.nuget/packages
+      - build:/build
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  nuget:
+  build:

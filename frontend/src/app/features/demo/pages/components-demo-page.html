@@ -1,0 +1,160 @@
+<section class="sgo-page sgo-stack">
+  <app-page-header
+    title="Componentes"
+    subtitle="Catálogo interno de los componentes compartidos con datos de ejemplo."
+  >
+    <button mat-stroked-button type="button" (click)="validate()">Validar formulario</button>
+    <button mat-flat-button type="button" (click)="openConfirm()">Confirmar acción</button>
+  </app-page-header>
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <h2>Etiquetas de estado y formatos</h2>
+      @for (sample of statusSamples; track sample.kind) {
+        <div class="tags">
+          @for (status of sample.values; track status) {
+            <app-status-tag [status]="status" [kind]="sample.kind" />
+          }
+        </div>
+        <br />
+      }
+      <dl>
+        <dt>qty</dt>
+        <dd>
+          {{ 12.5 | qty: 'kg' }} · {{ 3 | qty: 'pz' }} · {{ 0.12345 | qty: 'l' }} ·
+          {{ 1234.1 | qty: 'kg' }}
+        </dd>
+        <dt>mxn</dt>
+        <dd>{{ 1234.56 | mxn }} · {{ 0 | mxn }} · {{ 12.3456 | mxn: '1.2-4' }}</dd>
+      </dl>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <h2>Tabla de datos</h2>
+      <p>
+        <button mat-button type="button" (click)="toggleEmpty()">
+          {{ emptyDemo() ? 'Mostrar datos' : 'Ver estado vacío' }}
+        </button>
+      </p>
+      <app-data-table
+        [columns]="columns"
+        [rows]="pageRows()"
+        [total]="total()"
+        [loading]="loading()"
+        [query]="query()"
+        [searchable]="true"
+        searchPlaceholder="Buscar por folio"
+        emptyMessage="No hay órdenes de compra con esos filtros."
+        emptyActionLabel="Mostrar datos"
+        (emptyAction)="toggleEmpty()"
+        (queryChange)="onQuery($event)"
+      >
+        <ng-template appCell="status" let-row>
+          <app-status-tag [status]="row.status" kind="PurchaseOrderStatus" />
+        </ng-template>
+        <ng-template appCell="total" let-row>{{ row.total | mxn }}</ng-template>
+        <ng-template appCardDef let-row>
+          <div class="card-row">
+            <strong>{{ row.folio }}</strong>
+            <app-status-tag [status]="row.status" kind="PurchaseOrderStatus" />
+          </div>
+          <div class="card-row">
+            <span>{{ row.date }}</span>
+            <span>{{ row.total | mxn }}</span>
+          </div>
+        </ng-template>
+      </app-data-table>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <h2>Campos</h2>
+      <form [formGroup]="form" class="grid" novalidate>
+        <app-item-picker formControlName="item" label="Artículo" [showStock]="true" />
+        <app-location-picker formControlName="locationId" label="Destino" [types]="['Branch']" />
+        <app-qty-input
+          formControlName="quantity"
+          label="Cantidad"
+          [unit]="form.controls.item.value?.baseUomCode ?? 'kg'"
+        />
+        <app-qty-input
+          formControlName="adjustment"
+          label="Ajuste (con signo)"
+          unit="kg"
+          [allowNegative]="true"
+          hint="Negativo para salidas"
+        />
+        <mat-form-field appearance="outline">
+          <mat-label>Fecha</mat-label>
+          <input
+            matInput
+            [matDatepicker]="picker"
+            formControlName="date"
+            placeholder="dd/mm/aaaa"
+          />
+          <mat-datepicker-toggle matIconSuffix [for]="picker" />
+          <mat-datepicker #picker />
+        </mat-form-field>
+      </form>
+      <pre>{{ form.getRawValue() | json }}</pre>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <h2>Editor de líneas</h2>
+      <app-lines-editor
+        [lines]="lines"
+        [createLine]="newLine"
+        [minLines]="1"
+        [total]="lineTotal"
+        totalLabel="Subtotal"
+      >
+        <ng-template appLineColumn="Artículo" [appLineColumnOf]="lines" let-line>
+          <app-item-picker [formControl]="line.controls.item" subscriptSizing="dynamic" />
+        </ng-template>
+        <ng-template appLineColumn="Cantidad" width="160px" [appLineColumnOf]="lines" let-line>
+          <app-qty-input
+            [formControl]="line.controls.quantity"
+            label="Cantidad"
+            [unit]="line.controls.item.value?.baseUomCode"
+            subscriptSizing="dynamic"
+          />
+        </ng-template>
+        <ng-template
+          appLineColumn="Costo unitario"
+          width="160px"
+          [appLineColumnOf]="lines"
+          let-line
+        >
+          <app-qty-input
+            [formControl]="line.controls.unitCost"
+            label="Costo"
+            unit="$"
+            subscriptSizing="dynamic"
+          />
+        </ng-template>
+      </app-lines-editor>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <h2>Diálogos</h2>
+      <div class="tags">
+        <button mat-stroked-button type="button" (click)="openConfirm()">
+          Confirmación con resumen
+        </button>
+        <button mat-stroked-button type="button" (click)="openShortages()">
+          Existencia insuficiente (409)
+        </button>
+        <button mat-stroked-button type="button" (click)="openConcurrency()">
+          Concurrencia (409)
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</section>

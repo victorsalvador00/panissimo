@@ -1,0 +1,67 @@
+# Production (DigitalOcean Droplet). The database is the managed Postgres; it is not part of this file.
+# Variables are read from deploy/.env (copy .env.example). Full procedure: deploy/README.md.
+#
+#   docker compose build                      build the images from this checkout
+#   docker compose run --rm migrate           apply pending migrations (bundle) - always before `up`
+#   docker compose run --rm api --seed        idempotent base data (first install, or after adding seed data)
+#   docker compose up -d                      start or update api + web
+
+name: sgo
+
+services:
+  api:
+    build:
+      context: ../backend
+      target: runtime
+    image: sgo-api:latest
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      SGO__ConnectionStrings__Default: ${SGO__ConnectionStrings__Default:?Set SGO__ConnectionStrings__Default in deploy/.env (with sslmode=require)}
+      SGO__Jwt__Key: ${SGO__Jwt__Key:?Set SGO__Jwt__Key in deploy/.env (32+ bytes)}
+      SGO__Jwt__Issuer: ${SGO__Jwt__Issuer:-sgo}
+      SGO__Jwt__Audience: ${SGO__Jwt__Audience:-sgo}
+      SGO__Seed__AdminEmail: ${SGO__Seed__AdminEmail:-}
+      SGO__Seed__AdminPassword: ${SGO__Seed__AdminPassword:-}
+    # Not published: only Caddy reaches it, inside the compose network.
+    expose:
+      - "8080"
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  web:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SGO_DOMAIN: ${SGO_DOMAIN:?Set SGO_DOMAIN in deploy/.env}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in deploy/.env}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${SPA_DIST:-../frontend/dist/sgo/browser}:/srv:ro
+      - ./maintenance:/maintenance:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *logging
+
+  # Migration bundle (EF Core). Run on demand: `docker compose run --rm migrate`.
+  migrate:
+    build:
+      context: ../backend
+      target: migrator
+    image: sgo-migrator:latest
+    profiles: ["tools"]
+    environment:
+      SGO__ConnectionStrings__Default: ${SGO__ConnectionStrings__Default:?Set SGO__ConnectionStrings__Default in deploy/.env}
+
+volumes:
+  caddy_data:
+  caddy_config:

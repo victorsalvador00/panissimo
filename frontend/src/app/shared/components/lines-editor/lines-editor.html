@@ -1,0 +1,100 @@
+@if (isMobile()) {
+  <ol class="cards">
+    @for (line of controls(); track line; let i = $index) {
+      <li class="card" data-line [class.invalid]="line.invalid && line.touched">
+        <header>
+          <span class="line-number">Línea {{ i + 1 }}</span>
+          @if (canRemove()) {
+            <button
+              mat-icon-button
+              type="button"
+              (click)="remove(i)"
+              [attr.aria-label]="'Quitar línea ' + (i + 1)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          }
+        </header>
+        @for (column of columns(); track column) {
+          <div class="card-field">
+            <ng-container
+              [ngTemplateOutlet]="column.template"
+              [ngTemplateOutletContext]="{ $implicit: line, index: i }"
+            />
+          </div>
+        }
+      </li>
+    }
+  </ol>
+} @else {
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="num" scope="col">#</th>
+          @for (column of columns(); track column) {
+            <th scope="col" [style.width]="column.width()" [class.end]="column.align() === 'end'">
+              {{ column.header() }}
+            </th>
+          }
+          @if (!readonly()) {
+            <th class="actions" scope="col"><span class="sgo-visually-hidden">Acciones</span></th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (line of controls(); track line; let i = $index) {
+          <tr data-line [class.invalid]="line.invalid && line.touched">
+            <td class="num">{{ i + 1 }}</td>
+            @for (column of columns(); track column) {
+              <td [class.end]="column.align() === 'end'">
+                <ng-container
+                  [ngTemplateOutlet]="column.template"
+                  [ngTemplateOutletContext]="{ $implicit: line, index: i }"
+                />
+              </td>
+            }
+            @if (!readonly()) {
+              <td class="actions">
+                @if (canRemove()) {
+                  <button
+                    mat-icon-button
+                    type="button"
+                    matTooltip="Quitar línea"
+                    (click)="remove(i)"
+                    [attr.aria-label]="'Quitar línea ' + (i + 1)"
+                  >
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@if (!controls().length) {
+  <p class="empty">Sin líneas. Usa "{{ addLabel() }}" para empezar.</p>
+}
+
+@if (arrayError(); as message) {
+  <p class="sgo-field-error" role="alert">{{ message }}</p>
+}
+
+<footer>
+  @if (!readonly()) {
+    <button mat-stroked-button type="button" (click)="add()">
+      <mat-icon>add</mat-icon>
+      {{ addLabel() }}
+    </button>
+  }
+  @if (totalText(); as text) {
+    <p class="total">
+      <span>{{ totalLabel() }}</span>
+      <strong data-total>{{ text }}</strong>
+    </p>
+  }
+</footer>

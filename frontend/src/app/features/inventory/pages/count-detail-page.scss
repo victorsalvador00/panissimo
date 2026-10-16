@@ -1,0 +1,131 @@
+h2 {
+  margin: 0 0 var(--sgo-space-3);
+  font: var(--mat-sys-title-medium);
+}
+
+.hint {
+  margin: 0 0 var(--sgo-space-3);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.draft {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 var(--sgo-space-3);
+}
+
+.actions {
+  flex-wrap: wrap;
+}
+
+// Buscador y filtros fijos arriba mientras se recorre la lista.
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  gap: var(--sgo-space-2);
+  padding-block: var(--sgo-space-2);
+  background: var(--mat-sys-surface);
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.lines {
+  display: grid;
+  gap: var(--sgo-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9.5rem;
+  align-items: center;
+  gap: var(--sgo-space-3);
+  padding: var(--sgo-space-2) var(--sgo-space-3);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-inline-start: 4px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+
+  &.done {
+    border-inline-start-color: var(--sgo-status-green-fg);
+  }
+
+  &.review {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+.info {
+  display: grid;
+  min-width: 0;
+}
+
+.name {
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+.meta {
+  overflow-wrap: anywhere;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.diff {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.in {
+  color: var(--sgo-status-green-fg);
+}
+
+.out {
+  color: var(--sgo-status-red-fg);
+}
+
+.empty {
+  padding: var(--sgo-space-6) var(--sgo-space-3);
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.status {
+  display: grid;
+}
+
+.save {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+
+  &.error {
+    color: var(--sgo-status-red-fg);
+  }
+}
+
+dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sgo-space-3);
+  margin: 0;
+}
+
+dt {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+}
+
+dd {
+  margin: 0;
+}

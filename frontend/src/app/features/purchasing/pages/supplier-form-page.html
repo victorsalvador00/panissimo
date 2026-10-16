@@ -1,0 +1,136 @@
+<section class="sgo-page sgo-stack">
+  <app-page-header
+    [title]="isNew() ? 'Nuevo proveedor' : (supplier()?.name ?? 'Proveedor')"
+    [subtitle]="supplier()?.taxId"
+    [crumbs]="[
+      { label: 'Compras' },
+      { label: 'Proveedores', url: '/compras/proveedores' },
+      { label: isNew() ? 'Nuevo' : (supplier()?.taxId ?? '…') },
+    ]"
+  >
+    @if (supplier(); as current) {
+      @if (!current.isActive) {
+        <app-status-tag label="Inactivo" color="gray" />
+      }
+    }
+  </app-page-header>
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <mat-tab-group mat-stretch-tabs="false" animationDuration="0" dynamicHeight>
+        <mat-tab label="Datos generales">
+          <form [formGroup]="form" (ngSubmit)="save()" novalidate class="tab">
+            <div class="grid">
+              <mat-form-field appearance="outline">
+                <mat-label>RFC</mat-label>
+                <input matInput formControlName="taxId" autocomplete="off" class="upper" required />
+                <mat-hint>12 caracteres persona moral, 13 persona física.</mat-hint>
+                @if (form.controls.taxId.hasError('required')) {
+                  <mat-error>Escribe el RFC.</mat-error>
+                } @else if (form.controls.taxId.hasError('taxId')) {
+                  <mat-error>El RFC no tiene un formato válido.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.taxId.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Razón social</mat-label>
+                <input matInput formControlName="name" autocomplete="off" required />
+                @if (form.controls.name.hasError('required')) {
+                  <mat-error>Escribe la razón social.</mat-error>
+                } @else if (form.controls.name.hasError('maxlength')) {
+                  <mat-error>Máximo 200 caracteres.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.name.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Contacto</mat-label>
+                <input matInput formControlName="contactName" autocomplete="off" />
+                @if (form.controls.contactName.hasError('maxlength')) {
+                  <mat-error>Máximo 150 caracteres.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.contactName.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Teléfono</mat-label>
+                <input matInput type="tel" formControlName="phone" autocomplete="off" />
+                @if (form.controls.phone.hasError('maxlength')) {
+                  <mat-error>Máximo 30 caracteres.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.phone.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Correo</mat-label>
+                <input matInput type="email" formControlName="email" autocomplete="off" />
+                @if (form.controls.email.hasError('email')) {
+                  <mat-error>Escribe un correo válido.</mat-error>
+                } @else if (form.controls.email.hasError('maxlength')) {
+                  <mat-error>Máximo 254 caracteres.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.email.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Días de crédito</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  inputmode="numeric"
+                  min="0"
+                  [max]="maxDays"
+                  formControlName="paymentTermsDays"
+                  required
+                />
+                <span matTextSuffix>días</span>
+                <mat-hint>0 = contado.</mat-hint>
+                @if (form.controls.paymentTermsDays.hasError('server')) {
+                  <mat-error>{{ form.controls.paymentTermsDays.getError('server') }}</mat-error>
+                } @else {
+                  <mat-error>Número entero de 0 a {{ maxDays }}.</mat-error>
+                }
+              </mat-form-field>
+              @if (!isNew()) {
+                <mat-slide-toggle class="toggle" formControlName="isActive"
+                  >Activo</mat-slide-toggle
+                >
+              }
+            </div>
+
+            <div class="sgo-row">
+              @if (canManage) {
+                <button mat-flat-button type="submit" [disabled]="saving()">
+                  {{ isNew() ? 'Crear proveedor' : 'Guardar cambios' }}
+                </button>
+              }
+              <a mat-button routerLink="/compras/proveedores">Volver</a>
+            </div>
+          </form>
+        </mat-tab>
+
+        <mat-tab label="Artículos" [disabled]="isNew()">
+          <ng-template matTabContent>
+            @if (supplier(); as current) {
+              <div class="tab">
+                @if (canManage && !current.isActive) {
+                  <p class="notice">Reactiva el proveedor para agregar o editar sus artículos.</p>
+                }
+                <app-supplier-items [supplierId]="current.id" [editable]="itemsEditable()" />
+              </div>
+            }
+          </ng-template>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card-content>
+  </mat-card>
+
+  @if (supplier(); as current) {
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <app-audit-panel [entityId]="current.id" [refresh]="auditRefresh()" />
+      </mat-card-content>
+    </mat-card>
+  }
+</section>

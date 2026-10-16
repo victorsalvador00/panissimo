@@ -1,0 +1,104 @@
+<section class="sgo-page sgo-stack">
+  @if (transfer(); as t) {
+    <app-page-header
+      [title]="'Recibir ' + t.folio"
+      [subtitle]="'De ' + t.from.code + ' · ' + t.from.name"
+      [crumbs]="[
+        { label: 'Logística' },
+        { label: 'Traspasos', url: '/logistica/traspasos' },
+        { label: t.folio, url: '/logistica/traspasos/' + t.id },
+        { label: 'Recibir' },
+      ]"
+    />
+
+    @if (t.status !== 'Dispatched') {
+      <p class="notice notice-info">
+        Este traspaso ya no está en tránsito; no hay nada que recibir.
+      </p>
+      <a mat-button [routerLink]="['/logistica/traspasos', t.id]">Ver traspaso</a>
+    } @else {
+      @if (t.vehicleDescription || t.driverName) {
+        <p class="shipping">
+          {{ t.vehicleDescription }} · {{ t.driverName }} · salió
+          {{ t.dispatchedAt | date: 'dd/MM/yyyy HH:mm' }}
+        </p>
+      }
+      <p class="hint">
+        Revisa cada artículo. Si llegó menos de lo enviado, corrige la cantidad y elige el motivo.
+      </p>
+
+      <ul class="lines" [formGroup]="form">
+        @for (line of t.lines; track line.id) {
+          <li class="line" [class.short]="short(line.id)" [formGroupName]="line.id">
+            <div class="head">
+              <div class="info">
+                <span class="name">{{ line.itemName }}</span>
+                <span class="meta">
+                  {{ line.sku }}
+                  @if (line.lotNumber) {
+                    · Lote {{ line.lotNumber }}
+                  }
+                  @if (line.expirationDate) {
+                    · cad. {{ line.expirationDate | date: 'dd/MM/yy' }}
+                  }
+                </span>
+                <span class="meta">Enviado {{ line.shippedQty | qty: line.baseUomCode }}</span>
+              </div>
+              <app-qty-input
+                class="qty"
+                formControlName="receivedQty"
+                label="Recibido"
+                [ariaLabel]="'Recibido de ' + line.sku"
+                [unit]="line.baseUomCode"
+                [allowZero]="true"
+                subscriptSizing="dynamic"
+              />
+            </div>
+            @if (lineForm(line.id).hasError('receivedTooMuch')) {
+              <p class="sgo-field-error">
+                No puedes recibir más de lo enviado ({{ line.shippedQty | qty: line.baseUomCode }}).
+              </p>
+            }
+            @if (short(line.id)) {
+              <div class="discrepancy">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Motivo del faltante</mat-label>
+                  <mat-select formControlName="reason">
+                    @for (reason of reasons; track reason) {
+                      <mat-option [value]="reason">{{ reasonLabels[reason] }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Notas</mat-label>
+                  <input matInput formControlName="notes" autocomplete="off" />
+                </mat-form-field>
+              </div>
+              @if (lineForm(line.id).hasError('reasonRequired') && lineForm(line.id).touched) {
+                <p class="sgo-field-error">Elige el motivo del faltante.</p>
+              }
+            }
+          </li>
+        }
+      </ul>
+
+      <div class="sgo-action-bar">
+        <div class="status">
+          <strong
+            >{{ summary().complete }}
+            {{ summary().complete === 1 ? 'completa' : 'completas' }}</strong
+          >
+          <span [class.out]="summary().short > 0">{{ summary().short }} con faltante</span>
+        </div>
+        <button mat-flat-button type="button" [disabled]="saving()" (click)="submit()">
+          Recibir
+        </button>
+      </div>
+    }
+  } @else if (loadError()) {
+    <p class="notice notice-error">No se encontró el traspaso.</p>
+    <a mat-button routerLink="/logistica/traspasos">Volver a traspasos</a>
+  } @else {
+    <p class="muted">Cargando…</p>
+  }
+</section>

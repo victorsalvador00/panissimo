@@ -1,0 +1,91 @@
+// Estilo de las pantallas (referencia del cliente): fondo lavanda claro, contenido en tarjetas blancas con sombra
+// suave, campos y botones en píldora, botones de ícono en círculo y pestañas con subrayado. Global para que todas
+// las pantallas cambien a la vez; los colores salen de los tokens --sgo-* (_tokens.scss, _dark.scss).
+@use '@angular/material' as mat;
+
+html {
+  @include mat.sidenav-overrides(
+    (
+      content-background-color: var(--sgo-page-bg),
+    )
+  );
+
+  @include mat.card-overrides(
+    (
+      outlined-container-color: var(--sgo-card-bg),
+      outlined-outline-color: var(--sgo-card-border),
+      outlined-container-shape: var(--sgo-card-radius),
+    )
+  );
+
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: 24px,
+      outlined-outline-color: var(--sgo-pill-border),
+    )
+  );
+
+  // Secundario en píldora suave: sin contorno (el fondo va abajo; Material no tiene token para él).
+  @include mat.button-overrides(
+    (
+      outlined-outline-color: transparent,
+    )
+  );
+
+  @include mat.tabs-overrides(
+    (
+      active-indicator-height: 3px,
+      inactive-label-text-color: var(--mat-sys-on-surface-variant),
+      label-text-weight: 500,
+      divider-color: transparent,
+    )
+  );
+}
+
+.mat-mdc-card-outlined {
+  box-shadow: var(--sgo-card-shadow);
+}
+
+// Campos en píldora rellenos (el contorno de Material no tiene token de fondo).
+.mat-mdc-form-field.mat-form-field-appearance-outline .mat-mdc-text-field-wrapper {
+  border-radius: 24px;
+  background: var(--sgo-pill-bg);
+}
+
+// En tablas de captura (líneas de documentos) el campo va menos redondo: la píldora agrega relleno a cada lado
+// y ensancharía la tabla.
+table .mat-mdc-form-field {
+  @include mat.form-field-overrides(
+    (
+      outlined-container-shape: 12px,
+    )
+  );
+
+  &.mat-form-field-appearance-outline .mat-mdc-text-field-wrapper {
+    border-radius: 12px;
+  }
+}
+
+// Botón principal con sombra del color primario; secundario en píldora suave sin contorno.
+.mat-mdc-unelevated-button:not(:disabled) {
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--mat-sys-primary) 32%, transparent);
+}
+
+.mat-mdc-outlined-button:not(:disabled) {
+  background: var(--sgo-soft-bg);
+}
+
+// Botones de ícono del contenido (editar, quitar, expandir) en círculo suave. No dentro de campos, del menú
+// ni del paginador, donde se ven mejor planos.
+.sgo-page
+  .mat-mdc-icon-button:not(.mat-mdc-form-field *, .mat-mdc-paginator *, .mat-mdc-menu-panel *) {
+  background: var(--sgo-soft-bg);
+}
+
+// Barras de acción como tarjeta flotante.
+.sgo-action-bar {
+  border-color: var(--sgo-card-border);
+  border-radius: var(--sgo-card-radius);
+  background: var(--sgo-card-bg);
+  box-shadow: var(--sgo-card-shadow);
+}

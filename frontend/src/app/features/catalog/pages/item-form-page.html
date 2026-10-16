@@ -1,0 +1,189 @@
+<section class="sgo-page sgo-stack">
+  <app-page-header
+    [title]="isNew() ? 'Nuevo artículo' : (item()?.name ?? 'Artículo')"
+    [subtitle]="item()?.sku"
+    [crumbs]="[
+      { label: 'Catálogos' },
+      { label: 'Artículos', url: '/catalogos/articulos' },
+      { label: isNew() ? 'Nuevo' : (item()?.sku ?? '…') },
+    ]"
+  />
+
+  <mat-card appearance="outlined">
+    <mat-card-content>
+      <mat-tab-group mat-stretch-tabs="false" animationDuration="0" dynamicHeight>
+        <mat-tab label="Datos generales">
+          <form [formGroup]="form" (ngSubmit)="save()" novalidate class="tab">
+            <h2>Identificación</h2>
+            <div class="grid">
+              <mat-form-field appearance="outline">
+                <mat-label>SKU</mat-label>
+                <input matInput formControlName="sku" autocomplete="off" required />
+                <mat-hint>Sin espacios ni acentos.</mat-hint>
+                @if (form.controls.sku.hasError('required')) {
+                  <mat-error>Escribe el SKU.</mat-error>
+                } @else if (form.controls.sku.hasError('pattern')) {
+                  <mat-error>Sin espacios ni acentos; solo letras, números, . - _</mat-error>
+                } @else if (form.controls.sku.hasError('maxlength')) {
+                  <mat-error>Máximo 50 caracteres.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.sku.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Nombre</mat-label>
+                <input matInput formControlName="name" autocomplete="off" required />
+                @if (form.controls.name.hasError('required')) {
+                  <mat-error>Escribe el nombre.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.name.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Tipo</mat-label>
+                <mat-select formControlName="type">
+                  @for (type of types; track type) {
+                    <mat-option [value]="type">{{ typeLabels[type] }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Categoría</mat-label>
+                <mat-select formControlName="categoryId">
+                  @for (category of categories.value() ?? []; track category.id) {
+                    <mat-option [value]="category.id">{{ category.name }}</mat-option>
+                  }
+                </mat-select>
+                @if (form.controls.categoryId.hasError('required')) {
+                  <mat-error>Elige la categoría.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.categoryId.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Almacenamiento</mat-label>
+                <mat-select formControlName="storageCondition">
+                  @for (storage of storages; track storage) {
+                    <mat-option [value]="storage">{{ storageLabels[storage] }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>IVA</mat-label>
+                <mat-select formControlName="taxRate">
+                  <mat-option [value]="0">0 %</mat-option>
+                  <mat-option [value]="0.16">16 %</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <h2>Unidades</h2>
+            <div class="grid">
+              <mat-form-field appearance="outline">
+                <mat-label>Unidad base</mat-label>
+                <mat-select formControlName="baseUomId">
+                  @for (unit of units.value() ?? []; track unit.id) {
+                    <mat-option [value]="unit.id">{{ unit.code }} · {{ unit.name }}</mat-option>
+                  }
+                </mat-select>
+                <mat-hint>En la que se guardan las existencias.</mat-hint>
+                @if (form.controls.baseUomId.hasError('required')) {
+                  <mat-error>Elige la unidad base.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.baseUomId.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Unidad de compra</mat-label>
+                <mat-select formControlName="purchaseUomId">
+                  <mat-option [value]="null">La misma que la base</mat-option>
+                  @for (unit of units.value() ?? []; track unit.id) {
+                    <mat-option [value]="unit.id">{{ unit.code }} · {{ unit.name }}</mat-option>
+                  }
+                </mat-select>
+                <mat-error>{{ form.controls.purchaseUomId.getError('server') }}</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Factor de compra</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  inputmode="decimal"
+                  min="0"
+                  formControlName="purchaseToBaseFactor"
+                />
+                <mat-hint>{{
+                  conversion() ?? 'Unidades base por cada unidad de compra.'
+                }}</mat-hint>
+                @if (form.controls.purchaseToBaseFactor.hasError('factorRequired')) {
+                  <mat-error>Indica cuántas unidades base trae la unidad de compra.</mat-error>
+                } @else if (form.controls.purchaseToBaseFactor.hasError('factorPositive')) {
+                  <mat-error>Debe ser mayor que 0.</mat-error>
+                } @else if (form.controls.purchaseToBaseFactor.hasError('factorDecimals')) {
+                  <mat-error>Máximo 4 decimales.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.purchaseToBaseFactor.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+            </div>
+
+            <h2>Lotes y caducidad</h2>
+            <div class="grid">
+              <mat-slide-toggle class="toggle" formControlName="tracksLots">
+                Maneja lotes (toda entrada exige lote)
+              </mat-slide-toggle>
+              <mat-form-field appearance="outline">
+                <mat-label>Vida útil</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  formControlName="shelfLifeDays"
+                />
+                <span matTextSuffix>días</span>
+                <mat-hint>Opcional. Solo para artículos con lotes.</mat-hint>
+                @if (
+                  form.controls.shelfLifeDays.hasError('min') ||
+                  form.controls.shelfLifeDays.hasError('pattern')
+                ) {
+                  <mat-error>Número entero de días mayor que 0.</mat-error>
+                } @else {
+                  <mat-error>{{ form.controls.shelfLifeDays.getError('server') }}</mat-error>
+                }
+              </mat-form-field>
+              @if (!isNew()) {
+                <mat-slide-toggle class="toggle" formControlName="isActive"
+                  >Activo</mat-slide-toggle
+                >
+              }
+            </div>
+
+            <div class="sgo-row">
+              <button mat-flat-button type="submit" [disabled]="saving()">
+                {{ isNew() ? 'Crear artículo' : 'Guardar cambios' }}
+              </button>
+              <a mat-button routerLink="/catalogos/articulos">Volver</a>
+            </div>
+          </form>
+        </mat-tab>
+
+        <mat-tab label="Mín/Máx por ubicación" [disabled]="isNew()">
+          @if (item(); as current) {
+            <div class="tab">
+              <app-item-location-settings [itemId]="current.id" [baseUomCode]="baseUomCode()" />
+            </div>
+          }
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card-content>
+  </mat-card>
+
+  @if (item(); as current) {
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <app-audit-panel [entityId]="current.id" [refresh]="auditRefresh()" />
+      </mat-card-content>
+    </mat-card>
+  }
+</section>

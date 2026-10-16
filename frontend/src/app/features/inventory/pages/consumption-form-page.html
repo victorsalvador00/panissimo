@@ -1,0 +1,122 @@
+<section class="sgo-page sgo-stack">
+  <app-page-header
+    title="Consumo del día"
+    subtitle="Lo que se usó en la sucursal; se descuenta de la existencia al registrarlo."
+    [crumbs]="[
+      { label: 'Inventario' },
+      { label: 'Consumos', url: '/inventario/consumos' },
+      { label: 'Nuevo' },
+    ]"
+  >
+    <a mat-button routerLink="/inventario/consumos">Ver registrados</a>
+  </app-page-header>
+
+  @if (!isBranch()) {
+    <p class="notice notice-info">
+      El consumo solo se registra en sucursales. Cambia la ubicación activa a una sucursal en la
+      barra superior.
+    </p>
+  } @else {
+    <!-- Sin <form>: Enter en el buscador de artículos no debe enviar el consumo. -->
+    <div [formGroup]="form" class="sgo-stack">
+      <mat-card appearance="outlined">
+        <mat-card-content class="header">
+          <div class="branch">
+            <span class="label">Sucursal</span>
+            <strong>{{ location()?.code }} · {{ location()?.name }}</strong>
+          </div>
+          <mat-form-field appearance="outline">
+            <mat-label>Día</mat-label>
+            <input matInput [matDatepicker]="day" [max]="today" formControlName="businessDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="day" />
+            <mat-datepicker #day />
+            <mat-error>Elige un día que no sea futuro.</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Notas</mat-label>
+            <input matInput formControlName="notes" autocomplete="off" />
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Agregar</h2>
+          <div class="quick" [formGroup]="quick">
+            <app-item-picker #quickItem formControlName="item" [showStock]="true" />
+            <app-qty-input
+              formControlName="quantity"
+              label="Cantidad"
+              [unit]="quick.controls.item.value?.baseUomCode"
+              (entered)="addQuick()"
+            />
+            <button mat-stroked-button type="button" class="add" (click)="addQuick()">
+              <mat-icon>add</mat-icon>
+              Agregar
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h2>Consumo ({{ lines.length }})</h2>
+          <ul class="lines">
+            @for (line of lines.controls; track line; let i = $index) {
+              <li class="line">
+                <div class="info">
+                  <span class="name">{{ line.controls.item.value.name }}</span>
+                  <span class="meta">{{ line.controls.item.value.sku }}</span>
+                </div>
+                <app-qty-input
+                  class="qty"
+                  [formControl]="line.controls.quantity"
+                  [ariaLabel]="'Cantidad de ' + line.controls.item.value.sku"
+                  [unit]="line.controls.item.value.baseUomCode"
+                  subscriptSizing="dynamic"
+                />
+                <button
+                  mat-icon-button
+                  type="button"
+                  [attr.aria-label]="'Quitar ' + line.controls.item.value.sku"
+                  (click)="remove(i)"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+                @if (line.controls.item.value.tracksLots) {
+                  <app-lot-select
+                    class="lot"
+                    [control]="line.controls.lotId"
+                    [locationId]="location()?.id ?? null"
+                    [itemId]="line.controls.item.value.id"
+                    [uom]="line.controls.item.value.baseUomCode"
+                    (loaded)="rememberLots($event)"
+                  />
+                }
+              </li>
+            } @empty {
+              <li class="empty">Aún no agregas artículos.</li>
+            }
+          </ul>
+          @if (lines.hasError('minLines') && lines.touched) {
+            <p class="sgo-field-error">Agrega al menos un artículo.</p>
+          }
+          @if (lines.hasError('duplicateLines')) {
+            <p class="sgo-field-error">
+              Hay un artículo repetido con el mismo lote; déjalo en una línea.
+            </p>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <div class="sgo-action-bar">
+        <div class="sgo-row">
+          <button mat-flat-button type="button" [disabled]="saving()" (click)="submit()">
+            Registrar consumo
+          </button>
+          <a mat-button routerLink="/inventario/consumos">Cancelar</a>
+        </div>
+      </div>
+    </div>
+  }
+</section>

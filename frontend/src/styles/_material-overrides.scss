@@ -1,0 +1,18 @@
+// Ajustes puntuales a componentes de Angular Material.
+// Usa los mixins `mat.<componente>-overrides(...)` en lugar de selectores internos.
+@use '@angular/material' as mat;
+
+html {
+  @include mat.toolbar-overrides(
+    (
+      // Barra superior de color (estilo de pantallas): azul en claro, azul marino en oscuro.
+      container-background-color: var(--sgo-topbar-bg),
+      container-text-color: var(--sgo-topbar-ink)
+    )
+  );
+}
+
+// Menú lateral: barra de scroll delgada (el menú colapsado mide 72 px).
+.mat-drawer-inner-container {
+  scrollbar-width: thin;
+}

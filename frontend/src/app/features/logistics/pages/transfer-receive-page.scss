@@ -1,0 +1,70 @@
+.shipping,
+.hint,
+.muted {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.lines {
+  display: grid;
+  gap: var(--sgo-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: grid;
+  gap: var(--sgo-space-2);
+  padding: var(--sgo-space-2) var(--sgo-space-3);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-inline-start: 4px solid var(--sgo-status-green-fg);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+
+  &.short {
+    border-inline-start-color: var(--sgo-status-orange-fg);
+  }
+
+  .sgo-field-error {
+    margin: 0;
+  }
+}
+
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 9.5rem;
+  align-items: center;
+  gap: var(--sgo-space-3);
+}
+
+.info {
+  display: grid;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.discrepancy {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--sgo-space-2);
+}
+
+.status {
+  display: grid;
+  font: var(--mat-sys-body-medium);
+}
+
+.out {
+  color: var(--sgo-status-red-fg);
+}

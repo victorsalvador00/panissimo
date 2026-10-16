@@ -1,0 +1,78 @@
+<section class="sgo-page">
+  <app-page-header title="Kardex" subtitle="Movimientos de inventario con su costo y saldo." />
+
+  <form [formGroup]="form" class="filters" novalidate>
+    <app-location-picker formControlName="locationId" label="Ubicación" subscriptSizing="dynamic" />
+    <app-item-picker formControlName="item" label="Artículo" subscriptSizing="dynamic" />
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Movimiento</mat-label>
+      <mat-select formControlName="type">
+        <mat-option [value]="null">Todos</mat-option>
+        @for (type of types; track type) {
+          <mat-option [value]="type">{{ typeLabels[type] }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Periodo</mat-label>
+      <mat-date-range-input [rangePicker]="range">
+        <input matStartDate formControlName="from" placeholder="Desde" />
+        <input matEndDate formControlName="to" placeholder="Hasta" />
+      </mat-date-range-input>
+      <mat-datepicker-toggle matIconSuffix [for]="range" />
+      <mat-date-range-picker #range />
+    </mat-form-field>
+  </form>
+  <p class="hint">
+    @if (!form.controls.item.value) {
+      Elige un artículo para ver el saldo después de cada movimiento.
+    }
+    <button mat-button type="button" (click)="clear()">Limpiar filtros</button>
+  </p>
+
+  <app-data-table
+    [columns]="columns"
+    [rows]="movements.value()?.items ?? []"
+    [total]="movements.value()?.total ?? 0"
+    [loading]="movements.isLoading()"
+    [query]="query()"
+    emptyMessage="No hay movimientos con esos filtros."
+    (queryChange)="query.set($event)"
+  >
+    <ng-template appCell="occurredAt" let-row>
+      <span class="nowrap">{{ row.occurredAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+    </ng-template>
+    <ng-template appCell="document" let-row>
+      @if (documentRoute(row); as route) {
+        <a [routerLink]="route" class="nowrap">{{ row.sourceDocFolio }}</a>
+      } @else {
+        <span class="nowrap" [title]="documentLabel(row)">{{ row.sourceDocFolio }}</span>
+      }
+    </ng-template>
+    <ng-template appCell="quantity" let-row>
+      <span [class.in]="row.quantity > 0" [class.out]="row.quantity < 0">
+        {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity | qty }}
+      </span>
+    </ng-template>
+    <ng-template appCell="unitCost" let-row>{{ row.unitCost | mxn: '1.2-4' }}</ng-template>
+    <ng-template appCell="totalCost" let-row>{{ row.totalCost | mxn }}</ng-template>
+    <ng-template appCell="balanceAfter" let-row>
+      {{ row.balanceAfter === null ? '—' : (row.balanceAfter | qty) }}
+    </ng-template>
+    <ng-template appCardDef let-row>
+      <div class="card-row">
+        <strong>{{ row.sku }} · {{ row.itemName }}</strong>
+        <span [class.in]="row.quantity > 0" [class.out]="row.quantity < 0">
+          {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity | qty }}
+        </span>
+      </div>
+      <div class="muted">
+        {{ row.occurredAt | date: 'dd/MM/yyyy HH:mm' }} · {{ documentLabel(row) }}
+        {{ row.sourceDocFolio }}
+        @if (row.userName) {
+          · {{ row.userName }}
+        }
+      </div>
+    </ng-template>
+  </app-data-table>
+</section>

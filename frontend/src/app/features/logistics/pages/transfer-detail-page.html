@@ -1,0 +1,149 @@
+<section class="sgo-page sgo-stack">
+  @if (transfer(); as t) {
+    <app-page-header
+      [title]="'Traspaso ' + t.folio"
+      [subtitle]="t.from.code + ' → ' + t.to.code"
+      [crumbs]="[
+        { label: 'Logística' },
+        { label: 'Traspasos', url: '/logistica/traspasos' },
+        { label: t.folio },
+      ]"
+    >
+      <app-status-tag [status]="t.status" kind="TransferStatus" />
+    </app-page-header>
+
+    @if (canPlan()) {
+      <div class="sgo-row actions">
+        <button mat-flat-button type="button" [disabled]="busy()" (click)="dispatch()">
+          <mat-icon>local_shipping</mat-icon>
+          Despachar
+        </button>
+        <a mat-stroked-button [routerLink]="['/logistica/traspasos', t.id, 'editar']">Editar</a>
+        <button mat-button type="button" [disabled]="busy()" (click)="cancel()">
+          Cancelar traspaso
+        </button>
+      </div>
+    }
+    @if (canReceive()) {
+      <a mat-flat-button class="receive" [routerLink]="['/logistica/traspasos', t.id, 'recibir']">
+        <mat-icon>inventory</mat-icon>
+        Recibir
+      </a>
+    }
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <dl>
+          <div>
+            <dt>Origen</dt>
+            <dd>{{ t.from.code }} · {{ t.from.name }}</dd>
+          </div>
+          <div>
+            <dt>Destino</dt>
+            <dd>{{ t.to.code }} · {{ t.to.name }}</dd>
+          </div>
+          @if (t.branchOrderId) {
+            <div>
+              <dt>Pedido</dt>
+              <dd>
+                <a [routerLink]="['/logistica/pedidos', t.branchOrderId]">{{
+                  t.branchOrderFolio
+                }}</a>
+              </dd>
+            </div>
+          }
+          <div>
+            <dt>Creado</dt>
+            <dd><app-stamp [at]="t.createdAt" [by]="t.createdByName" /></dd>
+          </div>
+          @if (t.dispatchedAt) {
+            <div>
+              <dt>Despachado</dt>
+              <dd><app-stamp [at]="t.dispatchedAt" [by]="t.dispatchedByName" /></dd>
+            </div>
+            <div>
+              <dt>Vehículo</dt>
+              <dd>{{ t.vehicleDescription }}</dd>
+            </div>
+            <div>
+              <dt>Chofer</dt>
+              <dd>{{ t.driverName }}</dd>
+            </div>
+            <div>
+              <dt>Valor enviado</dt>
+              <dd>{{ t.shippedValue | mxn }}</dd>
+            </div>
+          }
+          @if (t.receivedAt) {
+            <div>
+              <dt>Recibido</dt>
+              <dd><app-stamp [at]="t.receivedAt" [by]="t.receivedByName" /></dd>
+            </div>
+            <div>
+              <dt>Pérdida en tránsito</dt>
+              <dd [class.out]="t.transitLossValue > 0">{{ t.transitLossValue | mxn }}</dd>
+            </div>
+          }
+          @if (t.notes) {
+            <div>
+              <dt>Notas</dt>
+              <dd>{{ t.notes }}</dd>
+            </div>
+          }
+        </dl>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <h2>Líneas</h2>
+        <ul class="lines">
+          @for (line of t.lines; track line.id) {
+            <li>
+              <div class="info">
+                <span class="name">{{ line.itemName }}</span>
+                <span class="meta">
+                  {{ line.sku }}
+                  @if (line.lotNumber) {
+                    · Lote {{ line.lotNumber }}
+                  } @else if (t.status === 'Draft') {
+                    · Lote automático
+                  }
+                  @if (line.expirationDate) {
+                    · cad. {{ line.expirationDate | date: 'dd/MM/yy' }}
+                  }
+                </span>
+                @if (received() && line.shortQty > 0) {
+                  <span class="meta out">
+                    Faltan {{ line.shortQty | qty: line.baseUomCode }} ·
+                    {{ line.discrepancyReason | statusLabel: 'DiscrepancyReason' }}
+                    @if (line.discrepancyNotes) {
+                      · {{ line.discrepancyNotes }}
+                    }
+                  </span>
+                }
+              </div>
+              <div class="qty">
+                <span>{{ line.shippedQty | qty: line.baseUomCode }}</span>
+                @if (received()) {
+                  <span class="meta">Recibido {{ line.receivedQty | qty: line.baseUomCode }}</span>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <app-audit-panel [entityId]="t.id" [refresh]="t.version" />
+      </mat-card-content>
+    </mat-card>
+  } @else if (loadError()) {
+    <p class="notice notice-error">No se encontró el traspaso.</p>
+    <a mat-button routerLink="/logistica/traspasos">Volver a traspasos</a>
+  } @else {
+    <p class="muted">Cargando…</p>
+  }
+</section>

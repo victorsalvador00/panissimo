@@ -1,0 +1,230 @@
+// Botón de ayuda flotante (HelpButton): disco oscuro con anillos neón tipo HUD que giran a distintas velocidades;
+// se detienen con el panel abierto y con "reducir movimiento". Panel anclado a la esquina, saliendo del botón.
+
+:root {
+  --sgo-help-size: 64px;
+  --sgo-help-gap: 20px;
+  --sgo-help-ring: light-dark(#0a8dff, #19d3ff);
+  --sgo-help-ring-2: light-dark(#4f86ff, #2a63ff);
+  --sgo-help-disc: #050b1d;
+}
+
+.sgo-help-fab {
+  position: fixed;
+  right: var(--sgo-help-gap);
+  bottom: calc(var(--sgo-help-gap) + env(safe-area-inset-bottom, 0px));
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  width: var(--sgo-help-size);
+  height: var(--sgo-help-size);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #0c1a3d 0%, var(--sgo-help-disc) 70%);
+  box-shadow:
+    0 0 14px rgb(25 160 255 / 55%),
+    0 6px 16px rgb(0 0 0 / 35%);
+  cursor: pointer;
+  transition: transform 150ms ease;
+
+  &:hover {
+    transform: scale(1.06);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--mat-sys-primary);
+    outline-offset: 3px;
+  }
+
+  svg {
+    width: 88%;
+    height: 88%;
+    overflow: visible;
+    filter: drop-shadow(0 0 3px var(--sgo-help-ring));
+  }
+
+  circle {
+    fill: none;
+  }
+
+  .ring {
+    transform-origin: 50px 50px;
+    animation: sgo-help-spin linear infinite;
+  }
+
+  .ring-outer {
+    stroke: var(--sgo-help-ring);
+    stroke-width: 3;
+    animation-duration: 18s;
+  }
+
+  .ring-ticks {
+    stroke: var(--sgo-help-ring-2);
+    stroke-width: 5;
+    animation-duration: 28s;
+    animation-direction: reverse;
+  }
+
+  .ring-mid {
+    stroke: var(--sgo-help-ring);
+    stroke-width: 4;
+    animation-duration: 10s;
+  }
+
+  .ring-inner {
+    stroke: var(--sgo-help-ring-2);
+    stroke-width: 2;
+    animation-duration: 7s;
+    animation-direction: reverse;
+  }
+
+  .core {
+    stroke: var(--sgo-help-ring);
+    stroke-width: 1.5;
+  }
+
+  .dot {
+    fill: var(--sgo-help-ring);
+  }
+}
+
+// Abierto: los anillos se detienen.
+.sgo-help-fab-open .ring {
+  animation-play-state: paused;
+}
+
+@keyframes sgo-help-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Si hay una barra de acción fija abajo, el botón sube para no tapar sus botones.
+body:has(.sgo-action-bar) {
+  --sgo-help-gap-bottom: 104px;
+}
+
+body:has(.sgo-action-bar) .sgo-help-fab {
+  bottom: calc(var(--sgo-help-gap-bottom) + env(safe-area-inset-bottom, 0px));
+}
+
+.sgo-help-panel {
+  position: fixed;
+  right: var(--sgo-help-gap);
+  bottom: calc(var(--sgo-help-gap) + var(--sgo-help-size) / 2);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  width: min(520px, calc(100vw - 2 * var(--sgo-help-gap)));
+  max-height: calc(100vh - 120px);
+  border: 1px solid var(--sgo-card-border);
+  // Esquina inferior derecha recta: el panel "sale" del botón.
+  border-radius: var(--sgo-card-radius) var(--sgo-card-radius) 4px var(--sgo-card-radius);
+  background: var(--sgo-card-bg);
+  box-shadow:
+    0 12px 32px rgb(20 25 60 / 22%),
+    var(--sgo-glow);
+  color: var(--mat-sys-on-surface);
+  outline: none;
+  transform-origin: bottom right;
+  animation: sgo-help-open 160ms ease-out;
+  padding-bottom: calc(var(--sgo-help-size) / 2);
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-title-large);
+    font-weight: 600;
+  }
+
+  h3 {
+    margin: var(--sgo-space-4) 0 var(--sgo-space-2);
+    font: var(--mat-sys-title-small);
+    color: var(--mat-sys-primary);
+  }
+}
+
+body:has(.sgo-action-bar) .sgo-help-panel {
+  bottom: calc(var(--sgo-help-gap-bottom) + var(--sgo-help-size) / 2);
+}
+
+.sgo-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sgo-space-2);
+  padding: var(--sgo-space-3) var(--sgo-space-2) var(--sgo-space-2) var(--sgo-space-5, 20px);
+  border-bottom: 1px solid var(--sgo-row-divider);
+}
+
+.sgo-help-body {
+  overflow-y: auto;
+  padding: var(--sgo-space-4) var(--sgo-space-5, 20px);
+}
+
+.sgo-help-summary {
+  margin: 0;
+}
+
+.sgo-help-video {
+  display: block;
+  width: 100%;
+  margin-top: var(--sgo-space-4);
+  border-radius: var(--sgo-radius);
+  background: #000;
+  aspect-ratio: 16 / 10;
+}
+
+.sgo-help-steps,
+.sgo-help-tips {
+  margin: 0;
+  padding-left: 1.3rem;
+
+  li + li {
+    margin-top: var(--sgo-space-1);
+  }
+}
+
+.sgo-help-fields {
+  margin: 0;
+
+  div + div {
+    margin-top: var(--sgo-space-2);
+  }
+
+  dt {
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+@keyframes sgo-help-open {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+// Celular: botón más chico y panel a todo lo ancho.
+@media (max-width: 599.98px) {
+  :root {
+    --sgo-help-size: 56px;
+    --sgo-help-gap: 12px;
+  }
+
+  .sgo-help-panel {
+    left: var(--sgo-help-gap);
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sgo-help-fab .ring,
+  .sgo-help-panel {
+    animation: none;
+  }
+}

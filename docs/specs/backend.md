@@ -1,14 +1,14 @@
-# Especificación Backend — SGO AR · Paníssimo API
+# Especificación Backend — SGO Paníssimo API
 
 > Lee primero `docs/specs/dominio.md`: define entidades, estados y reglas (RN-xx) que este documento implementa.
 >
-> **Punto de partida.** El repositorio es un **fork del SGO AR** con B-01..B-21 terminadas (autenticación, permisos, catálogos, motor de inventario, conteos, traspasos, recetas, OP, compras, pedidos de sucursal, tablero, fotos, requerimiento de MP, costos de receta y análisis de consumo). Este documento conserva la base técnica del SGO y define **solo las tareas nuevas, B-22 en adelante**. No reescribas lo heredado salvo donde una tarea lo indique.
+> **Implementación desde cero, fase por fase.** El repositorio es nuevo. El SGO AR es la referencia funcional, pero no se copia su código: este documento describe todo lo necesario.
 
 ## 1. Objetivo
 
-API REST de los módulos de Organización, Catálogos, Inventario, Producción (con cierres parciales, plan e importación de Excel), Logística, **Ventas a terceros**, Compras y Seguridad para Paníssimo. La consume únicamente el frontend Angular del mismo dominio.
+API REST de los módulos de Organización, Catálogos, Inventario, Producción (recetas, OP con cierres parciales y final, importación de Excel y plan), Logística, Ventas a terceros, Compras, Seguridad y Tablero de Paníssimo. La consume únicamente el frontend Angular del mismo dominio.
 
-## 2. Stack [Heredado]
+## 2. Stack
 
 Todas las dependencias deben tener licencia libre (MIT, Apache-2.0, BSD o PostgreSQL). **Antes de agregar un paquete no listado, verifica su licencia en la versión exacta** y anótala en el resumen de la tarea.
 
@@ -17,106 +17,166 @@ Todas las dependencias deben tener licencia libre (MIT, Apache-2.0, BSD o Postgr
 | Runtime | .NET 10 (LTS), ASP.NET Core Web API con controllers | MIT |
 | ORM | `Microsoft.EntityFrameworkCore` + `Npgsql.EntityFrameworkCore.PostgreSQL` | MIT / PostgreSQL |
 | Nombres snake_case | `EFCore.NamingConventions` | Apache-2.0 |
-| Identidad / JWT | `Microsoft.AspNetCore.Identity.EntityFrameworkCore`, `Microsoft.AspNetCore.Authentication.JwtBearer` | MIT |
+| Identidad | `Microsoft.AspNetCore.Identity.EntityFrameworkCore` | MIT |
+| JWT | `Microsoft.AspNetCore.Authentication.JwtBearer` | MIT |
 | Validación | `FluentValidation` + `FluentValidation.DependencyInjectionExtensions` | Apache-2.0 |
 | Logging | `Serilog.AspNetCore`, `Serilog.Sinks.Console` | Apache-2.0 |
 | OpenAPI | `Microsoft.AspNetCore.OpenApi` + `Scalar.AspNetCore` | MIT |
 | CSV | `CsvHelper` | MS-PL / Apache-2.0 |
-| **Excel [Nuevo]** | **`ClosedXML` 0.105.x** (lectura del Excel de OP y generación de la plantilla) | **MIT** (verificado 16/10/2026 en nuget.org, v0.105.1) |
+| Excel | `ClosedXML` 0.105.x (importación de OP y plantilla) | MIT (verificado el 16/10/2026, v0.105.1) |
 | Pruebas | `xunit`, `NSubstitute`, `Testcontainers.PostgreSql`, `Microsoft.AspNetCore.Mvc.Testing` | Apache-2.0 / BSD / MIT |
 | Base de datos | PostgreSQL 16 (DigitalOcean Managed en producción) | PostgreSQL |
 
-**Nota de licencia de ClosedXML:** depende de `SixLabors.Fonts`, que usa la *Six Labors Split License*: es Apache-2.0 **solo como dependencia transitiva** (o para empresas con menos de USD 1M de ingresos). Paníssimo supera ese umbral, así que **nunca agregues una referencia directa a ningún paquete `SixLabors.*`** (ni `ImageSharp`). Si una versión futura de ClosedXML cambia esa dependencia o su licencia, revisar antes de actualizar.
+**Nota sobre ClosedXML:** depende de `SixLabors.Fonts`, con *Six Labors Split License*: es Apache-2.0 **solo como dependencia transitiva** o para empresas con menos de USD 1M de ingresos. Paníssimo supera ese umbral: **nunca agregues una referencia directa a un paquete `SixLabors.*`** (tampoco `ImageSharp`). Revisa la licencia de ClosedXML y sus dependencias antes de actualizar de versión.
 
-**Prohibidos:** MediatR, AutoMapper, MassTransit v9+, FluentAssertions v8+, **EPPlus v5+**, QuestPDF, Duende IdentityServer, Telerik, DevExpress, Syncfusion, referencias directas a `SixLabors.*`.
+**Prohibidos:** MediatR, AutoMapper, MassTransit v9+, FluentAssertions v8+, EPPlus v5+, QuestPDF, Duende IdentityServer, Telerik, DevExpress, Syncfusion y referencias directas a `SixLabors.*`.
 
-## 3. Arquitectura [Heredado]
+## 3. Arquitectura
 
-Monolito modular en 4 proyectos (`Sgo.Domain`, `Sgo.Application`, `Sgo.Infrastructure`, `Sgo.Api`) con una carpeta por módulo. Se agrega el módulo **`Sales`** en los cuatro proyectos.
+**Monolito modular en 4 proyectos**, cada uno con una carpeta por módulo:
 
-- Un servicio de aplicación por agregado, sin mediador; mapeo manual `ToDto()`.
-- Transiciones de estado dentro de la entidad; una transición inválida lanza `BusinessRuleException` (422).
-- `SgoDbContext` directo desde los servicios; consultas complejas en clases `*Queries`.
-- `IClock` e `ICurrentUser` para tiempo y usuario.
-- **El inventario solo se mueve con `IInventoryPostingService`**, dentro de la transacción del caso de uso.
+```
+backend/
+├── Panissimo.sln
+├── src/
+│   ├── Panissimo.Domain/          # Entidades, enums, reglas puras, excepciones de dominio
+│   │   ├── Common/                # Entity, AuditableEntity, BusinessRuleException, DocType
+│   │   ├── Organization/          # Location, ProductionArea
+│   │   ├── Catalog/
+│   │   ├── Inventory/
+│   │   ├── Production/
+│   │   ├── Logistics/
+│   │   ├── Sales/
+│   │   ├── Purchasing/
+│   │   └── Security/
+│   ├── Panissimo.Application/     # Servicios de caso de uso, DTOs, validadores, interfaces
+│   │   ├── Common/                # PagedResult, ListQuery, ICurrentUser, ILocationScope, IClock, IUserDirectory
+│   │   └── <Módulo>/              # <Entidad>Service, Dtos/, Validators/, Mapping, *Queries
+│   ├── Panissimo.Infrastructure/  # EF Core, configuraciones, migraciones, Identity, folios, auditoría, Excel
+│   │   ├── Persistence/
+│   │   │   ├── AppDbContext.cs
+│   │   │   ├── Configurations/<Módulo>/
+│   │   │   ├── Interceptors/      # AuditInterceptor, TimestampsInterceptor
+│   │   │   ├── Migrations/
+│   │   │   └── Seed/
+│   │   ├── Identity/
+│   │   ├── Inventory/             # InventoryPostingService, LotAllocator, LotRegistry
+│   │   └── Excel/                 # ClosedXmlOrderReader, plantilla
+│   └── Panissimo.Api/             # Host, controllers, auth, middleware, Program.cs
+│       ├── Controllers/<Módulo>/
+│       ├── Auth/                  # PermissionPolicyProvider, RequirePermissionAttribute
+│       └── Middleware/            # ExceptionHandler → ProblemDetails
+└── tests/
+    ├── Panissimo.UnitTests/
+    └── Panissimo.IntegrationTests/
+```
 
-Servicios nuevos o cambiados:
+**Dependencias:** `Domain` no depende de nada; `Application` → `Domain`; `Infrastructure` → `Application` y `Domain`; `Api` → todos, solo para composición.
 
-| Servicio | Módulo | Responsabilidad |
-|---|---|---|
-| `ProductionAreaService` | Production | CRUD de áreas |
-| `ProductionOrderService` **[Cambia]** | Production | Alta, edición, liberar, cancelar, **cierre parcial y final** |
-| `ProductionPlanQueries` / `ProductionPlanService` | Production | Plan de demanda neta (RN-70) y generación de OP (RN-71) |
-| `ProductionOrderImportService` | Production | Plantilla, validación y alta desde Excel (RN-90..RN-95) |
-| `IExcelOrderReader` / `ClosedXmlOrderReader` | Application / Infrastructure | Lee el `.xlsx` a filas crudas; la validación de negocio vive en el servicio |
-| `CustomerService` | Sales | Clientes, puntos de entrega y artículos de cliente |
-| `CustomerOrderService` | Sales | Pedidos de cliente (RN-80, RN-82) |
-| `CustomerShipmentService` | Sales | Remisiones (RN-81, RN-82) |
-| `ProductionReportQueries` | Production | Resumen de producción por área, producto y día |
+**Patrones:**
+- Un servicio de aplicación por agregado (`PurchaseOrderService`, `ProductionOrderService`…), inyectado por interfaz. **Sin mediador.**
+- Mapeo manual con métodos de extensión `ToDto()`.
+- Las transiciones de estado viven en la entidad (`order.Release()`, `transfer.Dispatch(...)`); una transición inválida lanza `BusinessRuleException(code, mensaje)`.
+- `AppDbContext` se usa directamente desde los servicios (sin repositorio genérico). Las consultas complejas van en clases `*Queries`.
+- `IClock` e `ICurrentUser` para tiempo y usuario; `IUserDirectory` resuelve nombres de usuario en lote (una consulta por documento o página) para los campos `*ByName`.
+- **El inventario solo se mueve con `IInventoryPostingService`** dentro de la transacción del caso de uso.
 
 ## 4. Persistencia
 
-- **Esquemas:** `org`, `catalog`, `inventory`, `production`, `logistics`, **`sales` [Nuevo]**, `purchasing`, `security`, `audit`.
-- **Tipos, concurrencia (`xmin` → `version`), folios por `SEQUENCE`, auditoría con `[Audited]` e interceptores:** igual que el SGO.
-- **Tablas nuevas:**
-
-| Esquema | Tabla | Notas |
-|---|---|---|
-| `production` | `production_area` | `code` único |
-| `production` | `production_close`, `production_close_line`, `production_close_line_lot` | `(production_order_id, sequence)` único; `folio` único |
-| `production` | `production_order_demand` | Índice por `(demand_type, demand_line_id)` |
-| `production` | `production_order_import` | Índice por `file_sha256` |
-| `sales` | `customer`, `customer_delivery_point`, `customer_item` | `customer.code` único; `customer_item(customer_id, item_id)` único |
-| `sales` | `customer_order`, `customer_order_line` | `status`, `required_date` indexados |
-| `sales` | `customer_shipment`, `customer_shipment_line`, `customer_shipment_line_lot` | |
-
-- **Columnas nuevas:** `catalog.item` (`presentation`, `bulk_item_id`, `units_per_package`, `production_area_id`, `production_multiple`, `unit_weight_grams`); `production.production_order` (`production_area_id`, `shift`, `source`, `import_id`, `total_cost`, `shortfall_reason`, `shortfall_notes`).
-- **Columnas que se eliminan:** `production.production_order.output_lot_id` y la tabla `production_order_line_lot` (su información pasa a los cierres). Como la base de Paníssimo arranca vacía, la migración solo las elimina; no migra datos.
-- **Índices nuevos:** `production_order(location_id, scheduled_date, status)`, `production_order(output_item_id, scheduled_date)`, `customer_order(supplying_location_id, required_date, status)`.
-- **Semilla** (idempotente, en Development o con `--seed`):
-  - Unidades de medida (incluye `pza`, `kg`, `g`, `l`, `ml`, `caja`, `bulto`, `paq`).
-  - Ubicaciones: `PLANTA` (Factory) y las sucursales de `deploy/seed/locations.csv` (`codigo,nombre,direccion`), D-01. Sin el archivo, solo `PLANTA`.
+- **Esquemas por módulo:** `org`, `catalog`, `inventory`, `production`, `logistics`, `sales`, `purchasing`, `security`, `audit`.
+- **Nombres:** tablas y columnas en `snake_case` (`UseSnakeCaseNamingConvention()`).
+- **Tipos:** cantidades y costos `numeric(18,4)`; montos de OC `numeric(18,2)` (redondeo por línea); fechas `timestamptz`; fechas de negocio `date`; enums como `text`.
+- **Concurrencia optimista** en documentos y catálogos con la columna de sistema `xmin`. Los DTO de detalle exponen `version`; edición y cambios de estado reciben `version` y responden **409** si no coincide.
+- **Folios:** una `SEQUENCE` por tipo de documento; `IFolioGenerator.NextAsync(DocType)` devuelve `OC-000001`. Índice único de `folio` por tabla.
+- **Catálogos inactivos** no se filtran globalmente (deben verse en históricos). Los listados filtran activos por omisión; `?includeInactive=true` los incluye.
+- **Auditoría:** `AuditInterceptor` (`SaveChangesInterceptor`) escribe en `audit.audit_log` los cambios de entidades marcadas con `[Audited]` (binarios solo por tamaño). `TimestampsInterceptor` llena `CreatedAt/By` y `UpdatedAt/By`. Ids compuestos (`userId|locationId`) para relaciones; `/audit-log?entityId=X` trae también `X|…`.
+- **Candados transaccionales:** `ITransactionLocks` con `pg_advisory_xact_lock` para crear un lote nuevo por `(artículo, lote)` y para cambiar el proveedor preferido de un artículo. Una violación de índice único (`23505`) no prevista responde **409 `duplicate`**.
+- **Índices mínimos:**
+  - `inventory_movement(location_id, item_id, occurred_at)` y un índice cubriente para el saldo corrido del kardex.
+  - `stock_balance(location_id, item_id, lot_id)` único (con `NULLS NOT DISTINCT`).
+  - `lot(item_id, lot_number)` único y `lot(item_id, expiration_date)`.
+  - `status` en tablas de documento.
+  - `production_order(location_id, scheduled_date, status)`, `production_order(output_item_id, scheduled_date)`.
+  - `production_close(production_order_id, sequence)` único.
+  - `production_order_demand(demand_type, demand_line_id)`; `production_order_import(file_sha256)`.
+  - `branch_order(supplying_location_id, required_date, status)`, `customer_order(supplying_location_id, required_date, status)`.
+  - `supplier_item(item_id) WHERE is_preferred` único parcial; `supplier.tax_id` único parcial excepto genéricos.
+- **Migraciones:** nombre descriptivo por tarea (`AddCatalog`, `AddProductionCloses`…). **Nunca modificar una migración ya aplicada**; crear una nueva. En producción se aplican con un **bundle**, nunca al arrancar.
+- **Semilla** (idempotente; en Development o con `--seed`):
+  - Unidades de medida (`kg`, `g`, `l`, `ml`, `pza`, `caja`, `bulto`, `paq`).
+  - Ubicaciones: `PLANTA` (Plant) y las sucursales de `deploy/seed/locations.csv` (`codigo,nombre,direccion`), D-01. Sin el archivo, solo `PLANTA`.
   - Áreas de producción (dominio §4.1).
-  - Roles y permisos (dominio §6).
-  - Usuario administrador desde variables de entorno.
-  - `AppSetting` con los valores por defecto, incluidos los nuevos (dominio §4.8).
-- **Migraciones:** nombres descriptivos; nunca editar una migración aplicada. Para el fork se **conservan** las migraciones del SGO y se agregan las nuevas encima.
+  - Permisos y roles (dominio §6), identificados por `system_key`.
+  - Usuario administrador con credenciales de variables de entorno.
+  - `AppSetting` con sus valores por defecto (dominio §4.8).
 
-## 5. Motor de inventario [Heredado]
+## 5. Motor de inventario (núcleo crítico)
 
-`IInventoryPostingService.PostAsync`, `ILotAllocator` (FEFO sin vencidos), `ILotRegistry` (con candado por artículo y lote) y la transacción por caso de uso **no cambian**. Se agrega `MovementType.CustomerShipment` al enum y a los filtros del kardex.
+Todo movimiento pasa por un solo servicio:
 
-**Cierre de producción (RN-61..RN-64), dentro de una transacción `ReadCommitted`:**
+```csharp
+public interface IInventoryPostingService
+{
+    // Debe llamarse dentro de una transacción abierta por el servicio de aplicación.
+    Task<IReadOnlyList<InventoryMovement>> PostAsync(IEnumerable<MovementRequest> requests, CancellationToken ct);
+}
 
-1. Cargar la OP con `SELECT … FOR UPDATE` y comparar `version` (409 si difiere). Validar estado (`Released` o `InProgress`), tipo de cierre y RN-63 (tolerancia, cierre final sin producción previa, motivo de faltante).
-2. Para cada componente: consumo real (o teórico por omisión, RN-11 sobre `ProducedQty` del cierre). Lotes elegidos (deben sumar el consumo real) o `ILotAllocator` (FEFO).
-3. `PostAsync` con las salidas `ProductionConsumption` (costo promedio vigente).
+public sealed record MovementRequest(
+    Guid LocationId, Guid ItemId, Guid? LotId, MovementType Type,
+    decimal Quantity,            // con signo, unidad base
+    decimal? UnitCost,           // requerido en entradas externas; null = promedio vigente
+    string SourceDocType, Guid SourceDocId, string SourceDocFolio, string? Notes);
+```
+
+**Algoritmo:**
+
+1. Agrupar las solicitudes y ordenarlas por `(LocationId, ItemId, LotId)` (evita deadlocks).
+2. Bloquear las filas con `SELECT … FOR UPDATE` (SQL crudo con `FromSql`). Si la fila de `stock_balance` o `item_location_cost` no existe, crearla.
+3. Validar RN-02: la existencia resultante debe ser ≥ 0. Acumular **todos** los faltantes y lanzar `InsufficientStockException(faltantes)`.
+4. Calcular costos (RN-04): actualizar `item_location_cost` en las entradas; usar el promedio vigente en las salidas.
+5. Insertar `InventoryMovement` y actualizar `StockBalance`.
+
+**Lotes:**
+- `ILotAllocator.AllocateAsync(locationId, itemId, qty, ct)` devuelve `[(LotId, Qty)]` por FEFO, excluye vencidos (RN-05) y lanza `InsufficientStockException` si no alcanza.
+- `ILotRegistry.GetOrCreateAsync(itemId, lotNumber, expiration, sourceDoc)` toma el candado por `(artículo, lote)`, reutiliza el lote existente (rechaza una caducidad distinta) o lo crea. Exige transacción.
+
+**Transacciones:** cada caso de uso que mueve inventario abre `BeginTransactionAsync(IsolationLevel.ReadCommitted)`, hace los cambios de documento más `PostAsync`, `SaveChangesAsync` y `CommitAsync`. Si algo falla, no queda nada registrado.
+
+### 5.1 Cierre de producción (RN-61..RN-66)
+
+En una transacción:
+
+1. Cargar la OP con `SELECT … FOR UPDATE` y comparar `version` (409). Validar estado, tipo de cierre y RN-63 (tolerancia, cierre final sin producción previa, motivo de faltante) y RN-03b.
+2. Por componente: consumo real (o teórico RN-11 sobre el `ProducedQty` del cierre). Lotes elegidos (deben sumar el consumo real; vencidos rechazados) o `ILotAllocator`.
+3. `PostAsync` con las salidas `ProductionConsumption`.
 4. `TotalCost` = Σ costos de las salidas; `UnitCost` = `TotalCost / ProducedQty`.
-5. Si `ProducedQty > 0`: crear el lote (`ILotRegistry`, número `{folio}-{nn}`, caducidad RN-62) y `PostAsync` con la entrada `ProductionOutput` a `UnitCost`.
-6. Guardar `ProductionClose` con sus líneas y lotes; actualizar acumulados de la OP (`ProducedQty`, `TotalCost`, `UnitCost`, `ActualQty` por línea) y su estado.
-7. `SaveChangesAsync` y `CommitAsync`. Si algo falla, no queda nada.
+5. Si `ProducedQty > 0`: lote `{folio}-{nn}` con `ILotRegistry` (si el producto maneja lotes) y `PostAsync` con la entrada `ProductionOutput` a `UnitCost`.
+6. Guardar `ProductionClose` (líneas, lotes y merma por línea); actualizar acumulados y estado de la OP.
+7. `SaveChangesAsync` y `CommitAsync`.
 
-**Remisión (RN-81):** igual que el despacho de traspasos: lotes elegidos o FEFO, `PostAsync` con `CustomerShipment` negativo, costo promedio vigente como `UnitCost`, actualización de `ShippedQty` del pedido bajo `FOR UPDATE` del pedido.
+### 5.2 Remisión (RN-81, RN-82)
 
-## 6. Plan de producción (RN-70)
+Igual que el despacho de traspasos: bloquear remisión y pedido (`FOR UPDATE` + `version`), validar saldo y tolerancia, lotes elegidos o FEFO, `PostAsync` con `CustomerShipment` negativo al costo promedio vigente, actualizar `ShippedQty` y estado del pedido.
+
+## 6. Plan de producción (RN-70, RN-71)
 
 `ProductionPlanQueries.GetAsync(locationId, from, to, areaId?, q?)`:
 
-1. **Productos candidatos:** `FinishedGood` e `Intermediate` activos que tengan demanda en el rango, mínimo configurado en la ubicación u OP abiertas.
-2. **Demanda por (producto, día):** pedidos de sucursal (`Submitted`: solicitado; `Approved`: aprobado − despachado) y pedidos de cliente (`Confirmed`, `PartiallyShipped`: cantidad − remisionado) por `RequiredDate`; para `Intermediate`, el requerimiento RN-11 de lo pendiente de producir de OP abiertas que lo usan, por su `ScheduledDate`; reposición a stock (`MaxQty − proyectado` si proyectado < `MinQty`) en el primer día.
-3. **Oferta:** existencia utilizable de la ubicación (sin lotes vencidos) y pendiente de producir de OP `Draft`/`Released`/`InProgress` (fechas previas al rango cuentan en el primer día).
-4. **Neto por día, acumulado:** recorrer los días en orden con `disponible = existencia`; cada día suma la oferta de OP de ese día, resta la demanda y, si queda negativo, `porProducir = ceilMultiple(−disponible, ProductionMultiple)` y `disponible += porProducir`.
-5. Respuesta por renglón `(itemId, date)`: SKU, nombre, tipo, presentación, área, unidad, demanda desglosada (`branchOrders`, `customerOrders`, `stockReplenishment`, `parentOrders`), existencia, OP pendientes, `suggestedQty` y la lista de líneas de pedido que la originan (`demandLines: [{ type, lineId, folio, requiredDate, quantity }]`).
-6. Con `q`, filtrar por SKU o nombre; con `areaId`, por área del producto. Ordenar por fecha, área y SKU.
+1. **Candidatos:** `FinishedGood` y `SemiFinished` activos con demanda en el rango, mínimo configurado en la ubicación u OP abiertas.
+2. **Demanda por (producto, día):** pedidos de sucursal (`Submitted`: solicitado; `Approved`: aprobado − despachado) y de cliente (`Confirmed`, `PartiallyShipped`: cantidad − remisionado) por `RequiredDate`; para `SemiFinished`, RN-11 sobre lo pendiente de OP abiertas que lo usan, por su `ScheduledDate`; reposición a stock en el primer día.
+3. **Oferta:** existencia utilizable y pendiente de OP `Draft`/`Released`/`InProgress` (las de fecha anterior al rango cuentan en el primer día).
+4. **Neto acumulado:** recorrer los días con `disponible = existencia`; cada día suma la oferta de OP de ese día y resta la demanda; si `disponible < 0`, `sugerido = ceilMultiple(−disponible, ProductionMultiple)` y `disponible += sugerido`.
+5. Respuesta por renglón `(itemId, date)`: SKU, nombre, tipo, presentación, área, unidad, demanda desglosada (`branchOrders`, `customerOrders`, `stockReplenishment`, `parentOrders`), existencia, OP pendientes, `suggestedQty` y `demandLines: [{ type, lineId, folio, partyName, requiredDate, quantity }]`.
+6. Filtros `q` (SKU o nombre) y `areaId`. Orden: fecha, área, SKU.
 
-**Rendimiento:** con 300 productos, 7 días, 500 líneas de pedido y 300 OP abiertas, la consulta responde en < 1 s. Se resuelve con 4–5 consultas agregadas (no una por producto) y el cálculo en memoria.
+Las fuentes de demanda se implementan como `IDemandSource` (pedidos de sucursal, pedidos de cliente, OP padre), para agregarlas por fases. **Rendimiento:** 300 productos, 7 días, 500 líneas de pedido y 300 OP abiertas en < 1 s, con consultas agregadas (no una por producto) y cálculo en memoria.
 
-`ProductionPlanService.GenerateAsync` (RN-71): recibe renglones elegidos con cantidad; valida receta activa, cantidad (> 0, RN-03b) y alcance; crea una OP `Draft` por `(producto, fecha, área, turno)` con `Source = Plan`; reparte la cantidad entre las líneas de pedido del renglón (por `RequiredDate`) en `ProductionOrderDemand`. Todo o nada.
+`ProductionPlanService.GenerateAsync` (RN-71): renglones elegidos con cantidad → valida receta activa, RN-03b y alcance → una OP `Draft` por `(producto, fecha, área, turno)` con `Source = Plan` → reparte la cantidad entre las líneas de pedido del renglón por `RequiredDate` en `ProductionOrderDemand`. Todo o nada.
 
 ## 7. Importación de OP desde Excel (RN-90..RN-95)
 
-- **Lectura:** `ClosedXmlOrderReader` abre el archivo en memoria (máx. **5 MB**), toma la hoja `OP` o la primera, mapea encabezados normalizados (minúsculas, sin acentos ni espacios) y devuelve filas crudas con su número de fila de Excel. Fechas: celda de fecha de Excel o texto `dd/mm/aaaa`. No evalúa fórmulas externas; usa el valor en caché de la celda.
-- **Validación:** `ProductionOrderImportService.ValidateAsync(stream, fileName)` resuelve SKU, áreas y ubicaciones con consultas en lote (no una por fila), aplica RN-90 y RN-03b, agrupa (RN-92) y calcula avisos (RN-93). Devuelve:
+- **Lectura:** `IExcelOrderReader` (implementación `ClosedXmlOrderReader`) abre el archivo en memoria (máx. 5 MB), toma la hoja `OP` o la primera, normaliza encabezados (minúsculas, sin acentos ni espacios) y devuelve filas crudas con su número de fila. Fechas: celda de fecha o texto `dd/mm/aaaa`. Usa el valor en caché de las fórmulas.
+- **Validación:** `ProductionOrderImportService.ValidateAsync(stream, fileName)` resuelve SKU, áreas y ubicaciones en lote, aplica RN-90 y RN-03b, agrupa (RN-92) y calcula avisos (RN-93):
 
   ```json
   {
@@ -129,15 +189,20 @@ Servicios nuevos o cambiados:
   }
   ```
 
-- **Alta:** `CreateAsync(stream, fileName, confirmWarnings, releaseOnImport)` vuelve a validar el mismo archivo (el servidor no guarda estado entre la vista previa y el alta). Si hay errores → 400 con la misma estructura; si hay avisos y `confirmWarnings = false` → 422 `import_warnings_not_confirmed`. Crea `ProductionOrderImport` y las OP en una transacción. Con `releaseOnImport` las crea en `Released`.
-- **Plantilla:** `GET /production-order-imports/template` genera con ClosedXML un `.xlsx` con la hoja `OP` (encabezados, formato de fecha, validación de lista en `turno`) y una hoja `Instrucciones`.
+- **Alta:** `CreateAsync(stream, fileName, confirmWarnings, releaseOnImport)` revalida el mismo archivo (el servidor no guarda estado entre la vista previa y el alta). Errores → 400 con la misma estructura; avisos sin confirmar → 422 `import_warnings_not_confirmed`. Crea `ProductionOrderImport` y las OP en una transacción.
+- **Plantilla:** `.xlsx` generado con ClosedXML: hoja `OP` (encabezados, formato de fecha, lista de validación en `turno`) y hoja `Instrucciones`.
 - **Rendimiento:** 3,000 filas se validan en < 5 s y se importan en < 10 s.
 
 ## 8. API
 
-### 8.1 Convenciones [Heredado]
+### 8.1 Convenciones
 
-Prefijo `/api/v1`, recursos en plural y `kebab-case`, acciones de estado como `POST` sobre subrecurso, listados paginados (`page`, `pageSize` ≤ 100, `sort`, `q`, filtros), `version` en los detalles, JSON `camelCase` con enums como texto, errores `ProblemDetails` en español:
+- Prefijo `/api/v1`. Recursos en plural y `kebab-case`.
+- Acciones de estado como `POST` sobre subrecurso: `/purchase-orders/{id}/submit`, `/approve`, `/cancel`.
+- **Listados:** `GET ?page=1&pageSize=25&sort=folio:desc&q=texto&status=…&locationId=…` → `{ "items": [], "page": 1, "pageSize": 25, "total": 0 }`. `pageSize` máximo 100.
+- **Detalle:** incluye `version`.
+- **JSON** en `camelCase`, números estrictos (no se aceptan números entre comillas) y enums como texto; las mismas opciones JSON se usan en MVC y en el generador de OpenAPI. Todas las acciones documentan su respuesta exitosa con el tipo real.
+- **Errores:** `ProblemDetails` (RFC 9457), `type` = `https://panissimo/errors/<codigo>`, mensajes en español. Los errores de *model binding* también en español, con claves `camelCase` (`lines[0].quantity`).
 
 | Situación | HTTP | Extensiones |
 |---|---|---|
@@ -146,132 +211,260 @@ Prefijo `/api/v1`, recursos en plural y `kebab-case`, acciones de estado como `P
 | Sin permiso o fuera de alcance | 403 | |
 | No encontrado | 404 | |
 | Concurrencia | 409 | `code: "concurrency"` |
-| Existencia insuficiente | 409 | `code: "insufficient_stock"`, `shortages` |
-| Regla de negocio | 422 | `code: "<regla>"` |
+| Duplicado | 409 | `code: "duplicate"` |
+| Existencia insuficiente | 409 | `code: "insufficient_stock"`, `shortages: [{ itemId, sku, name, lotId, lotNumber, requested, available }]` |
+| Regla de negocio | 422 | `code: "<regla>"` (ej. `po_not_approved`, `production_overrun`) |
 
-Códigos 422 nuevos: `production_overrun`, `production_shortfall_reason_required`, `production_order_has_closes`, `production_final_close_empty`, `recipe_not_found`, `import_warnings_not_confirmed`, `customer_order_not_confirmed`, `customer_shipment_exceeds_order`, `item_presentation_not_allowed`.
+### 8.2 Endpoints
 
-### 8.2 Endpoints heredados
+Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso requerido. "Cualquiera de" se indica con `o`.
 
-Todos los del SGO (auth, `/me`, ubicaciones, unidades, categorías, artículos, lookup, fotos, existencias, kardex, alertas, ajustes, conteos, consumos, existencias iniciales, recetas, explosión, pedidos de sucursal, traspasos, proveedores, requisiciones, OC, recepciones, usuarios, roles, permisos, bitácora, settings, tablero, requerimiento de MP, costos de receta y análisis de consumo) siguen igual, salvo:
+**Auth y usuario actual**
 
-- `POST /production-orders/{id}/complete` **se elimina** (lo reemplaza `/closes`).
-- `GET /items` y `GET /items/lookup` aceptan `presentation=Bulk|Packaged`, `type=Supply` y `areaId`. Los DTO de artículo incluyen los campos nuevos.
-- `POST /imports/items` (CSV) agrega las columnas `presentacion`, `sku_granel`, `piezas_por_paquete`, `area`, `multiplo_op` y `gramaje_g` (opcionales) y acepta el tipo `insumo`.
-- `GET /production-orders` acepta `areaId`, `shift`, `source`, `importId` y `status=InProgress`; el DTO de lista trae `producedQty`, `progressPct` y `closeCount`.
-- `GET /movements?type=CustomerShipment` y el enlace al documento `RM`.
-- `/branch-orders` valida RN-80/D-05: una sucursal no pide `Packaged` ni `Intermediate` (422 `item_presentation_not_allowed`).
+| Método | Ruta | Permiso | Descripción |
+|---|---|---|---|
+| POST | `/auth/login` | — | `{ email, password }` → `{ accessToken, expiresIn }` y cookie de refresh |
+| POST | `/auth/refresh` | — (cookie) | Rota el refresh token y devuelve un access token nuevo |
+| POST | `/auth/logout` | autenticado | Revoca el refresh token |
+| GET | `/me` | autenticado | Usuario, permisos efectivos y ubicaciones |
+| POST | `/me/change-password` | autenticado | Cierra las demás sesiones |
 
-### 8.3 Endpoints nuevos
+**Organización y catálogos**
 
-Entre corchetes, el permiso requerido.
+| Método | Ruta | Permiso |
+|---|---|---|
+| GET / POST / PUT | `/locations`, `/locations/{id}` | [locations.view] / [locations.manage] |
+| GET | `/locations/lookup` — ubicaciones activas (id, código, nombre, tipo) | [locations.view] o [logistics.view] o [sales.view] |
+| GET / POST / PUT | `/production-areas`, `/production-areas/{id}` | [production.view] o [catalog.view] / [production.areas.manage] |
+| GET / POST / PUT | `/units-of-measure` | [catalog.view] / [catalog.manage] |
+| GET / POST / PUT | `/item-categories` | [catalog.view] o [inventory.view] / [catalog.manage] |
+| GET / POST / PUT | `/items`, `/items/{id}` — filtros `type`, `presentation`, `categoryId`, `areaId`, `includeInactive` | [catalog.view] / [catalog.manage] |
+| GET / PUT | `/items/{id}/location-settings` | [catalog.view] / [catalog.manage] |
+| GET | `/items/lookup?q&type&presentation&areaId&id&limit` (≤ 50) | [catalog.view] o [inventory.view] o [logistics.view] o [production.view] o [purchasing.view] o [sales.view] |
+| GET | `/items/{id}/photo?size=thumbnail\|full` — con `ETag` (304) | los de `/items/lookup` |
+| PUT / DELETE | `/items/{id}/photo` — multipart `image` y `thumbnail` | [catalog.manage] |
+| POST | `/imports/items` (CSV) — errores por fila; con errores no importa nada | [catalog.manage] |
+
+**Inventario**
+
+| Método | Ruta | Permiso |
+|---|---|---|
+| GET | `/stock?locationId&itemId&categoryId&type&belowMin=true` | [inventory.view] |
+| GET | `/stock/{locationId}/{itemId}/lots` | [inventory.view] |
+| GET | `/movements?locationId&itemId&type&from&to` — kardex paginado con saldo corrido | [inventory.view] |
+| GET | `/alerts?locationId` — bajo mínimo y lotes por caducar | [inventory.view] |
+| GET / POST | `/adjustments`, `/adjustments/{id}` | [inventory.view] / [inventory.adjust] |
+| GET / POST / PUT | `/physical-counts`, `/physical-counts/{id}` — PUT guarda líneas contadas (autoguardado con `version`) | [inventory.view] / [inventory.count] |
+| POST | `/physical-counts/{id}/start`, `/close`, `/cancel`, `/lines` (agregar artículo) | [inventory.count] |
+| GET / POST | `/consumptions`, `/consumptions/{id}` | [inventory.view] / [inventory.consumption] |
+| POST | `/imports/initial-stock` (CSV) | [inventory.adjust] |
+| GET | `/consumption-analysis?locationId&weeks&q` (RN-52) | [inventory.view] |
 
 **Producción**
 
 | Método | Ruta | Permiso |
 |---|---|---|
-| GET / POST / PUT | `/production-areas`, `/production-areas/{id}` | [production.view] / [production.areas.manage] |
-| GET | `/production-orders/{id}/closes` — cierres de la OP con líneas y lotes | [production.view] |
-| POST | `/production-orders/{id}/closes` — `{ version, kind: "Partial"\|"Final", producedQty, shift?, notes?, shortfallReason?, shortfallNotes?, lines: [{ componentItemId, actualQty, lots?: [{ lotId, qty }] }] }` → `201` con el cierre y la OP actualizada | [production.orders.complete] |
-| GET | `/production-orders/{id}/close-preview?qty=` — teórico por componente para `qty`, existencia y costo estimado | [production.view] |
-| GET | `/production-closes?locationId&from&to&areaId&itemId` — lista de cierres (para reportes y kardex) | [production.view] |
-| GET | `/production-closes/{id}` | [production.view] |
-| GET | `/production-plan?locationId&from&to&areaId&q` — RN-70 | [production.view] |
-| POST | `/production-plan/generate` — `{ locationId, lines: [{ itemId, date, areaId?, shift?, quantity, demandLineIds? }] }` → OP creadas | [production.orders.manage] |
-| GET | `/production-orders/{id}/demands` — pedidos que atiende la OP y su avance | [production.view] |
-| GET | `/production-order-imports/template` — plantilla `.xlsx` | [production.orders.import] |
-| POST | `/production-order-imports/validate` — `multipart/form-data` (`file`) → vista previa con errores y avisos | [production.orders.import] |
-| POST | `/production-order-imports` — `multipart/form-data` (`file`, `confirmWarnings`, `releaseOnImport`) → `201` con el folio y las OP | [production.orders.import]; liberar exige también [production.orders.manage] |
+| GET / POST / PUT | `/recipes`, `/recipes/{id}` — PUT sobre receta usada crea versión N+1 | [production.view] / [production.recipes.manage] |
+| POST | `/recipes/{id}/activate`, `/deactivate` | [production.recipes.manage] |
+| GET | `/recipes/{id}/explode?qty&locationId` (RN-12) | [production.view] |
+| GET | `/recipes/{id}/costs?locationId` (RN-51) | [production.view] |
+| GET / POST / PUT | `/production-orders`, `/production-orders/{id}` — filtros `status`, `from`, `to`, `areaId`, `shift`, `source`, `importId`; la lista trae `producedQty`, `progressPct`, `closeCount` | [production.view] / [production.orders.manage] |
+| POST | `/production-orders/{id}/release`, `/cancel` | [production.orders.manage] |
+| GET | `/production-orders/{id}/close-preview?qty` — teórico por componente, existencia y costo estimado | [production.view] |
+| GET | `/production-orders/{id}/closes` | [production.view] |
+| POST | `/production-orders/{id}/closes` — `{ version, kind: "Partial"\|"Final", producedQty, shift?, notes?, shortfallReason?, shortfallNotes?, lines: [{ componentItemId, actualQty, lots?: [{ lotId, qty }] }] }` → `201` con el cierre y la OP | [production.orders.close] |
+| GET | `/production-closes?locationId&from&to&areaId&itemId`, `/production-closes/{id}` | [production.view] |
+| GET | `/production-orders/{id}/demands` | [production.view] |
+| GET | `/production-plan?locationId&from&to&areaId&q` (RN-70) | [production.view] |
+| POST | `/production-plan/generate` — `{ locationId, lines: [{ itemId, date, areaId?, shift?, quantity, demandLineIds? }] }` | [production.orders.manage] |
+| GET | `/production-order-imports/template` | [production.orders.import] |
+| POST | `/production-order-imports/validate` — multipart `file` | [production.orders.import] |
+| POST | `/production-order-imports` — multipart `file`, `confirmWarnings`, `releaseOnImport` | [production.orders.import]; liberar exige [production.orders.manage] |
 | GET | `/production-order-imports`, `/production-order-imports/{id}` | [production.view] |
-| GET | `/reports/production-summary?locationId&from&to&groupBy=area\|item\|day` — producido, planeado, % de cumplimiento, costo y merma | [production.view] |
+| GET | `/material-requirements?locationId&to` (RN-50) | [purchasing.view] o [production.view] |
+| GET | `/reports/production-summary?locationId&from&to&groupBy=area\|item\|day` (RN-53) | [production.view] |
+
+**Logística**
+
+| Método | Ruta | Permiso |
+|---|---|---|
+| GET / POST / PUT | `/branch-orders`, `/branch-orders/{id}` | [logistics.view] / [logistics.orders.create] |
+| POST | `/branch-orders/{id}/submit`, `/cancel` | [logistics.orders.create] |
+| POST | `/branch-orders/{id}/approve` — `{ version, lines: [{ lineId, approvedQty }] }` | [logistics.orders.approve] |
+| POST | `/branch-orders/{id}/reject` — `{ version, reason }` | [logistics.orders.approve] |
+| GET | `/branch-orders/suggestion?locationId` | [logistics.orders.create] |
+| GET / POST / PUT | `/transfers`, `/transfers/{id}` — filtros `tab`, `received=true` | [logistics.view] / [logistics.transfers.dispatch] |
+| POST | `/transfers/{id}/dispatch` — `{ version, vehicleDescription, driverName, lines?: [{ lineId, lots: [{ lotId, qty }] }] }` | [logistics.transfers.dispatch] |
+| POST | `/transfers/{id}/receive` — `{ version, lines: [{ lineId, receivedQty, discrepancyReason?, discrepancyNotes? }] }` | [logistics.transfers.receive] |
+| POST | `/transfers/{id}/cancel` | [logistics.transfers.dispatch] |
 
 **Ventas a terceros**
 
 | Método | Ruta | Permiso |
 |---|---|---|
 | GET / POST / PUT | `/customers`, `/customers/{id}` | [sales.view] / [sales.customers.manage] |
+| GET | `/customers/lookup?q&limit` | [sales.view] |
 | GET / POST / PUT | `/customers/{id}/delivery-points`, `/customers/{id}/delivery-points/{pointId}` | [sales.view] / [sales.customers.manage] |
 | GET / POST / PUT | `/customers/{id}/items` | [sales.view] / [sales.customers.manage] |
-| GET | `/customers/lookup?q&limit` | [sales.view] |
 | GET / POST / PUT | `/customer-orders`, `/customer-orders/{id}` — PUT solo en `Draft` | [sales.view] / [sales.orders.manage] |
-| POST | `/customer-orders/{id}/confirm`, `/cancel`, `/close` (`close` con `{ version, reason }`) | [sales.orders.manage] |
-| GET | `/customer-orders/{id}/shipments` | [sales.view] |
-| POST | `/customer-orders/{id}/shipments` — crea la remisión en `Draft` con el saldo (o `{ lines: [{ orderLineId, quantity }] }`) | [sales.shipments.dispatch] |
+| POST | `/customer-orders/{id}/confirm`, `/cancel`, `/close` (`{ version, reason }`) | [sales.orders.manage] |
+| GET / POST | `/customer-orders/{id}/shipments` — POST crea la remisión `Draft` con el saldo | [sales.view] / [sales.shipments.dispatch] |
 | GET / PUT | `/customer-shipments`, `/customer-shipments/{id}` — PUT solo en `Draft` | [sales.view] / [sales.shipments.dispatch] |
 | POST | `/customer-shipments/{id}/dispatch` — `{ version, vehicleDescription, driverName, receivedByName?, lines?: [{ lineId, lots: [{ lotId, qty }] }] }` | [sales.shipments.dispatch] |
-| POST | `/customer-shipments/{id}/cancel` (solo `Draft`) | [sales.shipments.dispatch] |
+| POST | `/customer-shipments/{id}/cancel` | [sales.shipments.dispatch] |
 
-**Tablero [Cambia]**: `GET /dashboard` agrega los bloques `productionInProgress` (OP en proceso y su avance, [production.view]), `productionToday` (OP del día por área: planeado vs producido, [production.view]), `customerOrdersDue` (pedidos de cliente confirmados con fecha hoy o vencida, [sales.view]) y `customerShipmentsToDispatch` (remisiones en borrador, [sales.shipments.dispatch]).
+**Compras**
 
-## 9. Seguridad [Heredado]
+| Método | Ruta | Permiso |
+|---|---|---|
+| GET / POST / PUT | `/suppliers`, `/suppliers/{id}`, `/suppliers/{id}/items` | [purchasing.view] / [purchasing.suppliers.manage] |
+| GET | `/suppliers/lookup?q`, `/items/{id}/supplier-offers` | [purchasing.view] |
+| GET / POST / PUT | `/requisitions`, `/requisitions/{id}` | [purchasing.view] / [purchasing.requisitions.manage] |
+| POST | `/requisitions/{id}/submit`, `/cancel` | [purchasing.requisitions.manage] |
+| POST | `/requisitions/{id}/approve`, `/reject` | [purchasing.po.approve] |
+| POST | `/requisitions/convert` — `{ requisitionIds }` | [purchasing.po.manage] |
+| POST | `/requisitions/suggested` — crea la requisición sugerida de RN-50 | [purchasing.requisitions.manage] |
+| GET / POST / PUT | `/purchase-orders`, `/purchase-orders/{id}` — filtro `pendingReceipt=true` | [purchasing.view] / [purchasing.po.manage] |
+| POST | `/purchase-orders/{id}/submit`, `/cancel`, `/close` | [purchasing.po.manage] |
+| POST | `/purchase-orders/{id}/approve`, `/reject` | [purchasing.po.approve] |
+| GET / POST | `/goods-receipts`, `/goods-receipts/{id}` — POST `{ purchaseOrderId, poVersion, supplierInvoiceNumber?, lines: [{ poLineId, quantity, lotNumber?, expirationDate? }] }` | [purchasing.view] / [purchasing.receive] |
 
-Identity, JWT de 15 min, refresh rotativo con ventana de gracia de 30 s, `[RequirePermission]` dinámico con caché de 5 min, `ILocationScope`, rate limiting en login y `UseForwardedHeaders`. Reglas de alcance nuevas:
+**Seguridad, configuración y tablero**
 
-- OP, cierres, plan e importación: alcance sobre la ubicación de la OP (la Planta).
-- Pedidos de cliente y remisiones: alcance sobre `SupplyingLocationId` / `FromLocationId`.
-- Los clientes son un catálogo global (no tienen ubicación).
+| Método | Ruta | Permiso |
+|---|---|---|
+| GET / POST / PUT | `/users`, `/users/{id}`; POST `/users/{id}/reset-password`, `/activate`, `/deactivate` | [security.users.manage] |
+| GET / POST / PUT | `/roles`, `/roles/{id}` | [security.roles.manage] |
+| GET | `/permissions` | [security.roles.manage] |
+| GET | `/audit-log?entityType&entityId&userId&from&to` | [security.audit.view] |
+| GET / PUT | `/settings` — lista tipada (clave, etiqueta, tipo, límites, decimales, valor, `version`); PUT parcial con `version` por parámetro | [settings.manage] |
+| GET | `/dashboard?locationId` — bloques según permisos (null sin permiso) | autenticado |
 
-## 10. Validación, errores, logging y configuración [Heredado]
+**Bloques del tablero:** `lowStock`, `expiringLots` ([inventory.view]); `transfersToReceive` / `transfersToDispatch` ([logistics.view]); `branchOrdersToApprove` ([logistics.orders.approve]); `branchOrdersInProgress` ([logistics.orders.create]); `purchaseOrdersToApprove` ([purchasing.po.approve]); `productionToday` (OP del día por área: planeado vs producido) y `productionInProgress` ([production.view]); `recipesWithCostIncreases` ([production.view]); `customerOrdersDue` ([sales.view]); `customerShipmentsToDispatch` ([sales.shipments.dispatch]); `lowStockByLocation` (solo con [locations.all]). Sin `locationId` suma las ubicaciones del alcance.
 
-FluentValidation por DTO; `IExceptionHandler` → `ProblemDetails`; Serilog JSON; health checks `/health/live` y `/health/ready`; variables `SGO__…` (ver `.env.example`). Nueva variable opcional `SGO__Seed__LocationsCsv` (ruta del CSV de sucursales, default `deploy/seed/locations.csv`). El límite de subida de archivos de importación es de 5 MB (`RequestSizeLimit` en el endpoint, no global).
+## 9. Seguridad
+
+- **Autenticación:**
+  - ASP.NET Core Identity. Contraseña: mínimo 10 caracteres, con mayúscula, minúscula y número. Bloqueo según RN-42.
+  - **Access token JWT** de 15 minutos (HS256; clave de ≥ 32 bytes desde variable de entorno).
+  - **Refresh token** opaco de 7 días, guardado hasheado en `security.refresh_token`, en cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth`, **rotado en cada uso**. Reutilizar un token ya rotado revoca la familia, salvo dentro de una **ventana de gracia de 30 s** (dos pestañas o doble recarga): ahí se emite un token hermano.
+  - El administrador restablece contraseñas capturando una temporal; cambiar la contraseña cierra las sesiones.
+- **Autorización:** `[RequirePermission("a", "b")]` (basta uno) con `IAuthorizationPolicyProvider` dinámico. Permisos efectivos en `IMemoryCache` (5 min; se invalidan al editar roles o usuarios); no se meten al JWT.
+- **Alcance (RN-40):** `ILocationScope` expone `AllowedLocationIds` y `EnsureAccess(locationId)`. Todas las consultas filtran por ubicaciones permitidas. Despachar un traspaso exige el origen y recibirlo el destino; aprobar un pedido exige el origen; OP, cierres, plan, importación y remisiones exigen la Planta. Clientes y proveedores son catálogos globales.
+- **Anti-escalamiento (RN-43)** en usuarios y roles.
+- **Rate limiting:** `/auth/login` 10 req/min por IP (`RateLimiting:LoginPermitLimit`; el compose de desarrollo lo sube a 60 para las E2E).
+- **Proxy:** detrás de Caddy con `UseForwardedHeaders`. Sin CORS (mismo origen).
+- **Archivos:** límite por endpoint (`RequestSizeLimit`): 5 MB para Excel, 2 MB para CSV, 400 KB para fotos.
+
+## 10. Validación, errores, logging y configuración
+
+- Un validador FluentValidation por request DTO, ejecutado por un filtro global. Las reglas que requieren BD van en el servicio.
+- `IExceptionHandler` global mapea excepciones según §8.1; las no controladas responden 500 con `traceId` y sin detalles.
+- Serilog en consola (JSON compacto en producción), `UseSerilogRequestLogging`, enriquecido con `UserId`, `TraceId` y ruta. **Nunca** registrar contraseñas ni tokens.
+- Health checks `/health/live` y `/health/ready` (verifica la BD).
+- `appsettings.json` más variables de entorno con prefijo `PAN__`:
+
+| Variable | Descripción |
+|---|---|
+| `PAN__ConnectionStrings__Default` | Conexión Postgres (`sslmode=require` en producción) |
+| `PAN__Jwt__Key`, `PAN__Jwt__Issuer`, `PAN__Jwt__Audience` | Firma del JWT |
+| `PAN__Seed__AdminEmail` / `PAN__Seed__AdminPassword` | Solo para la primera semilla |
+| `PAN__Seed__LocationsCsv` | CSV de sucursales (default `deploy/seed/locations.csv`) |
+| `PAN__RateLimiting__LoginPermitLimit` | Default 10 |
+| `ASPNETCORE_ENVIRONMENT` | `Development` / `Production` |
+
+Los secretos nunca se versionan; `.env.example` lista todas las variables.
 
 ## 11. Pruebas
 
-Se conservan todas las del SGO (ajustando las de OP al nuevo flujo). Nuevas obligatorias:
+**Unitarias (`Panissimo.UnitTests`)**, obligatorias:
+- Costo promedio (RN-04): entradas sucesivas, entrada con existencia ≤ 0, salida al costo vigente.
+- FEFO (RN-05): varios lotes, sin caducidad al final, exclusión de vencidos, insuficiencia.
+- Máquinas de estado de **cada** documento: transiciones válidas y todas las inválidas lanzan `BusinessRuleException`.
+- RN-03b: cantidades fraccionarias en `pza`.
+- Recetas: consumo teórico (RN-11), versionado (RN-10).
+- Cierres: RN-62 (lote y caducidad), RN-63 (tolerancia en el límite y uno arriba, motivo de faltante, cierre final en 0 con y sin cierres previos), RN-64 (costos), RN-13 (merma por cierre).
+- Plan (RN-70): neto acumulado por día, OP de fecha posterior no cubre días anteriores, múltiplo, reposición a stock, demanda de semiterminado.
+- Importación (RN-90..RN-93): encabezados con acentos, fechas de texto y de Excel, fecha pasada, SKU inexistente, tipo inválido, sin receta, decimal en `pza`, agrupación, archivo duplicado, OP existente.
+- OC: aprobación por umbral (RN-31), tolerancia de recepción (RN-32), redondeo de totales; RFC (RN-35).
+- Pedidos: sugerido por mín/máx (RN-20), RN-24, RN-82 con tolerancia.
+- Análisis de consumo (RN-52) y costo de receta (RN-51).
 
-**Unitarias**
-- Máquina de estados de la OP: todas las transiciones válidas e inválidas (incluye cancelar con cierres → 422, cierre en `Draft` → 422, cierre después de `Completed` → 422).
-- RN-63: tolerancia de sobreproducción (límite exacto y uno arriba), motivo obligatorio con faltante, cierre final en 0 con y sin cierres previos.
-- RN-62: número de lote y caducidad por cierre; producto sin lotes.
-- RN-03b: cantidades fraccionarias en `pza` rechazadas.
-- RN-70: neto acumulado por día (existencia cubre primero el día próximo, OP de fecha posterior no cubre días anteriores, redondeo al múltiplo, reposición a stock, demanda de semiterminado desde OP padre).
-- RN-90..RN-93: encabezados con acentos y mayúsculas, fechas en texto y de Excel, fecha pasada, SKU inexistente, tipo inválido, sin receta, cantidad decimal en `pza`, agrupación, archivo duplicado, OP existente.
-- Máquinas de estado de pedido de cliente y remisión; RN-82 con tolerancia.
+**Integración (`Panissimo.IntegrationTests`)**, con Testcontainers y `WebApplicationFactory`:
+- Seguridad: login, refresh con rotación y ventana de gracia, 401, 403 por permiso, 403 por ubicación, anti-escalamiento.
+- Existencia insuficiente: 409 con `shortages` y **sin** movimientos parciales.
+- Conteo: cierre genera ajustes por la diferencia contra el snapshot.
+- Traspaso: despacho y recepción con faltante; dos despachos simultáneos → uno 200 y otro 409.
+- OP con **dos cierres parciales y un cierre final**: kardex, tres lotes con su caducidad, costos por cierre y acumulado, merma, `Completed`; cierres concurrentes 201/409; cancelar con cierres → 422.
+- Importación: archivo con errores (400, nada creado), válido (OP agrupadas ligadas a `IMP`), duplicado sin confirmar (422) y confirmado (201).
+- Compra completa: requisición → OC → aprobación → recepción parcial con lote → final → kardex y costo.
+- Pedido de sucursal → aprobación → traspaso → despacho → recepción → `Fulfilled`.
+- Pedido de cliente → confirmar → remisión parcial → final → `Shipped`; lote vencido rechazado.
+- Plan → generar OP → la OP cubre el plan siguiente y queda ligada a los pedidos.
+- Rendimiento (`Category=Performance`): kardex de 100,000 movimientos < 300 ms; plan < 1 s; importación de 3,000 filas < 10 s.
 
-**Integración (Testcontainers)**
-- OP con **dos cierres parciales y un cierre final**: kardex con salidas y entradas por cierre, tres lotes con su caducidad, costos por cierre y acumulado, merma por cierre, estado final `Completed`.
-- Cierre con existencia insuficiente: 409 con `shortages` y sin movimientos parciales; la OP no cambia.
-- Dos cierres simultáneos de la misma OP: uno 201 y otro 409.
-- Plan → generar OP → la OP aparece como "cubierto" en el plan siguiente y ligada a los pedidos.
-- Importación: archivo con errores (400, nada creado); archivo válido (OP creadas, agrupadas y ligadas a `IMP`); mismo archivo otra vez sin confirmar (422) y confirmado (201).
-- Pedido de cliente → confirmar → remisión parcial → remisión final → pedido `Shipped`; kardex con `CustomerShipment`; lote vencido rechazado.
-- Seguridad: Supervisor de producción puede cerrar pero no crear OP; Ventas a clientes no puede despachar; 403 por ubicación fuera de alcance.
+**Criterio:** `dotnet test` en verde antes de cerrar cualquier tarea. Los archivos de prueba (`.csv`, `.xlsx`) viven en `tests/Fixtures/`.
 
-## 12. Contenedores y despliegue [Heredado]
+## 12. Contenedores y despliegue
 
-Igual que el SGO: `backend/Dockerfile` multi-stage con bundle de migraciones (`linux-x64` o `linux-arm64`), `deploy/docker-compose.yml` (api + web Caddy + migrate), Postgres administrado de DigitalOcean en producción y overlay `docker-compose.demo.yml` para la demo en Oracle Cloud Free. El nombre del sitio y los textos cambian en B-22.
+- **`backend/Dockerfile`** multi-stage: `mcr.microsoft.com/dotnet/sdk:10.0` para compilar y `aspnet:10.0` para ejecutar, usuario no root, puerto 8080. Un target `migrator` genera el **bundle de migraciones** para `linux-x64` o `linux-arm64` según `TARGETARCH`.
+- **`deploy/docker-compose.yml`** (Droplet de DigitalOcean): `api`, `web` (Caddy: HTTPS automático, SPA, proxy de `/api` y `/health`, página de mantenimiento si falta el build) y `migrate` (perfil `tools`). Base de datos: Postgres administrado de DigitalOcean. Imágenes construidas en el servidor.
+- **`deploy/docker-compose.dev.yml`** (local): `postgres:16` más la API con `dotnet watch` y servicio de respaldos diarios.
+- **`deploy/docker-compose.demo.yml`** (overlay para Oracle Cloud Free): Postgres en contenedor y respaldos diarios.
+- **`deploy/README.md`:** `docker compose build` → `docker compose run --rm migrate` → `docker compose run --rm api --seed` (solo la primera vez) → `docker compose up -d`.
 
 ## 13. Plan de implementación (tareas para Claude Code)
 
-Cada tarea deja el código compilando, con pruebas en verde y la migración creada si aplica. Una tarea por sesión, empezando en modo plan. **Antes de empezar una tarea, revisa en `dominio.md` §8 que sus decisiones abiertas estén confirmadas.**
+Cada tarea deja el código compilando, con pruebas en verde y la migración creada si aplica. **Una tarea por sesión, empezando en modo plan.** Antes de empezar, revisa en `dominio.md` §8 que sus decisiones abiertas estén confirmadas. El backend avanza una fase antes que el frontend, para generar los tipos desde una API real.
 
-**Fase 0: adaptación del fork**
-
-| ID | Tarea | Decisiones | Criterio de aceptación |
-|---|---|---|---|
-| B-22 | Adaptar el fork: nombre "SGO AR · Paníssimo" en OpenAPI y textos, `CLAUDE.md` y `docs/AVANCE.md` nuevos, semilla de ubicaciones (`PLANTA` + CSV), quitar `Commissary` de la semilla y de los derivados, roles del dominio §6 y permisos nuevos (vacíos de función hasta sus tareas), settings nuevos. Ajustar las pruebas heredadas que asumían `FAB`/`COM`/`SUC-01..10` | D-01, D-10 | Base limpia con `--seed` crea la Planta, las sucursales del CSV, 10 roles y el admin; `dotnet test` en verde |
-| B-23 | Catálogos: tipo `Supply`, `Presentation`, `BulkItemId`, `UnitsPerPackage`, `ProductionAreaId`, `ProductionMultiple`, `UnitWeightGrams`; CRUD de `/production-areas`; reglas de validación (presentación obligatoria en terminados, granel no apunta a otro, `BulkItemId` debe ser `Bulk` activo); CSV de artículos con columnas nuevas; filtros en `/items` y `/items/lookup`; recetas aceptan `Supply` como componente; pedidos de sucursal rechazan `Packaged`/`Intermediate`. Migración `AddPanissimoCatalog` | D-05 | Integración: alta de `TRENZA` (granel) y `TRENZA EMBOLSADA` ligada; CSV con errores por fila en las columnas nuevas; pedido de sucursal con empaquetado → 422 |
-
-**Fase 1: producción**
+**Fase 1: base, seguridad, catálogos e inventario**
 
 | ID | Tarea | Decisiones | Criterio de aceptación |
 |---|---|---|---|
-| B-24 | **OP con cierres parciales y final** (RN-60..RN-66): estado `InProgress`, `ProductionClose` y sus líneas y lotes, área y turno en la OP, `close-preview`, `/closes`, `/production-closes`, eliminar `/complete` y `output_lot_id`, ajustar `GET /production-orders` y el kardex. Migración `AddProductionCloses` | D-02, D-03 | Integración: 2 parciales + final con kardex, lotes, costos y merma correctos; 409 por faltantes sin movimientos parciales; cierres concurrentes 201/409; cancelar con cierres → 422 |
-| B-25 | **Plan de producción** (RN-70..RN-73): `GET /production-plan`, `POST /production-plan/generate`, `ProductionOrderDemand`, `GET /production-orders/{id}/demands`; RN-50 cuenta OP `InProgress` por lo pendiente. La demanda de pedidos de cliente se deja como interfaz (`IDemandSource`) y la conecta B-26. Migración `AddProductionDemand` | D-04 | Integración: pedidos de sucursal y mín/máx → plan con neto acumulado y múltiplo → generar → OP ligadas y plan cubierto; semiterminado "por producir" desde la OP padre; < 1 s con el volumen de §6 |
-| B-28 | **Importación de OP desde Excel** (RN-90..RN-95) con ClosedXML: plantilla, validar, importar, listado de importaciones. Migración `AddProductionOrderImports` | D-07 | Integración con archivos `.xlsx` de prueba en `tests/Fixtures/`: errores por fila, agrupación, avisos y confirmación, liberar al importar; 3,000 filas en < 10 s |
+| B-01 | Solución y proyectos, referencias, `Program.cs`, Serilog, ProblemDetails, opciones JSON compartidas, health checks, OpenAPI + Scalar, Dockerfile y compose de desarrollo; `CLAUDE.md` (estructura, comandos, convenciones, reglas estrictas, flujo por tarea y definición de terminado) y `docs/AVANCE.md` (bitácora por tarea) | — | `docker compose -f deploy/docker-compose.dev.yml up` levanta la API y `/health/ready` responde 200 |
+| B-02 | `AppDbContext`, convenciones, interceptores de timestamps y auditoría, `IFolioGenerator`, `ITransactionLocks`, `IUserDirectory`, `AppSetting`, semilla base (unidades, `PLANTA` + CSV de sucursales, áreas, permisos, roles, admin, parámetros). Migración `InitialCreate` | D-01 | La migración se aplica en una BD limpia; la semilla es idempotente |
+| B-03 | Identity, login, refresh rotativo con ventana de gracia, logout, `/me`, cambio de contraseña, `[RequirePermission]` dinámico, `ILocationScope`, rate limit | — | Integración: login, refresh, reutilización, 401, 403 por permiso y por ubicación |
+| B-04 | Usuarios, roles (matriz de permisos y anti-escalamiento), permisos, bitácora, ubicaciones (`/locations`, `/locations/lookup`) y `/settings` | D-10 | El admin crea un usuario con rol y ubicaciones; ese usuario solo ve lo permitido |
+| B-05 | Catálogos: unidades, categorías, áreas de producción, artículos con todos sus campos (tipo, presentación, `BulkItemId`, área, múltiplo, gramaje), mín/máx por ubicación, `/items/lookup` e importación CSV de artículos (`sku,nombre,tipo,categoria,unidad_base,unidad_compra,factor_compra,maneja_lotes,vida_util_dias,almacenamiento,iva,presentacion,sku_granel,piezas_por_paquete,area,multiplo_op,gramaje_g`; SKU existente se actualiza; categoría o área inexistente = error) | D-05 | CSV con errores devuelve errores por fila sin importar nada; un empaquetado se liga a su granel |
+| B-06 | Motor de inventario: `InventoryPostingService`, `LotAllocator`, `LotRegistry`, costo promedio | — | Unitarias de RN-02, RN-04 y RN-05; integración de concurrencia de lotes |
+| B-07 | Existencias (con lotes), kardex con saldo corrido, alertas, ajustes por motivo, existencias iniciales por CSV (`ubicacion,sku,cantidad,costo_unitario,lote,caducidad`) | — | Ajuste negativo sin existencia → 409 `insufficient_stock` |
+| B-08 | Conteo físico (snapshot, autoguardado con `version`, agregar líneas, cierre) y consumo de sucursal | — | El cierre genera ajustes por diferencia contra el snapshot |
+| B-09 | Traspasos directos: crear, editar borrador, despachar (lotes o FEFO), recibir con discrepancias, cancelar; rutas especiales (RN-25) | — | Flujo de traspaso y concurrencia en integración |
 
-**Fase 2: ventas a terceros**
+**Fase 2: producción**
 
 | ID | Tarea | Decisiones | Criterio de aceptación |
 |---|---|---|---|
-| B-26 | **Clientes y pedidos de cliente** (RN-80, RN-82 sin remisiones): `/customers` con puntos de entrega y artículos, `/customer-orders` con confirmar, cancelar y cerrar; los pedidos confirmados aparecen en el plan. Migración `AddSales` | D-06, D-09 | Integración: alta de cliente con 2 puntos de entrega; pedido con artículo a granel → 422; pedido confirmado suma demanda en `/production-plan` |
-| B-27 | **Remisiones** (RN-81, RN-82): crear desde pedido, editar borrador, despachar con lotes o FEFO, cancelar borrador; `MovementType.CustomerShipment`; avance y estados del pedido. Migración `AddCustomerShipments` | D-09 | Integración: pedido → remisión parcial → final → `Shipped`; kardex y existencia de la Planta correctos; sobre-remisión → 422; lote vencido rechazado |
+| B-10 | Recetas versionadas (componentes `RawMaterial`, `Supply`, `SemiFinished`), activar/desactivar y explosión con disponibilidad | — | Editar una receta usada crea la versión N+1 |
+| B-11 | Órdenes de producción: alta, edición, liberar, cancelar, área, turno, origen; listado con avance | — | Máquina de estados completa en unitarias; OP con receta inactiva → 422 |
+| B-12 | **Cierres parciales y final** (§5.1): `close-preview`, `/closes`, `/production-closes`, lotes por cierre, costos y merma | D-02, D-03 | Integración: 2 parciales + final con kardex, lotes, costos y merma; faltantes sin movimientos parciales; cierres concurrentes 201/409 |
+| B-13 | **Importación de OP desde Excel** (§7): plantilla, validar, importar, historial | D-07 | Integración con `.xlsx` de prueba; 3,000 filas en < 10 s |
 
-**Fase 3: tablero, reportes y endurecimiento**
+**Fase 3: compras**
 
 | ID | Tarea | Decisiones | Criterio de aceptación |
 |---|---|---|---|
-| B-29 | Tablero con los bloques nuevos y `GET /reports/production-summary` (por área, producto o día: planeado, producido, % de cumplimiento, costo, merma de producción en $) | — | Cada bloque respeta permisos; el resumen por área de un mes de prueba cuadra con la suma de los cierres |
-| B-30 | Endurecimiento: índices nuevos, `EXPLAIN` del plan, de la lista de OP y del kardex con 300 OP diarias durante 90 días (~27,000 OP y ~80,000 cierres de prueba), revisión de licencias de todos los paquetes, `.env.example` y `deploy/README.md` actualizados | — | Plan < 1 s, lista de OP < 300 ms, kardex < 300 ms; resultados en `docs/rendimiento.md` |
+| B-14 | Proveedores (RFC, RN-35) y artículos de proveedor con preferido único; `/items/{id}/supplier-offers` | — | Marcar preferido desmarca el anterior, también en paralelo |
+| B-15 | Requisiciones y conversión a OC (RN-34) | — | Varias requisiciones se convierten en OC agrupadas por proveedor y entrega |
+| B-16 | Órdenes de compra (aprobación por umbral, rechazo, cancelación, cierre) y recepciones (parciales, lotes, tolerancia, factura) | — | Flujo completo de compra en integración; recepciones simultáneas 201/409 |
 
-**Orden sugerido:** B-22 → B-23 → B-24 → B-25 → B-26 → B-27 → B-28 → B-29 → B-30. B-26 puede adelantarse a B-25 si Paníssimo prioriza los pedidos de cliente; B-28 solo depende de B-24.
+**Fase 4: pedidos, ventas y planeación**
+
+| ID | Tarea | Decisiones | Criterio de aceptación |
+|---|---|---|---|
+| B-17 | Pedidos de sucursal: sugerido por mín/máx, enviar, aprobar (crea traspaso), rechazar, cancelar, RN-24 | D-05 | Pedido → traspaso → despacho → recepción → `Fulfilled`; empaquetado → 422 |
+| B-18 | Clientes, puntos de entrega, artículos de cliente y pedidos de cliente (RN-80, RN-82 sin remisiones) | D-05, D-06, D-09 | Pedido con granel → 422; confirmar y cancelar según RN-80 |
+| B-19 | Remisiones (§5.2): crear desde pedido, editar borrador, despachar, cancelar, cierre con saldo del pedido | D-09 | Pedido → remisión parcial → final → `Shipped`; sobre-remisión → 422 |
+| B-20 | **Plan de producción** (§6) con las tres fuentes de demanda, generación de OP y `ProductionOrderDemand` | D-04 | Pedidos de sucursal y de cliente y mín/máx → plan → generar → OP ligadas y plan cubierto; < 1 s |
+| B-21 | Requerimiento de materia prima (RN-50) y requisición sugerida | D-04 | Faltante con mínimo y en camino, redondeo a unidades de compra, semiterminado "por producir" |
+
+**Fase 5: tablero, análisis y puesta en producción**
+
+| ID | Tarea | Decisiones | Criterio de aceptación |
+|---|---|---|---|
+| B-22 | Tablero (todos los bloques de §8.2) y resumen de producción (RN-53) | — | Cada bloque respeta permisos; el resumen por área cuadra con la suma de los cierres |
+| B-23 | Costo de receta por versión y alzas de insumos (RN-51); análisis de consumo (RN-52) | — | Integración con historial de 8 semanas y dos versiones de receta |
+| B-24 | Fotos de artículos (`ItemPhoto`): GET/PUT/DELETE, `photoRevision` en los DTO de artículo | — | Carga, reemplazo, borrado, 304 con `ETag`, tipo y tamaño inválidos, permisos |
+| B-25 | Endurecimiento y despliegue: índices, `EXPLAIN` de kardex, existencias, lista de OP y plan con ~27,000 OP y ~80,000 cierres de prueba; bundle de migraciones; compose de producción y demo; `deploy/README.md`; revisión de licencias | — | Kardex y lista de OP < 300 ms, plan < 1 s; resultados en `docs/rendimiento.md` |
+
+**Entregables por fase** (para facturación y aceptación con el cliente): Fase 1 = usuarios, catálogos, inventario y traspasos; Fase 2 = producción con cierres e importación; Fase 3 = compras; Fase 4 = pedidos, ventas a terceros y plan; Fase 5 = tablero, análisis y producción.

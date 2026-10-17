@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-08).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-09, fase 1 del backend completa).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -15,7 +15,7 @@
 | 1 | B-06 Motor de inventario | ✅ | (ver `git log`) |
 | 1 | B-07 Existencias, kardex, alertas, ajustes, existencias iniciales | ✅ | (ver `git log`) |
 | 1 | B-08 Conteo físico y consumo | ✅ | (ver `git log`) |
-| 1 | B-09 Traspasos directos | ⏳ | |
+| 1 | B-09 Traspasos directos | ✅ | (ver `git log`) |
 | 2 | B-10..B-13 Recetas, OP, cierres, importación de Excel | ⏳ | |
 | 3 | B-14..B-16 Proveedores, requisiciones, OC y recepciones | ⏳ | |
 | 4 | B-17..B-21 Pedidos de sucursal, clientes, remisiones, plan, requerimiento | ⏳ | |
@@ -106,6 +106,16 @@
 - `/consumptions` (RN-09): solo sucursales, fecha de negocio hoy o anterior, FEFO si no se elige lote; estado único `Posted`.
 - Migración `AddCountsAndConsumptions`.
 - Pruebas: 85 unitarias y 61 de integración (+5: cierre contra snapshot con venta durante el conteo y lote encontrado, un conteo en curso por ubicación, cierre incompleto, agregar línea y piezas enteras, consumo solo en sucursal/no futuro/FEFO, alcance).
+
+### B-09 (2026-10-16)
+
+- `/transfers` (lista con `tab` = `ToDispatch | InTransit | Received | All` y filtros; detalle; alta; edición en borrador; `dispatch` con vehículo, chofer y lotes elegidos `{ lotId, qty }` opcionales; `receive`; `cancel`).
+- RN-21 despacho: `TransferOut` con lote planeado, lotes elegidos o FEFO (vencidos rechazados); las líneas quedan una por lote enviado con el costo del origen. RN-22 recepción: todas las líneas a la vez, nunca más de lo enviado, faltante con motivo → `ReceivedWithDiscrepancies` y pérdida en tránsito valuada; `TransferIn` con los mismos lotes y costo. RN-23: solo el borrador se edita o cancela. RN-25: Planta → sucursal sin permiso especial; sucursal → sucursal y sucursal → Planta con `logistics.transfers.special`. Despacho exige el origen en el alcance; recepción, el destino. Concurrencia: la primera escritura reclama la fila con `version` (409 al segundo). Piezas enteras desde la captura.
+- `BranchOrderId` existe sin FK; `ITransferLinks` (hoy `NoTransferLinks`) es el punto donde B-17 conectará el pedido de sucursal (RN-24 al despachar, cancelar traspaso cancela pedido, edición dentro de lo aprobado).
+- Migración `AddTransfers`.
+- Pruebas: 91 unitarias y 67 de integración (+6: despacho FEFO y recepción con faltante al costo del origen, despachos concurrentes 200/409, faltantes sin cambiar el borrador, rutas especiales y piezas, recepción solo en destino y cancelación, lotes elegidos y vencido rechazado).
+
+**Fase 1 del backend completa (B-01..B-09).** Siguiente: F-01..F-08 (frontend fase 1) o B-10..B-13 (producción).
 
 ## Pendientes y decisiones abiertas
 

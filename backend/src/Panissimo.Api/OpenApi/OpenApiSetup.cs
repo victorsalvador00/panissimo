@@ -3,6 +3,7 @@ using Microsoft.OpenApi;
 using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Inventory;
+using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
 using Panissimo.Application.Security;
@@ -83,6 +84,25 @@ public static class OpenApiSetup
         [typeof(CreateConsumptionRequest)] = """
             { "locationId": "0199a1b2-0000-7000-8000-0000000000a1", "businessDate": "2026-10-16", "notes": null,
               "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "quantity": 36 } ] }
+            """,
+        [typeof(CreateTransferRequest)] = """
+            { "fromLocationId": "0199a1b2-0000-7000-8000-0000000000a9", "toLocationId": "0199a1b2-0000-7000-8000-0000000000a1",
+              "notes": "Reposición de la tarde", "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "quantity": 120 } ] }
+            """,
+        [typeof(UpdateTransferRequest)] = """
+            { "version": 1234, "toLocationId": "0199a1b2-0000-7000-8000-0000000000a1", "notes": null,
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "quantity": 150 } ] }
+            """,
+        [typeof(DispatchTransferRequest)] = """
+            { "version": 1234, "vehicleDescription": "Nissan NP300 blanca ABC-123", "driverName": "Juan Pérez",
+              "lines": [ { "lineId": "0199a1b2-0000-7000-8000-0000000000e1",
+                           "lots": [ { "lotId": "0199a1b2-0000-7000-8000-0000000000f1", "qty": 100 },
+                                     { "lotId": "0199a1b2-0000-7000-8000-0000000000f2", "qty": 20 } ] } ] }
+            """,
+        [typeof(ReceiveTransferRequest)] = """
+            { "version": 1234, "lines": [
+                { "lineId": "0199a1b2-0000-7000-8000-0000000000e1", "receivedQty": 100, "discrepancyReason": null, "discrepancyNotes": null },
+                { "lineId": "0199a1b2-0000-7000-8000-0000000000e2", "receivedQty": 18, "discrepancyReason": "Damaged", "discrepancyNotes": "Charola aplastada" } ] }
             """,
         [typeof(UpdateSettingsRequest)] = """
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },

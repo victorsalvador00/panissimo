@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Security;
 
@@ -28,6 +29,7 @@ public interface IAppDbContext
     DbSet<InventoryAdjustment> InventoryAdjustments { get; }
     DbSet<PhysicalCount> PhysicalCounts { get; }
     DbSet<ConsumptionEntry> Consumptions { get; }
+    DbSet<Transfer> Transfers { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserLocation> UserLocations { get; }
     DbSet<AuditLog> AuditLogs { get; }

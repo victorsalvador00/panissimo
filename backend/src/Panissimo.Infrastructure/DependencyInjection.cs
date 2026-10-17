@@ -5,6 +5,7 @@ using Npgsql;
 using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Inventory;
+using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
 using Panissimo.Application.Security;
@@ -95,6 +96,8 @@ public static class DependencyInjection
         services.AddScoped<IInventorySnapshotReader, InventorySnapshotReader>();
         services.AddScoped<IPhysicalCountService, PhysicalCountService>();
         services.AddScoped<IConsumptionService, ConsumptionService>();
+        services.AddScoped<ITransferLinks, NoTransferLinks>();
+        services.AddScoped<ITransferService, TransferService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

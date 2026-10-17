@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-09, fase 1 del backend completa).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-10).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -16,7 +16,8 @@
 | 1 | B-07 Existencias, kardex, alertas, ajustes, existencias iniciales | ✅ | (ver `git log`) |
 | 1 | B-08 Conteo físico y consumo | ✅ | (ver `git log`) |
 | 1 | B-09 Traspasos directos | ✅ | (ver `git log`) |
-| 2 | B-10..B-13 Recetas, OP, cierres, importación de Excel | ⏳ | |
+| 2 | B-10 Recetas versionadas y explosión | ✅ | (ver `git log`) |
+| 2 | B-11..B-13 OP, cierres, importación de Excel | ⏳ | |
 | 3 | B-14..B-16 Proveedores, requisiciones, OC y recepciones | ⏳ | |
 | 4 | B-17..B-21 Pedidos de sucursal, clientes, remisiones, plan, requerimiento | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
@@ -116,6 +117,15 @@
 - Pruebas: 91 unitarias y 67 de integración (+6: despacho FEFO y recepción con faltante al costo del origen, despachos concurrentes 200/409, faltantes sin cambiar el borrador, rutas especiales y piezas, recepción solo en destino y cancelación, lotes elegidos y vencido rechazado).
 
 **Fase 1 del backend completa (B-01..B-09).** Siguiente: F-01..F-08 (frontend fase 1) o B-10..B-13 (producción).
+
+### B-10 (2026-10-16)
+
+- `/recipes` (lista con versiones anteriores opcionales, detalle con historial de versiones, alta, PUT, `activate`, `deactivate`, `explode?qty&locationId`).
+- RN-10: una activa por artículo (índice parcial único); editar una usada crea la versión N+1 y desactiva la anterior; editar una no usada la modifica; activar otra versión exige desactivar la activa. `MarkUsed` lo llama la OP (B-11).
+- RN-14 y D-04: producto semiterminado o terminado; componentes materia prima, insumo o semiterminado (nunca terminado); sin ciclos entre recetas activas.
+- RN-11/RN-12: teórico = Q / rendimiento × cantidad × (1 + merma %); explosión con existencia utilizable (sin lotes vencidos), faltante, costo promedio y costo estimado; `HasRecipe` marca semiterminados con receta ("por producir", RN-67).
+- Migración `AddRecipes`. El costo por versión (RN-51) queda en B-23.
+- Pruebas: 104 unitarias y 72 de integración (+5: versión N+1 y edición en su lugar, una activa y reactivación, tipos de producto y componente, ciclo de semiterminados, explosión con vencidos excluidos y costo).
 
 ## Pendientes y decisiones abiertas
 

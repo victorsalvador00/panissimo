@@ -7,6 +7,7 @@ using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
+using Panissimo.Domain.Production;
 using Panissimo.Domain.Security;
 using Panissimo.Infrastructure.Identity;
 
@@ -30,6 +31,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<PhysicalCount> PhysicalCounts => Set<PhysicalCount>();
     public DbSet<ConsumptionEntry> Consumptions => Set<ConsumptionEntry>();
     public DbSet<Transfer> Transfers => Set<Transfer>();
+    public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

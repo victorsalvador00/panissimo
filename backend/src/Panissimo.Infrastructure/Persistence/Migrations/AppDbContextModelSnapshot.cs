@@ -1365,6 +1365,111 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("production_area", "production");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Production.Recipe", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_used");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("OutputItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("output_item_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_number");
+
+                    b.Property<decimal>("YieldQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("yield_qty");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recipe");
+
+                    b.HasIndex("OutputItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_recipe_one_active_per_item")
+                        .HasFilter("is_active");
+
+                    b.HasIndex("OutputItemId", "VersionNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_recipe_output_item_id_version_number");
+
+                    b.ToTable("recipe", "production");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.RecipeLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ComponentItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("component_item_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipe_id");
+
+                    b.Property<decimal>("WastePct")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasColumnName("waste_pct");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recipe_line");
+
+                    b.HasIndex("ComponentItemId")
+                        .HasDatabaseName("ix_recipe_line_component_item_id");
+
+                    b.HasIndex("RecipeId")
+                        .HasDatabaseName("ix_recipe_line_recipe_id");
+
+                    b.ToTable("recipe_line", "production");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Security.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2027,6 +2132,33 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_transfer_line_transfers_transfer_id");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Production.Recipe", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("OutputItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_recipe_item_output_item_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.RecipeLine", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ComponentItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_recipe_line_item_component_item_id");
+
+                    b.HasOne("Panissimo.Domain.Production.Recipe", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_recipe_line_recipes_recipe_id");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Security.RefreshToken", b =>
                 {
                     b.HasOne("Panissimo.Infrastructure.Identity.AppUser", null)
@@ -2089,6 +2221,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Logistics.Transfer", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.Recipe", b =>
                 {
                     b.Navigation("Lines");
                 });

@@ -104,6 +104,16 @@ public static class OpenApiSetup
                 { "lineId": "0199a1b2-0000-7000-8000-0000000000e1", "receivedQty": 100, "discrepancyReason": null, "discrepancyNotes": null },
                 { "lineId": "0199a1b2-0000-7000-8000-0000000000e2", "receivedQty": 18, "discrepancyReason": "Damaged", "discrepancyNotes": "Charola aplastada" } ] }
             """,
+        [typeof(CreateRecipeRequest)] = """
+            { "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9", "yieldQty": 120, "notes": "Masa de bizcocho, batida de 120 pza",
+              "lines": [ { "componentItemId": "0199a1b2-0000-7000-8000-0000000000d1", "quantity": 6.5, "wastePct": 2 },
+                         { "componentItemId": "0199a1b2-0000-7000-8000-0000000000d2", "quantity": 1.2, "wastePct": 0 } ] }
+            """,
+        [typeof(UpdateRecipeRequest)] = """
+            { "version": 1234, "yieldQty": 120, "notes": "Menos azúcar",
+              "lines": [ { "componentItemId": "0199a1b2-0000-7000-8000-0000000000d1", "quantity": 6.5, "wastePct": 2 },
+                         { "componentItemId": "0199a1b2-0000-7000-8000-0000000000d2", "quantity": 1.0, "wastePct": 0 } ] }
+            """,
         [typeof(UpdateSettingsRequest)] = """
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },
                             { "key": "production.plan_default_days", "value": 2, "version": 1235 } ] }

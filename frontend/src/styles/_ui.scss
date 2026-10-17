@@ -26,3 +26,16 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+// Selected option of a menu with radio items (theme).
+.mat-mdc-menu-item.pan-menu-selected,
+.mat-mdc-menu-item.pan-menu-selected .mat-icon {
+  color: var(--mat-sys-primary);
+  font-weight: 700;
+}
+
+.pan-snack-error {
+  --mat-snack-bar-container-color: var(--mat-sys-error-container);
+  --mat-snack-bar-supporting-text-color: var(--mat-sys-on-error-container);
+  --mat-snack-bar-button-color: var(--mat-sys-on-error-container);
+}

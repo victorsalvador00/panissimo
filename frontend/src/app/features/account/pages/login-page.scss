@@ -1,0 +1,147 @@
+:host {
+  position: relative;
+  display: block;
+  min-height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    var(--pan-login-bg-1),
+    var(--pan-login-bg-2) 55%,
+    var(--pan-login-bg-3)
+  );
+  color: var(--pan-login-text);
+}
+
+.theme-button {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  color: var(--pan-login-text);
+}
+
+.login {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr minmax(320px, 420px);
+  align-items: center;
+  gap: 48px;
+  max-width: 1080px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 32px;
+  box-sizing: border-box;
+}
+
+.welcome {
+  .logo {
+    width: 56px;
+    height: 56px;
+    font-size: 56px;
+  }
+
+  h1 {
+    margin: 8px 0;
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  p {
+    margin: 0;
+    font-size: 1.25rem;
+    opacity: 0.9;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px;
+  border: 1px solid var(--pan-login-card-border);
+  border-radius: 24px;
+  background: var(--pan-login-card);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--pan-glow);
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-weight: 500;
+  }
+
+  input {
+    padding: 12px 20px;
+    border: 1px solid var(--pan-login-input-border);
+    border-radius: 999px;
+    background: var(--pan-login-input-bg);
+    color: var(--pan-login-input-fg);
+    font: inherit;
+    font-size: 1rem;
+  }
+
+  input[aria-invalid='true'] {
+    border-color: var(--pan-login-error);
+  }
+}
+
+.field-error,
+.alert {
+  margin: 0;
+  color: var(--pan-login-error);
+  font-size: 0.875rem;
+}
+
+.alert {
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 25%);
+  font-size: 0.95rem;
+}
+
+.submit {
+  margin-top: 8px;
+  padding: 14px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--pan-login-button-1), var(--pan-login-button-2));
+  color: var(--pan-login-button-fg);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: progress;
+  }
+}
+
+// Phone: stacked.
+@media (max-width: 767.98px) {
+  .login {
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: 24px;
+    padding: 72px 16px 24px;
+  }
+
+  .welcome h1 {
+    font-size: 2.25rem;
+  }
+
+  .card {
+    padding: 24px;
+  }
+}

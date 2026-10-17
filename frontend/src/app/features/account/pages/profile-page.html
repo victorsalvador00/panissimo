@@ -1,0 +1,60 @@
+<h1 class="pan-page-title">Mi perfil</h1>
+
+<div class="grid">
+  @if (user(); as user) {
+    <section class="pan-card" aria-labelledby="profile-data">
+      <h2 id="profile-data">Datos</h2>
+      <dl>
+        <dt>Nombre</dt>
+        <dd>{{ user.fullName }}</dd>
+        <dt>Correo</dt>
+        <dd>{{ user.email }}</dd>
+        <dt>Ubicaciones</dt>
+        <dd>
+          @if (user.allLocations) {
+            Todas
+          } @else {
+            @for (location of user.locations; track location.id; let last = $last) {
+              {{ location.name }}{{ last ? '' : ', ' }}
+            }
+          }
+        </dd>
+      </dl>
+    </section>
+  }
+
+  <section class="pan-card" aria-labelledby="profile-password">
+    <h2 id="profile-password">Cambiar contraseña</h2>
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <mat-form-field appearance="outline">
+        <mat-label>Contraseña actual</mat-label>
+        <input
+          matInput
+          type="password"
+          formControlName="currentPassword"
+          autocomplete="current-password"
+        />
+        <mat-error>{{ controlError(form.controls.currentPassword) }}</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Contraseña nueva</mat-label>
+        <input matInput type="password" formControlName="newPassword" autocomplete="new-password" />
+        <mat-error>{{ controlError(form.controls.newPassword) }}</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>Confirmar contraseña nueva</mat-label>
+        <input
+          matInput
+          type="password"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+        />
+        <mat-error>{{ controlError(form.controls.confirmPassword) }}</mat-error>
+      </mat-form-field>
+      <p>Al guardar se cerrarán tus sesiones abiertas y tendrás que volver a iniciar sesión.</p>
+      <div>
+        <button mat-flat-button type="submit" [disabled]="saving()">Guardar contraseña</button>
+      </div>
+    </form>
+  </section>
+</div>

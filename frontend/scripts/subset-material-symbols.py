@@ -22,7 +22,8 @@ def main(source: str, icons_path: str, output: str) -> None:
         icons = sorted(set(json.load(f)))
 
     font = TTFont(source)
-    missing = [name for name in icons if name not in font.getGlyphOrder()]
+    glyphs = {name: ligature_glyph(font, name) for name in icons}
+    missing = [name for name, glyph in glyphs.items() if glyph is None]
     if missing:
         sys.exit(f"Íconos que no existen en Material Symbols: {', '.join(missing)}")
 
@@ -37,11 +38,26 @@ def main(source: str, icons_path: str, output: str) -> None:
     options.name_IDs = ["*"]
     options.glyph_names = True
     subsetter = Subsetter(options=options)
-    subsetter.populate(glyphs=icons, unicodes=[ord(c) for c in characters])
+    subsetter.populate(glyphs=sorted(set(glyphs.values())), unicodes=[ord(c) for c in characters])
     subsetter.subset(font)
     font.flavor = "woff2"
     font.save(output)
     print(f"{len(icons)} íconos -> {output}")
+
+
+def ligature_glyph(font: TTFont, name: str) -> str | None:
+    """The glyph the ligature of `name` resolves to. Aliases (location_on, place...) share a glyph with another name."""
+    cmap = font.getBestCmap()
+    sequence = [cmap.get(ord(c)) for c in name]
+    if None in sequence:
+        return None
+    for lookup in font["GSUB"].table.LookupList.Lookup:
+        for subtable in lookup.SubTable:
+            subtable = getattr(subtable, "ExtSubTable", subtable)
+            for ligature in getattr(subtable, "ligatures", {}).get(sequence[0], []):
+                if ligature.Component == sequence[1:]:
+                    return ligature.LigGlyph
+    return None
 
 
 if __name__ == "__main__":

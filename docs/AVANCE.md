@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-01, arranque del frontend).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-02, login y sesión).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,22 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend iniciado: F-01 terminada (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01 y F-02 terminadas (proyecto Angular 22 en `/frontend`).
+- **BD de desarrollo atorada:** el contenedor `panissimo-dev-api-1` no arranca (`relation "supplier" already exists`): la BD aplicó un borrador viejo de `AddSuppliers` (`20261017170015`) que luego se reemplazó por `20261017170111`. Solo tiene datos de semilla; las tablas `purchasing.supplier` y `purchasing.supplier_item` están vacías. Arreglo propuesto (pendiente de que el usuario lo autorice): borrar esas dos tablas y el renglón de `__ef_migrations_history`, o recrear la BD de desarrollo.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-02 (login, sesión, interceptores) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-03 (layout definitivo, estilos y componentes compartidos, diálogos de 409) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-02..F-24.
+- Frontend F-03..F-24.
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-02).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-03).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -67,7 +68,8 @@
 | Fase | Tarea | Estado | Commit |
 |---|---|---|---|
 | 1 | F-01 Proyecto, tema, locale, íconos, shell | ✅ | (ver `git log`) |
-| 1 | F-02..F-08 | ⏳ | |
+| 1 | F-02 Sesión, interceptores, guardas, login, perfil | ✅ | (ver `git log`) |
+| 1 | F-03..F-08 | ⏳ | |
 | 2 | F-09..F-12 | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
@@ -356,3 +358,18 @@
 - Probado en Chrome: tema oscuro según el sistema, cambio a claro verde sin destello y persistente tras recargar.
 - Paquetes nuevos (licencia en la versión instalada): `@angular/material` 22.2.3 MIT, `@angular/cdk` 22.2.3 MIT, `@fontsource/roboto` 5.3.0 OFL-1.1, `material-symbols` 0.48.0 Apache-2.0 (dev), `angular-eslint` 22.6.0 MIT, `eslint` 10.13.0 MIT, `typescript-eslint` 8.71.0 MIT. Scripts de instalación nativos (`esbuild`, `lmdb`, `@parcel/watcher`, `msgpackr-extract`) quedan denegados en npm 11; el build no los necesita.
 - Pendiente: `deploy/docker-compose.yml` de producción (con el servicio web) se arma en la tarea de despliegue.
+
+### F-02 (2026-10-17)
+
+- `npm run api:types` (`scripts/api-types.mjs`): `openapi-typescript` desde `PAN_API_URL/openapi/v1.json` → `core/api/schema.d.ts` (versionado, excluido de ESLint). `core/api/api.ts`: `Schemas` y `ApiEnum<K>`.
+- `core/http`: `apiBaseInterceptor` (rutas relativas → `/api/v1/...`), `errorInterceptor` (avisos según frontend §6; 400 al formulario, 401 a la sesión; contexto `SILENT_ERRORS` para quien muestra su propio error), `toProblem` (`code`, `errors`, `shortages`, `rowErrors`, `traceId`), `Notifier` (snackbar cargado en diferido para no inflar el bundle inicial). Los diálogos de 409 `concurrency` e `insufficient_stock` llegan en F-03; mientras tanto son avisos con el `detail`.
+- `AuthService`: token solo en memoria; al arrancar `POST /auth/refresh` + `GET /me` (la sesión sobrevive a F5); un solo refresh compartido ante 401 concurrentes y serializado entre pestañas con Web Locks (`pan.auth.refresh`); `BroadcastChannel` `pan.auth` cierra la sesión en todas las pestañas; `expire()` manda a `/login?returnUrl=` con aviso. `authInterceptor` reintenta una vez tras renovar.
+- Guardas `authGuard`, `guestGuard` y `permissionGuard` (`data.permission`, cadena o lista); directiva `*hasPermission`; `LocationContextService` (`pan.location`, default `DefaultLocationId`, sin subalmacenes, `plant`).
+- `shared/forms`: `FormErrors` (400 → controles, incluidas líneas `lines[2].quantity`; lo no mapeable a aviso) y `controlError` (mensajes en español).
+- Login con fondo plexus en `canvas` (cuadro fijo con "reducir movimiento"; colores por tema), verdes en claro y neón azul en oscuro, campos nativos en píldora con `aria-describedby`, botón de tema en la esquina; `returnUrl` solo acepta rutas propias. `/perfil` (datos y cambio de contraseña, cierra sesión con aviso), `/sin-acceso`, y página "en construcción" para las rutas del menú aún sin pantalla.
+- Shell: menú lateral filtrado por permisos (`core/layout/navigation.ts`, rutas y permisos de frontend §7), selector de ubicación activa (oculto con una sola), menú de usuario (Mi perfil, Tema, Cerrar sesión). El diseño final (etiqueta, colapso, migas) es de F-03. El shell se carga en diferido: bundle inicial 399 kB.
+- Script de íconos: ahora resuelve cada nombre por la ligadura de la fuente (los alias como `location_on` comparten glifo con otro nombre). 41 íconos ≈ 6.7 KB.
+- 31 pruebas unitarias (refresh único ante 401 concurrentes, expiración, guardas, `*hasPermission`, `FormErrors`, avisos por estado, ubicación activa, menú filtrado, `returnUrl`).
+- Probado en Chrome contra una API local con BD desechable: credenciales inválidas muestran el mensaje del backend; login regresa al `returnUrl`; F5 y dos pestañas mantienen la sesión; cerrar sesión en una pestaña cierra la otra; el encargado de sucursal ve solo General, Inventario y Logística, sin selector de ubicación.
+- Paquete nuevo: `openapi-typescript` 7.13.0 MIT (dev). Su peer pide TypeScript 5; se usa con el TypeScript 6 del proyecto mediante `overrides` en `package.json` (generación verificada).
+- Pendiente: el spec del frontend no tiene pantalla para los vales internos entre subalmacenes (B-26b); preguntar al usuario en qué tarea va.

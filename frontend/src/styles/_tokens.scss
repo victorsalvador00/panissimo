@@ -19,4 +19,20 @@
   --pan-neon-primary: #4f86ff;
   --pan-glow: light-dark(none, 0 0 10px rgb(79 134 255 / 45%));
   --pan-focus-glow: light-dark(none, 0 0 0 3px rgb(79 134 255 / 40%));
+
+  // Login (frontend §4.1): greens in light, neon blue in dark; the plexus lines take --pan-plexus-color.
+  --pan-login-bg-1: light-dark(#0f3d1a, #020b1f);
+  --pan-login-bg-2: light-dark(#2e7d32, #0a1a3d);
+  --pan-login-bg-3: light-dark(#66bb6a, #10295c);
+  --pan-login-text: light-dark(#ffffff, #90befe);
+  --pan-login-card: light-dark(rgb(10 50 20 / 55%), rgb(10 26 61 / 65%));
+  --pan-login-card-border: light-dark(rgb(255 255 255 / 25%), #2a63ff);
+  --pan-login-input-bg: light-dark(rgb(255 255 255 / 94%), rgb(255 255 255 / 8%));
+  --pan-login-input-fg: light-dark(#1b1b1b, #ffffff);
+  --pan-login-input-border: light-dark(transparent, #1f4fd6);
+  --pan-login-button-1: light-dark(#43a047, #19d3ff);
+  --pan-login-button-2: light-dark(#1b5e20, #3d7bff);
+  --pan-login-button-fg: light-dark(#ffffff, #001233);
+  --pan-login-error: light-dark(#ffe082, #ffb4ab);
+  --pan-plexus-color: light-dark(rgb(220 255 220), #6f9dff);
 }

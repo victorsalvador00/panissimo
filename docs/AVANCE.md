@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-05).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-06).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -12,7 +12,7 @@
 | 1 | B-03 Identity, login, refresh rotativo, permisos, alcance, rate limit | ✅ | (ver `git log`) |
 | 1 | B-04 Usuarios, roles, bitácora, ubicaciones, settings | ✅ | (ver `git log`) |
 | 1 | B-05 Catálogos y CSV de artículos | ✅ | (ver `git log`) |
-| 1 | B-06 Motor de inventario | ⏳ | |
+| 1 | B-06 Motor de inventario | ✅ | (ver `git log`) |
 | 1 | B-07 Existencias, kardex, alertas, ajustes, existencias iniciales | ⏳ | |
 | 1 | B-08 Conteo físico y consumo | ⏳ | |
 | 1 | B-09 Traspasos directos | ⏳ | |
@@ -79,8 +79,17 @@
 - `Item` con tipos `RawMaterial | Supply | SemiFinished | FinishedGood`, `Presentation` (obligatoria solo en terminados), `BulkItemId` y `UnitsPerPackage` (solo empaquetados; el granel debe ser terminado a granel activo y no él mismo), `ProductionAreaId` (solo producidos), `ProductionMultiple` (> 0, default 1; entero si la unidad base es `pza`), `UnitWeightGrams`. Un granel con empaquetados ligados no deja de ser granel.
 - CSV (`sku,nombre,tipo,categoria,unidad_base,unidad_compra,factor_compra,maneja_lotes,vida_util_dias,almacenamiento,iva,presentacion,sku_granel,piezas_por_paquete,area,multiplo_op,gramaje_g`): todo o nada, errores por fila y columna (`rowErrors`), sin distinguir mayúsculas ni acentos en valores, área por código o nombre, `sku_granel` puede venir en el mismo archivo; SKU existente se actualiza (conserva su estado activo).
 - Migración `AddCatalog`.
-- Pendiente para B-06: impedir cambiar la unidad base o el control de lotes de un artículo con movimientos (API y CSV), en cuanto exista el kardex.
+- Unidad base y control de lotes quedan fijos cuando el artículo tiene movimientos: se agregó en B-06 (API 422 `item_has_movements` y CSV por fila).
 - Pruebas: 49 unitarias y 41 de integración (granel + empaquetado ligado, liga inválida, múltiplo fraccionario en `pza`, lookup por filtros, mín/máx, áreas, CSV con errores sin importar nada, CSV con liga en el mismo archivo y actualización, permisos).
+
+### B-06 (2026-10-16)
+
+- Entidades `Lot`, `StockBalance` (único con `NULLS NOT DISTINCT`), `ItemLocationCost`, `InventoryMovement` (inmutable, `Sequence` identity para el orden del kardex; índice cubriente para el saldo corrido).
+- `IInventoryPostingService` (exige transacción abierta): crea filas faltantes con `ON CONFLICT`, bloquea costos y existencias con `FOR UPDATE` en orden estable y delega en `InventoryPostingCalculator` (puro): RN-02 con todos los faltantes juntos, RN-03b (enteros en `pza`), RN-04 costo promedio por ubicación, RN-05 (lote obligatorio/prohibido, FEFO con desempate por creación, vencidos rechazados en `TransferOut`, `CustomerShipment`, `ProductionConsumption` y `Consumption`). No guarda: el caso de uso hace `SaveChanges` y `Commit`.
+- `ILotAllocator` (vista previa FEFO sin bloqueo) e `ILotRegistry` (candado `pg_advisory_xact_lock` por artículo y lote; rechaza otra caducidad).
+- Nuevo tipo de movimiento `CustomerShipment` (remisiones, B-19).
+- Migración `AddInventory`.
+- Pruebas: 68 unitarias y 49 de integración (+8: transacción obligatoria, kardex y costo, faltante sin movimientos parciales, salidas concurrentes sin negativos, lote nuevo concurrente compartido, caducidad distinta, FEFO sin vencidos, candado de unidad/lotes con movimientos).
 
 ## Pendientes y decisiones abiertas
 

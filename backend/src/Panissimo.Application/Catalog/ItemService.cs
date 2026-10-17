@@ -22,6 +22,8 @@ public interface IItemService
 public static class ItemReferenceRules
 {
     public const string BulkTargetMessage = "La versión a granel debe ser un producto terminado a granel activo.";
+    public const string ItemHasMovementsMessage =
+        "El artículo ya tiene movimientos de inventario: no puedes cambiar su unidad base ni su control de lotes.";
     public const string WholeMultipleMessage = "Con unidad base en piezas, el múltiplo de OP debe ser entero.";
     public const string BulkHasPackagedMessage =
         "Este producto tiene versiones empaquetadas ligadas: debe seguir siendo un producto terminado a granel.";
@@ -126,6 +128,10 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         db.EnsureVersion(item, request.Version);
         var definition = request.ToDefinition();
         await ValidateReferencesAsync(definition, item, ct);
+
+        if ((definition.BaseUomId != item.BaseUomId || definition.TracksLots != item.TracksLots)
+            && await db.InventoryMovements.AnyAsync(m => m.ItemId == id, ct))
+            throw new BusinessRuleException("item_has_movements", ItemReferenceRules.ItemHasMovementsMessage);
 
         item.Update(definition);
         if (request.IsActive) item.Activate(); else item.Deactivate();

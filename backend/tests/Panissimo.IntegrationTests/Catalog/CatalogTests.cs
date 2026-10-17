@@ -80,6 +80,23 @@ public class CatalogTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Base_unit_and_lot_control_are_fixed_once_the_item_has_movements()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var refs = await RefsAsync(admin);
+        var item = await (await admin.PostJsonAsync("/api/v1/items", FinishedGood(refs, Unique("ROL"), ItemPresentation.Bulk) with { TracksLots = false }))
+            .Content.ReadJsonAsync<ItemDto>();
+        await factory.AddStockAsync(await factory.LocationIdAsync("PLANTA"), item!.Id, 10, 3);
+
+        var change = await admin.PutJsonAsync($"/api/v1/items/{item.Id}", new UpdateItemRequest(item.Version, item.Sku, item.Name,
+            ItemType.FinishedGood, refs.CategoryId, refs.Pza, null, null, true, 3, StorageCondition.Ambient, 0m,
+            ItemPresentation.Bulk, null, null, refs.Area.Id, 12, 85, true));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, change.StatusCode);
+        Assert.Contains("item_has_movements", await change.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task Lookup_filters_by_type_presentation_and_area()
     {
         var admin = await factory.LoginAsAdminAsync();

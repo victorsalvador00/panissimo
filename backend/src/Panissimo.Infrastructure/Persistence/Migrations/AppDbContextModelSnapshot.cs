@@ -459,6 +459,230 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("unit_of_measure", "catalog");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryMovement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
+                    b.Property<Guid?>("LotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lot_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<long>("Sequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("sequence");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Sequence"));
+
+                    b.Property<string>("SourceDocFolio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("source_doc_folio");
+
+                    b.Property<Guid>("SourceDocId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_doc_id");
+
+                    b.Property<string>("SourceDocType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("source_doc_type");
+
+                    b.Property<decimal>("TotalCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("total_cost");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("type");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_inventory_movement");
+
+                    b.HasIndex("LotId")
+                        .HasDatabaseName("ix_inventory_movement_lot_id");
+
+                    b.HasIndex("Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("ix_inventory_movement_sequence");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_inventory_movement_user_id");
+
+                    b.HasIndex("LocationId", "Sequence")
+                        .HasDatabaseName("ix_inventory_movement_location_id_sequence");
+
+                    b.HasIndex("SourceDocType", "SourceDocId")
+                        .HasDatabaseName("ix_inventory_movement_source_doc_type_source_doc_id");
+
+                    b.HasIndex("ItemId", "Type", "BusinessDate")
+                        .HasDatabaseName("ix_inventory_movement_item_id_type_business_date");
+
+                    b.HasIndex("LocationId", "ItemId", "OccurredAt")
+                        .HasDatabaseName("ix_inventory_movement_location_id_item_id_occurred_at");
+
+                    b.HasIndex("LocationId", "ItemId", "Sequence")
+                        .HasDatabaseName("ix_inventory_movement_location_id_item_id_sequence");
+
+                    NpgsqlIndexBuilderExtensions.IncludeProperties(b.HasIndex("LocationId", "ItemId", "Sequence"), new[] { "Quantity" });
+
+                    b.ToTable("inventory_movement", "inventory");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.ItemLocationCost", b =>
+                {
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<decimal>("AverageCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("average_cost");
+
+                    b.HasKey("LocationId", "ItemId")
+                        .HasName("pk_item_location_cost");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_item_location_cost_item_id");
+
+                    b.ToTable("item_location_cost", "inventory");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.Lot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedFromDocId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_from_doc_id");
+
+                    b.Property<string>("CreatedFromDocType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("created_from_doc_type");
+
+                    b.Property<DateOnly?>("ExpirationDate")
+                        .HasColumnType("date")
+                        .HasColumnName("expiration_date");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<string>("LotNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("lot_number");
+
+                    b.HasKey("Id")
+                        .HasName("pk_lot");
+
+                    b.HasIndex("ItemId", "ExpirationDate")
+                        .HasDatabaseName("ix_lot_item_id_expiration_date");
+
+                    b.HasIndex("ItemId", "LotNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_lot_item_id_lot_number");
+
+                    b.ToTable("lot", "inventory");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.StockBalance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
+                    b.Property<Guid?>("LotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lot_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_balance");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_stock_balance_item_id");
+
+                    b.HasIndex("LotId")
+                        .HasDatabaseName("ix_stock_balance_lot_id");
+
+                    b.HasIndex("LocationId", "ItemId", "LotId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_stock_balance_location_id_item_id_lot_id");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("LocationId", "ItemId", "LotId"), false);
+
+                    b.ToTable("stock_balance", "inventory");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Organization.AppSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -1051,6 +1275,85 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_item_location_setting_locations_location_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryMovement", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_inventory_movement_items_item_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_inventory_movement_locations_location_id");
+
+                    b.HasOne("Panissimo.Domain.Inventory.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_inventory_movement_lots_lot_id");
+
+                    b.HasOne("Panissimo.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_inventory_movement_user_user_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.ItemLocationCost", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_location_cost_item_item_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_location_cost_locations_location_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.Lot", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_lot_item_item_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.StockBalance", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_balance_item_item_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_stock_balance_location_location_id");
+
+                    b.HasOne("Panissimo.Domain.Inventory.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_stock_balance_lot_lot_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Security.RefreshToken", b =>

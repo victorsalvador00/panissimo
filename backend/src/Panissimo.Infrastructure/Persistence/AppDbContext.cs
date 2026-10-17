@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Panissimo.Application.Common;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
+using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Security;
 using Panissimo.Infrastructure.Identity;
@@ -20,6 +21,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ItemCategory> ItemCategories => Set<ItemCategory>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<ItemLocationSetting> ItemLocationSettings => Set<ItemLocationSetting>();
+    public DbSet<Lot> Lots => Set<Lot>();
+    public DbSet<StockBalance> StockBalances => Set<StockBalance>();
+    public DbSet<ItemLocationCost> ItemLocationCosts => Set<ItemLocationCost>();
+    public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

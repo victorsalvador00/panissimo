@@ -142,6 +142,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         var bySku = parsed.ToDictionary(p => p.Sku);
 
         errors.AddRange(ValidateBulkLinks(parsed, bySku, existing));
+        errors.AddRange(await ValidateFixedOnceMovedAsync(parsed, existing, ct));
         errors.AddRange(await ValidateBulkWithPackagedAsync(parsed, existing, ct));
 
         if (errors.Count > 0)
@@ -199,6 +200,23 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
             if (!valid)
                 yield return new ImportError(row.Line, Columns.BulkSku, $"'{row.BulkSku}': {ItemReferenceRules.BulkTargetMessage}");
         }
+    }
+
+    /// <summary>Same guard as the API: base unit and lot control are fixed once the item has movements.</summary>
+    private async Task<IEnumerable<ImportError>> ValidateFixedOnceMovedAsync(
+        IReadOnlyList<ParsedRow> parsed, IReadOnlyDictionary<string, Item> existing, CancellationToken ct)
+    {
+        var changing = parsed
+            .Where(p => existing.TryGetValue(p.Sku, out var item)
+                        && (item.BaseUomId != p.Definition.BaseUomId || item.TracksLots != p.Definition.TracksLots))
+            .ToList();
+        if (changing.Count == 0)
+            return [];
+
+        var ids = changing.Select(p => existing[p.Sku].Id).ToList();
+        var moved = (await db.InventoryMovements.Where(m => ids.Contains(m.ItemId)).Select(m => m.ItemId).Distinct().ToListAsync(ct)).ToHashSet();
+        return changing.Where(p => moved.Contains(existing[p.Sku].Id))
+            .Select(p => new ImportError(p.Line, Columns.BaseUom, ItemReferenceRules.ItemHasMovementsMessage));
     }
 
     private async Task<IEnumerable<ImportError>> ValidateBulkWithPackagedAsync(

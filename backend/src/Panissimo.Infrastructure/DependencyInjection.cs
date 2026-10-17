@@ -4,11 +4,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
+using Panissimo.Application.Inventory;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
 using Panissimo.Application.Security;
 using Panissimo.Infrastructure.Csv;
 using Panissimo.Infrastructure.Identity;
+using Panissimo.Infrastructure.Inventory;
 using Panissimo.Infrastructure.Persistence;
 using Panissimo.Infrastructure.Persistence.Interceptors;
 using Panissimo.Infrastructure.Persistence.Seed;
@@ -84,6 +86,9 @@ public static class DependencyInjection
         services.AddScoped<IProductionAreaService, ProductionAreaService>();
         services.AddScoped<IItemService, ItemService>();
         services.AddScoped<IItemImportService, ItemImportService>();
+        services.AddScoped<IInventoryPostingService, InventoryPostingService>();
+        services.AddScoped<ILotAllocator, LotAllocator>();
+        services.AddScoped<ILotRegistry, LotRegistry>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

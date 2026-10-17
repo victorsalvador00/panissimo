@@ -204,14 +204,14 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("InternalCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("internal_code");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
-
-                    b.Property<string>("MatrixCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("matrix_code");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -308,10 +308,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_item_category_id");
 
-                    b.HasIndex("MatrixCode")
+                    b.HasIndex("InternalCode")
                         .IsUnique()
-                        .HasDatabaseName("ix_item_matrix_code")
-                        .HasFilter("matrix_code IS NOT NULL");
+                        .HasDatabaseName("ix_item_internal_code")
+                        .HasFilter("internal_code IS NOT NULL");
 
                     b.HasIndex("Name")
                         .HasDatabaseName("ix_item_name");

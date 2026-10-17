@@ -7,8 +7,8 @@
 
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
-- Pruebas en verde: 219 unitarias y 132 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `ApplyClientDecisions` (B-27).
+- Pruebas en verde: 219 unitarias y 133 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `RenameMatrixCodeToInternalCode` (ajuste de D-07).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
@@ -274,6 +274,13 @@
 - Migración `ApplyClientDecisions` (columnas `exceeds_tolerance`, `matrix_code` + índice, `waste_qty`, `waste_reason`, `close_reason`, `notes` de línea de requisición). `dominio.md` §4 y §5 actualizados (RN-20, RN-32, RN-34, RN-63, RN-80, RN-90, ajustes, cliente, artículo).
 - Sin paquetes nuevos.
 - Pruebas: 219 unitarias (+5 netas: tolerancia marcada, artículos permitidos, devolución con merma, código de la Matriz) y 132 de integración (+4: importación por código de la Matriz, devolución con merma en kardex, código de cliente editable, requisición con artículo repetido y nota; ajustadas las que esperaban el bloqueo de tolerancia y las restricciones de presentación).
+
+### Ajuste de D-07 (2026-10-17)
+
+- A pedido del usuario: el "código de la Matriz" se renombra a **código interno** (`Item.InternalCode`, API `internalCode`, columna `internal_code` con migración `RenameMatrixCodeToInternalCode` que renombra sin perder datos; CSV `codigo_interno`). Solo debe ser único entre artículos (se quitó la regla de no chocar con SKU).
+- La importación de OP identifica el producto **solo** por el código interno: la columna de la plantilla es `codigo_interno` (antes `sku`) y el SKU del sistema ya no se acepta. Un artículo sin código interno no puede importarse.
+- CSV de artículos: un renglón sin código interno (o un archivo sin la columna) se **omite** y el resultado (`ItemImportResult.skipped`) dice el renglón y el motivo; los demás se importan. Los errores de los renglones restantes siguen siendo todo o nada.
+- Pruebas: 219 unitarias y 133 de integración (+1: renglones omitidos sin código interno; la importación de OP rechaza el SKU del sistema). `TestData.CreateItemAsync` asigna `INT-{sku}` a los artículos de prueba.
 
 ## Pendientes y decisiones abiertas
 

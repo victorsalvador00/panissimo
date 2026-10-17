@@ -95,13 +95,13 @@ public class ItemRulesTests
     [Fact]
     public void The_matriz_code_is_optional_upper_case_and_shaped_like_a_sku()
     {
-        Assert.Empty(ItemRules.Check(Definition() with { MatrixCode = " " }));
-        Assert.Equal("SKU0001", ItemRules.NormalizeMatrixCode(" sku0001 "));
-        Assert.Null(ItemRules.NormalizeMatrixCode(""));
-        Assert.Contains("matrixCode", Fields(Definition() with { MatrixCode = "SKU 0001" }));
-        Assert.Contains("matrixCode", Fields(Definition() with { MatrixCode = new string('A', ItemRules.SkuMaxLength + 1) }));
+        Assert.Empty(ItemRules.Check(Definition() with { InternalCode = " " }));
+        Assert.Equal("SKU0001", ItemRules.NormalizeInternalCode(" sku0001 "));
+        Assert.Null(ItemRules.NormalizeInternalCode(""));
+        Assert.Contains("internalCode", Fields(Definition() with { InternalCode = "SKU 0001" }));
+        Assert.Contains("internalCode", Fields(Definition() with { InternalCode = new string('A', ItemRules.SkuMaxLength + 1) }));
 
-        var item = new Item(Definition() with { MatrixCode = "sku0001" });
-        Assert.Equal("SKU0001", item.MatrixCode);
+        var item = new Item(Definition() with { InternalCode = "sku0001" });
+        Assert.Equal("SKU0001", item.InternalCode);
     }
 }

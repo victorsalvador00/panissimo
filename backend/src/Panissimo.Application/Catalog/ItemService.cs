@@ -62,7 +62,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
             items = items.Where(i => i.BulkItemId == bulkItemId);
         if (query.SearchTerm() is { } term)
             items = items.Where(i => i.Sku.ToLower().Contains(term) || i.Name.ToLower().Contains(term)
-                                     || (i.MatrixCode != null && i.MatrixCode.ToLower().Contains(term)));
+                                     || (i.InternalCode != null && i.InternalCode.ToLower().Contains(term)));
 
         var page = await items.ApplySort(query.Sort, SortColumns, "name").ToPagedResultAsync(query, ct);
 
@@ -75,7 +75,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         var areas = await db.ProductionAreas.Where(a => areaIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Name, ct);
 
         return new PagedResult<ItemListItemDto>(
-            page.Items.Select(i => new ItemListItemDto(i.Id, i.Sku, i.MatrixCode, i.Name, i.Type, i.Presentation, i.CategoryId,
+            page.Items.Select(i => new ItemListItemDto(i.Id, i.Sku, i.InternalCode, i.Name, i.Type, i.Presentation, i.CategoryId,
                 categories[i.CategoryId], uoms[i.BaseUomId], i.ProductionAreaId,
                 i.ProductionAreaId is { } a ? areas.GetValueOrDefault(a) : null, i.TracksLots, i.StorageCondition, i.IsActive)).ToList(),
             page.Page, page.PageSize, page.Total);
@@ -98,7 +98,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         {
             var term = query.Q.Trim().ToLower();
             items = items.Where(i => i.Sku.ToLower().Contains(term) || i.Name.ToLower().Contains(term)
-                                     || (i.MatrixCode != null && i.MatrixCode.ToLower().Contains(term)));
+                                     || (i.InternalCode != null && i.InternalCode.ToLower().Contains(term)));
         }
 
         var limit = Math.Clamp(query.Limit, 1, ItemLookupQuery.MaxResults);
@@ -204,13 +204,11 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
 
         if (await db.Items.AnyAsync(i => i.Sku == sku && i.Id != currentId, ct))
             errors["sku"] = [$"El SKU '{sku}' ya existe."];
-        else if (await db.Items.AnyAsync(i => i.MatrixCode == sku && i.Id != currentId, ct))
-            errors["sku"] = [$"'{sku}' ya es el código de la Matriz de otro artículo."];
 
-        // D-07: a Matriz code identifies one item and never collides with another item's SKU.
-        if (ItemRules.NormalizeMatrixCode(d.MatrixCode) is { } matrixCode
-            && await db.Items.AnyAsync(i => (i.MatrixCode == matrixCode || i.Sku == matrixCode) && i.Id != currentId, ct))
-            errors["matrixCode"] = [$"El código de la Matriz '{matrixCode}' ya lo usa otro artículo."];
+        // D-07: an internal code identifies one item.
+        if (ItemRules.NormalizeInternalCode(d.InternalCode) is { } internalCode
+            && await db.Items.AnyAsync(i => i.InternalCode == internalCode && i.Id != currentId, ct))
+            errors["internalCode"] = [$"El código interno '{internalCode}' ya lo usa otro artículo."];
 
         if (!await db.ItemCategories.AnyAsync(c => c.Id == d.CategoryId && (c.IsActive || c.Id == currentCategoryId), ct))
             errors["categoryId"] = ["La categoría no existe o está inactiva."];
@@ -254,7 +252,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
             : null;
         var names = await userDirectory.GetNamesAsync([i.CreatedBy, i.UpdatedBy], ct);
 
-        return new ItemDto(i.Id, i.Sku, i.MatrixCode, i.Name, i.Type, i.CategoryId, i.BaseUomId, baseUomCode, i.PurchaseUomId,
+        return new ItemDto(i.Id, i.Sku, i.InternalCode, i.Name, i.Type, i.CategoryId, i.BaseUomId, baseUomCode, i.PurchaseUomId,
             i.PurchaseToBaseFactor, i.TracksLots, i.ShelfLifeDays, i.StorageCondition, i.TaxRate, i.Presentation,
             i.BulkItemId, bulk?.Sku, bulk?.Name, i.UnitsPerPackage, i.ProductionAreaId, i.ProductionMultiple, i.UnitWeightGrams,
             i.IsActive, i.CreatedAt, names.Of(i.CreatedBy), i.UpdatedAt, names.Of(i.UpdatedBy), i.Version);

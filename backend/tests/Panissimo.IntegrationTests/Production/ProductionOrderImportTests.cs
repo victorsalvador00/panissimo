@@ -22,7 +22,7 @@ public class ProductionOrderImportTests(ApiFactory factory)
     private static DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTime.UtcNow,
         TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City")));
 
-    private static readonly string[] Headers = ["Fecha", "SKU", "Cantidad", "Área", "Turno", "Ubicación", "Notas"];
+    private static readonly string[] Headers = ["Fecha", "Código interno", "Cantidad", "Área", "Turno", "Ubicación", "Notas"];
 
     /// <summary>An .xlsx with the template columns; a DateOnly value is written as a date cell.</summary>
     private static byte[] Xlsx(IEnumerable<object?[]> rows, string[]? headers = null)
@@ -83,21 +83,21 @@ public class ProductionOrderImportTests(ApiFactory factory)
         var noRecipe = await factory.CreateItemAsync("SINREC", ItemType.FinishedGood, "pza");
         var file = Xlsx(
         [
-            [Today.AddDays(1), bread.Sku, 100, null, "Noche", null, null],               // ok
-            [Today.AddDays(-1), bread.Sku, 100, null, null, null, null],                 // past date
-            [Today, "NO-EXISTE", 10, null, null, null, null],                            // unknown SKU
-            [Today, flour.Sku, 10, null, null, null, null],                              // raw material
-            [Today, noRecipe.Sku, 10, null, null, null, null],                           // no recipe
-            [Today, bread.Sku, 2.5m, null, null, null, null],                            // fraction in pieces
-            [Today, dough.Sku, 0, "NO-AREA", "Madrugada", "SUC-01", null],               // qty, area, shift, location
-            ["31/02/2026", bread.Sku, 10, null, null, null, null],                       // invalid text date
+            [Today.AddDays(1), bread.InternalCode, 100, null, "Noche", null, null],               // ok
+            [Today.AddDays(-1), bread.InternalCode, 100, null, null, null, null],                 // past date
+            [Today, "NO-EXISTE", 10, null, null, null, null],                            // unknown internal code
+            [Today, flour.InternalCode, 10, null, null, null, null],                              // raw material
+            [Today, noRecipe.InternalCode, 10, null, null, null, null],                           // no recipe
+            [Today, bread.InternalCode, 2.5m, null, null, null, null],                            // fraction in pieces
+            [Today, dough.InternalCode, 0, "NO-AREA", "Madrugada", "SUC-01", null],               // qty, area, shift, location
+            ["31/02/2026", bread.InternalCode, 10, null, null, null, null],                       // invalid text date
         ]);
 
         var validation = await (await admin.PostAsync("/api/v1/production-order-imports/validate", Form(file))).Content.ReadJsonAsync<ImportPreviewDto>();
         var errors = validation!.Errors.Select(e => (e.Row, e.Column)).ToList();
         Assert.Equal(0, validation.OrderCount);
         Assert.DoesNotContain(errors, e => e.Row == 2);
-        foreach (var expected in new[] { (3, "fecha"), (4, "sku"), (5, "sku"), (6, "sku"), (7, "cantidad"), (8, "cantidad"),
+        foreach (var expected in new[] { (3, "fecha"), (4, "codigo_interno"), (5, "codigo_interno"), (6, "codigo_interno"), (7, "cantidad"), (8, "cantidad"),
                      (8, "area"), (8, "turno"), (8, "ubicacion"), (9, "fecha") })
             Assert.Contains(expected, errors);
 
@@ -117,10 +117,10 @@ public class ProductionOrderImportTests(ApiFactory factory)
         var date = Today.AddDays(1);
         var file = Xlsx(
         [
-            [date, bread.Sku.ToLowerInvariant(), 1200, "Bizcocho Día", "noche", null, "Cadena A"],
-            [date, bread.Sku, 800, "BIZ-DIA", "Noche", "PLANTA", "Cadena B"],
-            [date.ToString("dd/MM/yyyy"), bread.Sku, 500, "BIZ-DIA", "Día", null, null],
-            [date, roll.Sku, 300, null, null, null, null],
+            [date, bread.InternalCode!.ToLowerInvariant(), 1200, "Bizcocho Día", "noche", null, "Cadena A"],
+            [date, bread.InternalCode, 800, "BIZ-DIA", "Noche", "PLANTA", "Cadena B"],
+            [date.ToString("dd/MM/yyyy"), bread.InternalCode, 500, "BIZ-DIA", "Día", null, null],
+            [date, roll.InternalCode, 300, null, null, null, null],
             [null, null, null, null, null, null, null],
         ]);
 
@@ -150,7 +150,7 @@ public class ProductionOrderImportTests(ApiFactory factory)
         var admin = await factory.LoginAsAdminAsync();
         var (bread, _, _, _) = await ProductsAsync(admin);
         var date = Today.AddDays(2);
-        var file = Xlsx([[date, bread.Sku, 100, null, "Noche", null, null]]);
+        var file = Xlsx([[date, bread.InternalCode, 100, null, "Noche", null, null]]);
         Assert.Equal(HttpStatusCode.Created, (await admin.PostAsync("/api/v1/production-order-imports", Form(file))).StatusCode);
 
         var preview = await (await admin.PostAsync("/api/v1/production-order-imports/validate", Form(file))).Content.ReadJsonAsync<ImportPreviewDto>();
@@ -170,7 +170,7 @@ public class ProductionOrderImportTests(ApiFactory factory)
     {
         var admin = await factory.LoginAsAdminAsync();
         var (_, roll, _, _) = await ProductsAsync(admin);
-        var file = Xlsx([[Today.AddDays(3), roll.Sku, 240, null, null, null, null]], ["fecha", "sku", "cantidad", "columna extra"]);
+        var file = Xlsx([[Today.AddDays(3), roll.InternalCode, 240, null, null, null, null]], ["fecha", "codigo_interno", "cantidad", "columna extra"]);
 
         var preview = await (await admin.PostAsync("/api/v1/production-order-imports/validate", Form(file))).Content.ReadJsonAsync<ImportPreviewDto>();
         Assert.Equal("unknown_column", preview!.Warnings.Single().Code);
@@ -219,7 +219,7 @@ public class ProductionOrderImportTests(ApiFactory factory)
         // 3,000 rows → 30 products × 10 days × 3 shifts = 900 orders (some rows add up).
         var rows = Enumerable.Range(0, 3000).Select(i => new object?[]
         {
-            Today.AddDays(1 + i % 10), products[i / 10 % 30].Sku, 12, null, shifts[i / 300 % 3], null, null,
+            Today.AddDays(1 + i % 10), products[i / 10 % 30].InternalCode, 12, null, shifts[i / 300 % 3], null, null,
         }).ToList();
         var file = Xlsx(rows);
 
@@ -241,30 +241,35 @@ public class ProductionOrderImportTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task The_sku_column_also_takes_the_item_code_of_the_matriz_maestra()
+    public async Task Products_are_identified_only_by_their_internal_code()
     {
         var admin = await factory.LoginAsAdminAsync();
         var (bread, roll, _, _) = await ProductsAsync(admin);
-        var matrixCode = $"SKU{Random.Shared.Next(100_000, 999_999)}";
+        var internalCode = $"SKU{Random.Shared.Next(100_000, 999_999)}";
 
         var dto = (await admin.GetJsonAsync<ItemDto>($"/api/v1/items/{bread.Id}"))!;
         var update = await admin.PutJsonAsync($"/api/v1/items/{bread.Id}", new UpdateItemRequest(dto.Version, dto.Sku, dto.Name, dto.Type,
             dto.CategoryId, dto.BaseUomId, dto.PurchaseUomId, dto.PurchaseUomId is null ? null : dto.PurchaseToBaseFactor, dto.TracksLots,
             dto.ShelfLifeDays, dto.StorageCondition, dto.TaxRate, dto.Presentation, dto.BulkItemId, dto.UnitsPerPackage, dto.ProductionAreaId,
-            dto.ProductionMultiple, dto.UnitWeightGrams, true, matrixCode.ToLowerInvariant()));
+            dto.ProductionMultiple, dto.UnitWeightGrams, true, internalCode.ToLowerInvariant()));
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
-        Assert.Equal(matrixCode, (await update.Content.ReadJsonAsync<ItemDto>())!.MatrixCode);
+        Assert.Equal(internalCode, (await update.Content.ReadJsonAsync<ItemDto>())!.InternalCode);
 
-        // The same code on another item, or as another item's SKU, is rejected.
+        // The same internal code on another item is rejected.
         var rollDto = (await admin.GetJsonAsync<ItemDto>($"/api/v1/items/{roll.Id}"))!;
         var taken = await admin.PutJsonAsync($"/api/v1/items/{roll.Id}", new UpdateItemRequest(rollDto.Version, rollDto.Sku, rollDto.Name,
             rollDto.Type, rollDto.CategoryId, rollDto.BaseUomId, null, null, rollDto.TracksLots, rollDto.ShelfLifeDays, rollDto.StorageCondition,
             rollDto.TaxRate, rollDto.Presentation, null, null, rollDto.ProductionAreaId, rollDto.ProductionMultiple, rollDto.UnitWeightGrams, true,
-            matrixCode));
+            internalCode));
         Assert.Equal(HttpStatusCode.BadRequest, taken.StatusCode);
-        Assert.Contains("matrixCode", await taken.Content.ReadAsStringAsync());
+        Assert.Contains("internalCode", await taken.Content.ReadAsStringAsync());
 
-        var file = Xlsx([[Today.AddDays(1), matrixCode, 120, null, "Día", null, null], [Today.AddDays(1), roll.Sku, 60, null, "Día", null, null]]);
+        // The system SKU is not accepted in the file.
+        var bySku = await admin.PostAsync("/api/v1/production-order-imports/validate", Form(Xlsx([[Today.AddDays(1), roll.Sku, 60, null, null, null, null]])));
+        var preview = (await bySku.Content.ReadJsonAsync<ImportPreviewDto>())!;
+        Assert.Contains(preview.Errors, e => e.Column == "codigo_interno");
+
+        var file = Xlsx([[Today.AddDays(1), internalCode, 120, null, "Día", null, null], [Today.AddDays(1), roll.InternalCode, 60, null, "Día", null, null]]);
         var response = await admin.PostAsync("/api/v1/production-order-imports", Form(file));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var result = (await response.Content.ReadJsonAsync<ImportResultDto>())!;

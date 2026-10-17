@@ -38,8 +38,10 @@ public static class TestData
         if (type == ItemType.FinishedGood)
             presentation ??= ItemPresentation.Bulk;
 
-        var item = new Item(new ItemDefinition($"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 9)], $"{prefix} de prueba", type,
-            category.Id, uomId, purchaseUomId, purchaseToBaseFactor, tracksLots, shelfLifeDays, StorageCondition.Ambient, 0m, presentation));
+        // D-07: every test item gets an internal code (INT-…), so the OP import can find it.
+        var sku = $"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 9)];
+        var item = new Item(new ItemDefinition(sku, $"{prefix} de prueba", type, category.Id, uomId, purchaseUomId, purchaseToBaseFactor,
+            tracksLots, shelfLifeDays, StorageCondition.Ambient, 0m, presentation, InternalCode: $"INT-{sku}"));
         db.Items.Add(item);
         await db.SaveChangesAsync();
         return item;

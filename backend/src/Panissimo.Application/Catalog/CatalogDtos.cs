@@ -1,6 +1,7 @@
 using FluentValidation;
 using Panissimo.Application.Common;
 using Panissimo.Domain.Catalog;
+using Panissimo.Domain.Common;
 
 namespace Panissimo.Application.Catalog;
 
@@ -69,7 +70,7 @@ public sealed record ItemLookupDto(
 public sealed record ItemListItemDto(
     Guid Id,
     string Sku,
-    string? MatrixCode,
+    string? InternalCode,
     string Name,
     ItemType Type,
     ItemPresentation? Presentation,
@@ -85,7 +86,7 @@ public sealed record ItemListItemDto(
 public sealed record ItemDto(
     Guid Id,
     string Sku,
-    string? MatrixCode,
+    string? InternalCode,
     string Name,
     ItemType Type,
     Guid CategoryId,
@@ -130,11 +131,11 @@ public sealed record CreateItemRequest(
     Guid? ProductionAreaId,
     decimal? ProductionMultiple,
     decimal? UnitWeightGrams,
-    string? MatrixCode = null)
+    string? InternalCode = null)
 {
     public ItemDefinition ToDefinition() => new(Sku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
         PurchaseToBaseFactor, TracksLots, ShelfLifeDays, StorageCondition, TaxRate, Presentation, BulkItemId,
-        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams, MatrixCode);
+        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams, InternalCode);
 }
 
 public sealed record UpdateItemRequest(
@@ -157,11 +158,11 @@ public sealed record UpdateItemRequest(
     decimal? ProductionMultiple,
     decimal? UnitWeightGrams,
     bool IsActive,
-    string? MatrixCode = null)
+    string? InternalCode = null)
 {
     public ItemDefinition ToDefinition() => new(Sku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
         PurchaseToBaseFactor, TracksLots, ShelfLifeDays, StorageCondition, TaxRate, Presentation, BulkItemId,
-        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams, MatrixCode);
+        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams, InternalCode);
 }
 
 // Min/max per location
@@ -176,7 +177,8 @@ public sealed record UpdateItemLocationSettingsRequest(IReadOnlyList<ItemLocatio
 
 // Import
 
-public sealed record ItemImportResult(int Created, int Updated);
+/// <param name="Skipped">Rows left out, with the reason (D-07: a row without internal code).</param>
+public sealed record ItemImportResult(int Created, int Updated, IReadOnlyList<ImportError> Skipped);
 
 public static class CatalogMapping
 {

@@ -1046,6 +1046,157 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("stock_balance", "inventory");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Logistics.BranchOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("folio");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTimeOffset?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_at");
+
+                    b.Property<Guid?>("RejectedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rejected_by");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_reason");
+
+                    b.Property<Guid>("RequestingLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requesting_location_id");
+
+                    b.Property<DateOnly>("RequiredDate")
+                        .HasColumnType("date")
+                        .HasColumnName("required_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid?>("SubmittedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by");
+
+                    b.Property<Guid>("SupplyingLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplying_location_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_branch_order");
+
+                    b.HasIndex("Folio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_branch_order_folio");
+
+                    b.HasIndex("RequestingLocationId", "Status")
+                        .HasDatabaseName("ix_branch_order_requesting_location_id_status");
+
+                    b.HasIndex("SupplyingLocationId", "RequiredDate", "Status")
+                        .HasDatabaseName("ix_branch_order_supplying_location_id_required_date_status");
+
+                    b.ToTable("branch_order", "logistics");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Logistics.BranchOrderLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal?>("ApprovedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("approved_qty");
+
+                    b.Property<Guid>("BranchOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_order_id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("line_number");
+
+                    b.Property<decimal>("RequestedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("requested_qty");
+
+                    b.Property<decimal>("ShippedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("shipped_qty");
+
+                    b.HasKey("Id")
+                        .HasName("pk_branch_order_line");
+
+                    b.HasIndex("BranchOrderId")
+                        .HasDatabaseName("ix_branch_order_line_branch_order_id");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_branch_order_line_item_id");
+
+                    b.ToTable("branch_order_line", "logistics");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Logistics.Transfer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3163,8 +3314,48 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_stock_balance_lot_lot_id");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Logistics.BranchOrder", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("RequestingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_branch_order_locations_requesting_location_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("SupplyingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_branch_order_locations_supplying_location_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Logistics.BranchOrderLine", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Logistics.BranchOrder", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("BranchOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_branch_order_line_branch_orders_branch_order_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_branch_order_line_items_item_id");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Logistics.Transfer", b =>
                 {
+                    b.HasOne("Panissimo.Domain.Logistics.BranchOrder", null)
+                        .WithMany()
+                        .HasForeignKey("BranchOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_transfer_branch_order_branch_order_id");
+
                     b.HasOne("Panissimo.Domain.Organization.Location", null)
                         .WithMany()
                         .HasForeignKey("FromLocationId")
@@ -3527,6 +3718,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Inventory.PhysicalCount", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Logistics.BranchOrder", b =>
                 {
                     b.Navigation("Lines");
                 });

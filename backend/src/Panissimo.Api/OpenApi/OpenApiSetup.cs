@@ -134,6 +134,20 @@ public static class OpenApiSetup
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },
                             { "key": "production.plan_default_days", "value": 2, "version": 1235 } ] }
             """,
+        [typeof(CreateBranchOrderRequest)] = """
+            { "requestingLocationId": "0199a1b2-0000-7000-8000-0000000000a9", "requiredDate": "2026-10-18", "notes": "Fin de semana",
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "requestedQty": 120 },
+                         { "itemId": "0199a1b2-0000-7000-8000-0000000000d2", "requestedQty": 2 } ] }
+            """,
+        [typeof(UpdateBranchOrderRequest)] = """
+            { "version": 1234, "requiredDate": "2026-10-19", "notes": null,
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "requestedQty": 150 } ] }
+            """,
+        [typeof(ApproveBranchOrderRequest)] = """
+            { "version": 1234, "lines": [ { "lineId": "0199a1b2-0000-7000-8000-0000000000c1", "approvedQty": 100 },
+                                          { "lineId": "0199a1b2-0000-7000-8000-0000000000c2", "approvedQty": 0 } ] }
+            """,
+        [typeof(RejectBranchOrderRequest)] = """{ "version": 1234, "reason": "Sin producción ese día" }""",
         [typeof(CreateSupplierRequest)] = """
             { "taxId": "HAM980312AB5", "name": "Harinera del Bajío S.A. de C.V.", "contactName": "Jorge Ríos",
               "phone": "477 123 4567", "email": "ventas@harinerabajio.mx", "paymentTermsDays": 30 }

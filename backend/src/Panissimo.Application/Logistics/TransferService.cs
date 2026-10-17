@@ -140,8 +140,8 @@ public interface ITransferService
 }
 
 /// <summary>
-/// Hooks for documents linked to a transfer (the branch order of B-17). The transfer service calls them inside its
-/// transaction; without a link they do nothing.
+/// Hooks for documents linked to a transfer (the branch order, <see cref="BranchOrderTransferLinks"/>). The transfer
+/// service calls them inside its transaction; without a link they do nothing.
 /// </summary>
 public interface ITransferLinks
 {
@@ -151,16 +151,6 @@ public interface ITransferLinks
     Task OnCancelledAsync(Transfer transfer, CancellationToken ct);
 
     Task OnDispatchedAsync(Transfer transfer, CancellationToken ct);
-}
-
-public sealed class NoTransferLinks : ITransferLinks
-{
-    public Task EnsureEditAllowedAsync(Transfer transfer, Guid toLocationId, IReadOnlyList<TransferLineRequest> lines, CancellationToken ct) =>
-        Task.CompletedTask;
-
-    public Task OnCancelledAsync(Transfer transfer, CancellationToken ct) => Task.CompletedTask;
-
-    public Task OnDispatchedAsync(Transfer transfer, CancellationToken ct) => Task.CompletedTask;
 }
 
 public sealed class TransferService(

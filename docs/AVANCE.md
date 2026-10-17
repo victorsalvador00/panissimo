@@ -7,13 +7,13 @@
 
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
-- Pruebas en verde: 222 unitarias y 140 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddInternalTransfers` (B-26b).
+- Pruebas en verde: 222 unitarias y 144 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**B-27, B-26a y B-26b terminadas.** **Siguiente tarea: B-26c..B-26d** (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
+**B-27 y B-26a..B-26c terminadas.** **Siguiente tarea: B-26d** (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
 
 **Después**
 - Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
@@ -24,7 +24,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-26c en `docs/specs/backend.md` §13 y RN-44..RN-47 en `docs/specs/dominio.md` §4.1.
+4. Leer B-26d en `docs/specs/backend.md` §13 y RN-46 en `docs/specs/dominio.md` §4.1.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -57,7 +57,7 @@
 | 4 | B-27 Retrabajo por decisiones | ✅ | (ver `git log`) |
 | 4 | B-26a Subalmacenes: modelo y alcance | ✅ | (ver `git log`) |
 | 4 | B-26b Vale interno | ✅ | (ver `git log`) |
-| 4 | B-26c Procesos eligen subalmacén | ⏳ | |
+| 4 | B-26c Procesos eligen subalmacén | ✅ | (ver `git log`) |
 | 4 | B-26d Totales por ubicación | ⏳ | |
 | 4 | B-21 Requerimiento de materia prima | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
@@ -308,6 +308,15 @@
 - Endpoints `/internal-transfers` (lista, detalle, alta, edición, `dispatch` con `{ version, lines? }`, `receive`, `cancel`): ver con `inventory.view`, operar con el permiso nuevo `inventory.internal_transfers` (Almacén planta por módulo de inventario y Encargado de sucursal). Crear, editar, enviar y cancelar exigen el subalmacén origen; recibir, el destino. Los endpoints de traspasos no ven vales y viceversa (404).
 - Sin paquetes nuevos.
 - Pruebas: 222 unitarias (+1) y 140 de integración (+3: vale con lote, tránsito, recepción con diferencia, kardex con costo; rutas inválidas, sin existencia y cancelación; alcance origen/destino y permiso). `AdministrationTests` ajustada: el rol de prueba que asigna "Encargado de sucursal" necesita también el permiso nuevo (anti-escalamiento, RN-43).
+
+### B-26c (2026-10-17)
+
+- `WarehousePicker` (RN-45): por línea, el subalmacén de la línea o el del documento; una ubicación sin subalmacenes postea en sí misma (y rechaza un subalmacén ajeno); con subalmacenes, el subalmacén es obligatorio (`warehouse_required`, 422), debe ser un subalmacén activo de esa ubicación (`warehouse_not_of_location`, 422) y estar en el alcance de inventario (403).
+- Recepción de compra: `warehouseId` en el encabezado y por línea; `GoodsReceiptLine.LocationId`. Cierre de OP: `consumptionWarehouseId` (encabezado), `warehouseId` por componente y `outputWarehouseId`; `ProductionCloseLine.LocationId` y `ProductionClose.OutputLocationId`; FEFO y costo promedio del subalmacén de cada componente. Traspaso: `fromWarehouseId` (+ por línea) al despachar y `toWarehouseId` (+ por línea) al recibir; `TransferLine.FromStockLocationId` / `ToStockLocationId`. Remisión: `fromWarehouseId` (+ por línea); `CustomerShipmentLine.LocationId`. Los vales internos no cambian (su origen y destino ya son subalmacenes). Los DTO muestran el código del subalmacén por línea.
+- Migración `ProcessesChooseWarehouse` con relleno: los documentos anteriores quedan con su propia ubicación como ubicación de inventario.
+- Semilla: opción `Seed:PlantWarehouses` (por omisión **activa**) crea los 4 subalmacenes de la Planta (`PLANTA-MP`, `PLANTA-INS`, `PLANTA-SEMI`, `PLANTA-PT`) solo si no tiene subalmacenes ni existencia. Las pruebas de integración la desactivan: la Planta compartida sigue sin subalmacenes (cubre ese caso) y las pruebas de RN-44..RN-47 crean su propia planta o sucursal. **Atención:** una BD de desarrollo con existencia en PLANTA no recibe los subalmacenes (RN-44); en una BD nueva sí, y entonces todo proceso de la Planta debe indicar subalmacén.
+- Sin paquetes nuevos.
+- Pruebas: 222 unitarias y 144 de integración (+4: recepción con MP e insumos y errores de subalmacén; cierre que consume de MP y semiterminados y deja en terminado; traspaso de PT a la vitrina de una sucursal; remisión desde PT). La siembra con la opción activa no tiene prueba automática (sembraría la Planta compartida).
 
 ## Pendientes y decisiones abiertas
 

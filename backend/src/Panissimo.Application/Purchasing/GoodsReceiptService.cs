@@ -15,11 +15,14 @@ namespace Panissimo.Application.Purchasing;
 /// <param name="Quantity">In purchase unit. A line may come several times, once per lot.</param>
 /// <param name="LotNumber">Required for items that track lots (RN-05); not allowed otherwise.</param>
 /// <param name="ExpirationDate">Empty: the existing lot's, or business date + ShelfLifeDays for a new lot.</param>
-public sealed record GoodsReceiptLineRequest(Guid PoLineId, decimal Quantity, string? LotNumber, DateOnly? ExpirationDate);
+/// <param name="WarehouseId">Sub-warehouse of this line; empty takes the receipt's (RN-45).</param>
+public sealed record GoodsReceiptLineRequest(Guid PoLineId, decimal Quantity, string? LotNumber, DateOnly? ExpirationDate, Guid? WarehouseId = null);
 
 /// <param name="PoVersion">Version of the purchase order the client saw: a concurrent receipt gets 409.</param>
+/// <param name="WarehouseId">Sub-warehouse for every line (RN-45); required when the plant has sub-warehouses, unless each line has one.</param>
 public sealed record CreateGoodsReceiptRequest(
-    Guid PurchaseOrderId, uint PoVersion, string? SupplierInvoiceNumber, string? Notes, IReadOnlyList<GoodsReceiptLineRequest> Lines);
+    Guid PurchaseOrderId, uint PoVersion, string? SupplierInvoiceNumber, string? Notes, IReadOnlyList<GoodsReceiptLineRequest> Lines,
+    Guid? WarehouseId = null);
 
 public sealed record GoodsReceiptListQuery : PageQuery
 {
@@ -37,7 +40,7 @@ public sealed record GoodsReceiptListItemDto(
 /// <param name="UomCode">Purchase unit, or base unit when the item has none.</param>
 /// <param name="LineCost">BaseQuantity × UnitCostBase.</param>
 public sealed record GoodsReceiptLineDto(
-    Guid Id, Guid PurchaseOrderLineId, Guid ItemId, string Sku, string ItemName, string UomCode, decimal Quantity, string BaseUomCode,
+    Guid Id, Guid PurchaseOrderLineId, Guid LocationId, string LocationCode, Guid ItemId, string Sku, string ItemName, string UomCode, decimal Quantity, string BaseUomCode,
     decimal BaseQuantity, decimal UnitCostBase, decimal LineCost, Guid? LotId, string? LotNumber, DateOnly? ExpirationDate);
 
 public sealed record GoodsReceiptDto(
@@ -150,6 +153,10 @@ public sealed class GoodsReceiptService(
                            select new { Item = i, Pieces = b.Code == UnitOfMeasure.PieceCode })
             .ToDictionaryAsync(x => x.Item.Id, ct);
 
+        // RN-45: the plant or the chosen sub-warehouse of each line, checked before anything is written.
+        var picker = await WarehousePicker.LoadAsync(db, scope, order.DeliveryLocationId, ct);
+        var targets = request.Lines.Select(l => picker.Resolve(request.WarehouseId, l.WarehouseId)).ToList();
+
         var errors = new List<string>();
         foreach (var line in request.Lines)
         {
@@ -178,14 +185,14 @@ public sealed class GoodsReceiptService(
 
         var folio = await folios.NextAsync(DocType.GoodsReceipt, ct);
         var inputs = new List<GoodsReceiptLineInput>();
-        foreach (var line in request.Lines)
+        foreach (var (line, target) in request.Lines.Zip(targets))
         {
             var poLine = lineItems[line.PoLineId];
             var item = items[poLine.ItemId].Item;
             Lot? lot = null;
             if (item.TracksLots)
                 lot = await lots.GetOrCreateAsync(item.Id, line.LotNumber!, line.ExpirationDate, GoodsReceipt.DocType, receiptId, ct);
-            inputs.Add(new GoodsReceiptLineInput(poLine.Id, item.Id, line.Quantity,
+            inputs.Add(new GoodsReceiptLineInput(poLine.Id, target, item.Id, line.Quantity,
                 PurchaseReceiptMath.BaseQuantity(line.Quantity, item.PurchaseToBaseFactor),
                 PurchaseReceiptMath.UnitCostBase(poLine.UnitPrice, item.PurchaseToBaseFactor),
                 lot?.Id, lot?.LotNumber, lot?.ExpirationDate));
@@ -193,7 +200,7 @@ public sealed class GoodsReceiptService(
 
         var receipt = new GoodsReceipt(receiptId, folio, order.Id, order.DeliveryLocationId, clock.UtcNow, currentUser.UserId,
             request.SupplierInvoiceNumber, request.Notes, inputs);
-        await posting.PostAsync(receipt.Lines.Select(l => new MovementRequest(order.DeliveryLocationId, l.ItemId, l.LotId,
+        await posting.PostAsync(receipt.Lines.Select(l => new MovementRequest(l.LocationId, l.ItemId, l.LotId,
             MovementType.PurchaseReceipt, l.BaseQuantity, l.UnitCostBase, GoodsReceipt.DocType, receiptId, folio,
             $"Recepción de {order.Folio}")).ToList(), ct);
 
@@ -217,11 +224,13 @@ public sealed class GoodsReceiptService(
                            select new { i.Id, i.Sku, i.Name, Uom = p.Code, BaseUom = b.Code })
             .ToDictionaryAsync(x => x.Id, ct);
         var names = await userDirectory.GetNamesAsync([g.ReceivedBy], ct);
+        var stockIds = g.Lines.Select(l => l.LocationId).Distinct().ToList();
+        var stockCodes = await db.Locations.AsNoTracking().Where(l => stockIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
 
         var lines = g.Lines.Select(l =>
         {
             var item = items[l.ItemId];
-            return new GoodsReceiptLineDto(l.Id, l.PurchaseOrderLineId, l.ItemId, item.Sku, item.Name, item.Uom, l.Quantity, item.BaseUom,
+            return new GoodsReceiptLineDto(l.Id, l.PurchaseOrderLineId, l.LocationId, stockCodes[l.LocationId], l.ItemId, item.Sku, item.Name, item.Uom, l.Quantity, item.BaseUom,
                 l.BaseQuantity, l.UnitCostBase, InventoryMath.Round(l.BaseQuantity * l.UnitCostBase), l.LotId, l.LotNumber, l.ExpirationDate);
         }).ToList();
 

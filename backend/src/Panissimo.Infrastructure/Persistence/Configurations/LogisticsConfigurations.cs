@@ -37,6 +37,8 @@ internal sealed class TransferLineConfiguration : IEntityTypeConfiguration<Trans
     public void Configure(EntityTypeBuilder<TransferLine> builder)
     {
         builder.ToTable("transfer_line", "logistics");
+        builder.HasOne<Location>().WithMany().HasForeignKey(l => l.FromStockLocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Location>().WithMany().HasForeignKey(l => l.ToStockLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(l => l.DiscrepancyReason).HasMaxLength(20);
         builder.Property(l => l.DiscrepancyNotes).HasMaxLength(500);
         builder.Ignore(l => l.ShortQty);

@@ -115,6 +115,7 @@ internal sealed class CustomerShipmentLineConfiguration : IEntityTypeConfigurati
     public void Configure(EntityTypeBuilder<CustomerShipmentLine> builder)
     {
         builder.ToTable("customer_shipment_line", "sales");
+        builder.HasOne<Location>().WithMany().HasForeignKey(l => l.LocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(l => l.CustomerOrderLineId);
         builder.HasIndex(l => l.ItemId);
         builder.HasOne<CustomerOrderLine>().WithMany().HasForeignKey(l => l.CustomerOrderLineId).OnDelete(DeleteBehavior.Restrict);

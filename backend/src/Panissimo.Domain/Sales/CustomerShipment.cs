@@ -92,7 +92,9 @@ public class CustomerShipment : AuditableEntity, IVersioned
     /// <summary>
     /// CustomerShipment exits at the plant (RN-81): the lots chosen per line, which must add up to its quantity, or FEFO.
     /// </summary>
-    public IReadOnlyList<MovementRequest> DispatchRequests(IReadOnlyDictionary<Guid, IReadOnlyList<LotQuantity>> chosenLots)
+    /// <param name="sourceOf">RN-45: stock location each line leaves (the plant or one of its sub-warehouses); null = the plant.</param>
+    public IReadOnlyList<MovementRequest> DispatchRequests(IReadOnlyDictionary<Guid, IReadOnlyList<LotQuantity>> chosenLots,
+        Func<Guid, Guid>? sourceOf = null)
     {
         EnsureDraft("Solo una remisión en borrador puede despacharse.");
         if (chosenLots.Keys.Any(id => _lines.All(l => l.Id != id || l.Quantity == 0)))
@@ -105,17 +107,17 @@ public class CustomerShipment : AuditableEntity, IVersioned
             {
                 if (lots.Sum(l => l.Qty) != line.Quantity || lots.Any(l => l.Qty <= 0))
                     throw new BusinessRuleException("lots_mismatch", "La suma de los lotes elegidos debe ser igual a la cantidad de la línea.");
-                requests.AddRange(lots.Select(l => Out(line.ItemId, l.LotId, l.Qty)));
+                requests.AddRange(lots.Select(l => Out(line.Id, line.ItemId, l.LotId, l.Qty)));
             }
             else
             {
-                requests.Add(Out(line.ItemId, null, line.Quantity));
+                requests.Add(Out(line.Id, line.ItemId, null, line.Quantity));
             }
         }
         return requests;
 
-        MovementRequest Out(Guid itemId, Guid? lotId, decimal qty) =>
-            new(FromLocationId, itemId, lotId, MovementType.CustomerShipment, -qty, null, DocType, Id, Folio, $"Remisión {Folio}");
+        MovementRequest Out(Guid lineId, Guid itemId, Guid? lotId, decimal qty) =>
+            new(sourceOf?.Invoke(lineId) ?? FromLocationId, itemId, lotId, MovementType.CustomerShipment, -qty, null, DocType, Id, Folio, $"Remisión {Folio}");
     }
 
     /// <summary>Records the shipment: lots actually taken and the average cost per line, from the posted movements.</summary>
@@ -179,6 +181,9 @@ public class CustomerShipmentLine : Entity
 
     public Guid ShipmentId { get; private set; }
     public Guid CustomerOrderLineId { get; private set; }
+
+    /// <summary>Where it left: the plant or one of its sub-warehouses (RN-45); set on dispatch.</summary>
+    public Guid? LocationId { get; private set; }
     public Guid ItemId { get; private set; }
 
     /// <summary>In base unit.</summary>
@@ -193,6 +198,7 @@ public class CustomerShipmentLine : Entity
 
     internal void RecordDispatch(IReadOnlyList<InventoryMovement> movements)
     {
+        LocationId = movements.Select(m => m.LocationId).FirstOrDefault();
         var total = -movements.Sum(m => m.Quantity);
         UnitCost = total == 0 ? 0 : InventoryMath.Round(movements.Sum(m => -m.Quantity * m.UnitCost) / total);
         _lots.Clear();

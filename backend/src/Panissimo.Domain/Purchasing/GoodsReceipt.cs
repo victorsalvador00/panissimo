@@ -6,8 +6,10 @@ namespace Panissimo.Domain.Purchasing;
 /// <param name="Quantity">In purchase unit.</param>
 /// <param name="BaseQuantity">Quantity × PurchaseToBaseFactor, rounded to 4 decimals (RN-03).</param>
 /// <param name="UnitCostBase">UnitPrice / PurchaseToBaseFactor, without VAT (RN-33).</param>
+/// <param name="LocationId">Stock location it enters: the plant, or the sub-warehouse chosen (RN-45).</param>
 public sealed record GoodsReceiptLineInput(
     Guid PurchaseOrderLineId,
+    Guid LocationId,
     Guid ItemId,
     decimal Quantity,
     decimal BaseQuantity,
@@ -74,6 +76,7 @@ public class GoodsReceiptLine : Entity
     {
         GoodsReceiptId = goodsReceiptId;
         PurchaseOrderLineId = input.PurchaseOrderLineId;
+        LocationId = input.LocationId;
         ItemId = input.ItemId;
         Quantity = input.Quantity;
         BaseQuantity = input.BaseQuantity;
@@ -85,6 +88,10 @@ public class GoodsReceiptLine : Entity
 
     public Guid GoodsReceiptId { get; private set; }
     public Guid PurchaseOrderLineId { get; private set; }
+
+    /// <summary>Where it entered: the plant or one of its sub-warehouses (RN-45).</summary>
+    public Guid LocationId { get; private set; }
+
     public Guid ItemId { get; private set; }
 
     /// <summary>In purchase unit.</summary>

@@ -92,6 +92,7 @@ internal sealed class ProductionCloseConfiguration : IEntityTypeConfiguration<Pr
     public void Configure(EntityTypeBuilder<ProductionClose> builder)
     {
         builder.ToTable("production_close", "production");
+        builder.HasOne<Location>().WithMany().HasForeignKey(c => c.OutputLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(c => c.Folio).HasMaxLength(30);
         builder.Property(c => c.Kind).HasMaxLength(20);
         builder.Property(c => c.Shift).HasMaxLength(20);
@@ -114,6 +115,7 @@ internal sealed class ProductionCloseLineConfiguration : IEntityTypeConfiguratio
     public void Configure(EntityTypeBuilder<ProductionCloseLine> builder)
     {
         builder.ToTable("production_close_line", "production");
+        builder.HasOne<Location>().WithMany().HasForeignKey(c => c.LocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(l => l.ComponentItemId);
         builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(l => l.Lots).WithOne().HasForeignKey(x => x.LineId).OnDelete(DeleteBehavior.Cascade);

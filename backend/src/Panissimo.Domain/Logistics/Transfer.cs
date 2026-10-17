@@ -109,7 +109,9 @@ public class Transfer : AuditableEntity, IVersioned
     /// TransferOut requests for the origin (RN-21). A line may be split among lots chosen at dispatch;
     /// otherwise it keeps the lot chosen when planning, or null for FEFO.
     /// </summary>
-    public IReadOnlyList<MovementRequest> DispatchRequests(IReadOnlyDictionary<Guid, IReadOnlyList<LotQuantity>> chosenLots)
+    /// <param name="sourceOf">RN-45: stock location each line leaves (the origin or one of its sub-warehouses); null = the origin.</param>
+    public IReadOnlyList<MovementRequest> DispatchRequests(IReadOnlyDictionary<Guid, IReadOnlyList<LotQuantity>> chosenLots,
+        Func<Guid, Guid>? sourceOf = null)
     {
         EnsureDraft("Solo un traspaso en borrador puede despacharse.");
         if (chosenLots.Keys.Any(id => _lines.All(l => l.Id != id)))
@@ -123,17 +125,17 @@ public class Transfer : AuditableEntity, IVersioned
                 if (lots.Sum(l => l.Qty) != line.ShippedQty || lots.Any(l => l.Qty <= 0))
                     throw new BusinessRuleException("lots_mismatch",
                         "La suma de los lotes elegidos debe ser igual a la cantidad de la línea.");
-                requests.AddRange(lots.Select(l => Out(line.ItemId, l.LotId, l.Qty)));
+                requests.AddRange(lots.Select(l => Out(line.Id, line.ItemId, l.LotId, l.Qty)));
             }
             else
             {
-                requests.Add(Out(line.ItemId, line.LotId, line.ShippedQty));
+                requests.Add(Out(line.Id, line.ItemId, line.LotId, line.ShippedQty));
             }
         }
         return requests;
 
-        MovementRequest Out(Guid itemId, Guid? lotId, decimal qty) =>
-            new(FromLocationId, itemId, lotId, MovementType.TransferOut, -qty, null, SourceDocType, Id, Folio, Label);
+        MovementRequest Out(Guid lineId, Guid itemId, Guid? lotId, decimal qty) =>
+            new(sourceOf?.Invoke(lineId) ?? FromLocationId, itemId, lotId, MovementType.TransferOut, -qty, null, SourceDocType, Id, Folio, Label);
     }
 
     /// <summary>Records the shipment: lines become one per lot actually taken, with the origin's cost.</summary>
@@ -148,7 +150,7 @@ public class Transfer : AuditableEntity, IVersioned
 
         _lines.Clear();
         foreach (var m in movementsOut)
-            _lines.Add(TransferLine.Shipped(Id, m.ItemId, m.LotId, -m.Quantity, m.UnitCost));
+            _lines.Add(TransferLine.Shipped(Id, m.LocationId, m.ItemId, m.LotId, -m.Quantity, m.UnitCost));
 
         VehicleDescription = string.IsNullOrWhiteSpace(vehicleDescription) ? null : vehicleDescription.Trim();
         DriverName = string.IsNullOrWhiteSpace(driverName) ? null : driverName.Trim();
@@ -165,7 +167,9 @@ public class Transfer : AuditableEntity, IVersioned
     /// RN-22: every line is received at once; received ≤ shipped; a shortfall needs a reason and leaves the
     /// transfer ReceivedWithDiscrepancies. Returns the TransferIn requests (same lot and cost as the origin, RN-04).
     /// </summary>
-    public IReadOnlyList<MovementRequest> Receive(IReadOnlyList<ReceiptInput> receipts, DateTimeOffset now, Guid? userId)
+    /// <param name="targetOf">RN-45: stock location each line enters (the destination or one of its sub-warehouses); null = the destination.</param>
+    public IReadOnlyList<MovementRequest> Receive(IReadOnlyList<ReceiptInput> receipts, DateTimeOffset now, Guid? userId,
+        Func<Guid, Guid>? targetOf = null)
     {
         if (Status != TransferStatus.Dispatched)
             throw new BusinessRuleException("transfer_not_in_transit", "Solo un traspaso despachado (en tránsito) puede recibirse.");
@@ -175,14 +179,14 @@ public class Transfer : AuditableEntity, IVersioned
             throw new BusinessRuleException("transfer_receipt_incomplete", "Captura la cantidad recibida de todas las líneas del traspaso.");
 
         foreach (var receipt in receipts)
-            _lines.Single(l => l.Id == receipt.LineId).Receive(receipt);
+            _lines.Single(l => l.Id == receipt.LineId).Receive(receipt, targetOf?.Invoke(receipt.LineId) ?? ToLocationId);
 
         ReceivedAt = now;
         ReceivedBy = userId;
         Status = _lines.Any(l => l.ShortQty > 0) ? TransferStatus.ReceivedWithDiscrepancies : TransferStatus.Received;
 
         return _lines.Where(l => l.ReceivedQty > 0)
-            .Select(l => new MovementRequest(ToLocationId, l.ItemId, l.LotId, MovementType.TransferIn, l.ReceivedQty!.Value,
+            .Select(l => new MovementRequest(l.ToStockLocationId!.Value, l.ItemId, l.LotId, MovementType.TransferIn, l.ReceivedQty!.Value,
                 l.UnitCost, SourceDocType, Id, Folio, Label))
             .ToList();
     }
@@ -218,10 +222,16 @@ public class TransferLine : Entity
     internal static TransferLine Planned(Guid transferId, Guid itemId, Guid? lotId, decimal quantity) =>
         new() { TransferId = transferId, ItemId = itemId, LotId = lotId, ShippedQty = quantity };
 
-    internal static TransferLine Shipped(Guid transferId, Guid itemId, Guid? lotId, decimal quantity, decimal unitCost) =>
-        new() { TransferId = transferId, ItemId = itemId, LotId = lotId, ShippedQty = quantity, UnitCost = unitCost };
+    internal static TransferLine Shipped(Guid transferId, Guid fromStockLocationId, Guid itemId, Guid? lotId, decimal quantity, decimal unitCost) =>
+        new() { TransferId = transferId, FromStockLocationId = fromStockLocationId, ItemId = itemId, LotId = lotId, ShippedQty = quantity, UnitCost = unitCost };
 
     public Guid TransferId { get; private set; }
+
+    /// <summary>Where it left: the origin or one of its sub-warehouses (RN-45); set on dispatch.</summary>
+    public Guid? FromStockLocationId { get; private set; }
+
+    /// <summary>Where it entered: the destination or one of its sub-warehouses (RN-45); set on receipt.</summary>
+    public Guid? ToStockLocationId { get; private set; }
     public Guid ItemId { get; private set; }
 
     /// <summary>Planned lot while in draft (optional); the lot actually shipped once dispatched.</summary>
@@ -241,7 +251,7 @@ public class TransferLine : Entity
     /// <summary>Loss in transit (RN-22).</summary>
     public decimal ShortQty => ReceivedQty is { } received ? ShippedQty - received : 0;
 
-    internal void Receive(ReceiptInput receipt)
+    internal void Receive(ReceiptInput receipt, Guid toStockLocationId)
     {
         if (receipt.ReceivedQty < 0 || InventoryMath.Round(receipt.ReceivedQty) != receipt.ReceivedQty)
             throw new BusinessRuleException("invalid_quantity", "La cantidad recibida no puede ser negativa y admite máximo 4 decimales.");
@@ -252,6 +262,7 @@ public class TransferLine : Entity
                 "Si recibes menos de lo enviado, indica el motivo de la diferencia (RN-22).");
 
         ReceivedQty = receipt.ReceivedQty;
+        ToStockLocationId = toStockLocationId;
         DiscrepancyReason = receipt.ReceivedQty < ShippedQty ? receipt.Reason : null;
         DiscrepancyNotes = receipt.ReceivedQty < ShippedQty && !string.IsNullOrWhiteSpace(receipt.Notes) ? receipt.Notes.Trim() : null;
     }

@@ -22,6 +22,12 @@ public sealed class SeedOptions
 
     /// <summary>Branches to seed (<c>codigo,nombre,direccion</c>), D-01. Missing file = only the plant.</summary>
     public string LocationsCsv { get; set; } = DefaultLocationsCsv;
+
+    /// <summary>
+    /// D-01: create the plant's four sub-warehouses when it has none and no stock. Integration tests turn it off to keep a
+    /// plant without sub-warehouses (stock on the plant itself) and create their own plants with sub-warehouses.
+    /// </summary>
+    public bool PlantWarehouses { get; set; } = true;
 }
 
 /// <summary>
@@ -69,6 +75,8 @@ public sealed class DatabaseSeeder(
         await SeedProductionAreasAsync(ct);
         await SeedSettingsAsync(ct);
         await db.SaveChangesAsync(ct);
+        if (options.Value.PlantWarehouses)
+            await SeedPlantWarehousesAsync(ct);
 
         await SeedRolesAsync(ct);
         await SeedAdminAsync(ct);
@@ -82,6 +90,26 @@ public sealed class DatabaseSeeder(
 
         foreach (var location in wanted.Where(l => !existing.Contains(l.Code)))
             db.Locations.Add(location);
+    }
+
+    /// <summary>D-01 starting sub-warehouses of the plant (editable afterwards).</summary>
+    public static readonly IReadOnlyList<(string Suffix, string Name)> PlantWarehouses =
+    [
+        ("MP", "Materias primas"),
+        ("INS", "Insumos y empaque"),
+        ("SEMI", "Semiterminados"),
+        ("PT", "Producto terminado"),
+    ];
+
+    /// <summary>Only on a plant without sub-warehouses and without stock (RN-44); never touches existing ones.</summary>
+    private async Task SeedPlantWarehousesAsync(CancellationToken ct)
+    {
+        var plant = await db.Locations.SingleAsync(l => l.Code == Location.PlantCode, ct);
+        if (await db.Locations.AnyAsync(l => l.ParentLocationId == plant.Id, ct)
+            || await db.StockBalances.AnyAsync(b => b.LocationId == plant.Id && b.Quantity != 0, ct))
+            return;
+        db.Locations.AddRange(PlantWarehouses.Select(w => Location.Warehouse($"{Location.PlantCode}-{w.Suffix}", w.Name, plant)));
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>Branches from the seed CSV. A malformed file stops the seed: it is deployment data, not user input.</summary>

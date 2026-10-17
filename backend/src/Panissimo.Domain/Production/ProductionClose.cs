@@ -12,8 +12,9 @@ public enum ProductionCloseKind
 }
 
 /// <summary>What one close consumed of a component: real quantity, its lots and the cost it left at.</summary>
+/// <param name="LocationId">Stock location it is consumed from: the order's location or a sub-warehouse (RN-45); null = the order's.</param>
 public sealed record CloseConsumption(Guid ComponentItemId, decimal TheoreticalQty, decimal ActualQty, decimal UnitCost,
-    IReadOnlyList<LotQuantity> Lots);
+    IReadOnlyList<LotQuantity> Lots, Guid? LocationId = null);
 
 /// <summary>
 /// A partial or final close of a production order (dominio §4.4, RN-61..RN-65). Immutable once registered:
@@ -30,7 +31,7 @@ public class ProductionClose : AuditableEntity
 
     public ProductionClose(Guid id, string folio, ProductionOrder order, ProductionCloseKind kind, DateOnly businessDate, Shift? shift,
         decimal producedQty, Guid? outputLotId, IReadOnlyList<CloseConsumption> consumption, DateTimeOffset closedAt, Guid? closedBy,
-        string? notes, bool exceedsTolerance = false)
+        string? notes, bool exceedsTolerance = false, Guid? outputLocationId = null)
     {
         Id = id;
         Folio = folio;
@@ -45,7 +46,8 @@ public class ProductionClose : AuditableEntity
         ClosedBy = closedBy;
         Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
         ExceedsTolerance = exceedsTolerance;
-        _lines.AddRange(consumption.Select(c => new ProductionCloseLine(Id, c)));
+        OutputLocationId = outputLocationId ?? order.LocationId;
+        _lines.AddRange(consumption.Select(c => new ProductionCloseLine(Id, c, order.LocationId)));
 
         // RN-64: the close costs what its real consumption cost at the plant's average.
         TotalCost = InventoryMath.Round(_lines.Sum(l => l.ActualQty * l.UnitCost));
@@ -65,6 +67,9 @@ public class ProductionClose : AuditableEntity
     public DateOnly BusinessDate { get; private set; }
     public Shift? Shift { get; private set; }
     public decimal ProducedQty { get; private set; }
+
+    /// <summary>Where the product entered: the order's location or the sub-warehouse chosen (RN-45).</summary>
+    public Guid OutputLocationId { get; private set; }
 
     /// <summary>RN-62: one lot per close with production; null when nothing was produced or the item has no lots.</summary>
     public Guid? OutputLotId { get; private set; }
@@ -89,9 +94,10 @@ public class ProductionCloseLine : Entity
 
     private ProductionCloseLine() { }
 
-    internal ProductionCloseLine(Guid closeId, CloseConsumption consumption)
+    internal ProductionCloseLine(Guid closeId, CloseConsumption consumption, Guid orderLocationId)
     {
         ProductionCloseId = closeId;
+        LocationId = consumption.LocationId ?? orderLocationId;
         ComponentItemId = consumption.ComponentItemId;
         TheoreticalQty = consumption.TheoreticalQty;
         ActualQty = consumption.ActualQty;
@@ -101,6 +107,10 @@ public class ProductionCloseLine : Entity
     }
 
     public Guid ProductionCloseId { get; private set; }
+
+    /// <summary>Where it was consumed from: the order's location or a sub-warehouse (RN-45).</summary>
+    public Guid LocationId { get; private set; }
+
     public Guid ComponentItemId { get; private set; }
 
     /// <summary>RN-11 for the quantity produced in this close.</summary>

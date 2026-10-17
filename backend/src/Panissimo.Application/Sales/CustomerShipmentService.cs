@@ -18,11 +18,14 @@ public sealed record CustomerShipmentLineQuantityRequest(Guid LineId, decimal Qu
 /// <param name="Lines">Quantities to change; lines not listed keep theirs. 0 leaves a line out.</param>
 public sealed record UpdateCustomerShipmentRequest(uint Version, string? Notes, IReadOnlyList<CustomerShipmentLineQuantityRequest> Lines);
 
-public sealed record CustomerShipmentDispatchLineRequest(Guid LineId, IReadOnlyList<LotQuantity> Lots);
+/// <param name="WarehouseId">Sub-warehouse this line leaves; empty takes the dispatch's (RN-45).</param>
+public sealed record CustomerShipmentDispatchLineRequest(Guid LineId, IReadOnlyList<LotQuantity> Lots, Guid? WarehouseId = null);
 
 /// <param name="Lines">Optional: lots chosen per line. Lines not listed are taken by FEFO.</param>
+/// <param name="FromWarehouseId">Sub-warehouse of the plant every line leaves (RN-45); required when the plant has sub-warehouses.</param>
 public sealed record DispatchCustomerShipmentRequest(
-    uint Version, string VehicleDescription, string DriverName, string? ReceivedByName, IReadOnlyList<CustomerShipmentDispatchLineRequest>? Lines);
+    uint Version, string VehicleDescription, string DriverName, string? ReceivedByName, IReadOnlyList<CustomerShipmentDispatchLineRequest>? Lines,
+    Guid? FromWarehouseId = null);
 
 /// <summary>Tabs of the shipments screen (frontend: Por despachar, Todas).</summary>
 public enum CustomerShipmentTab
@@ -48,8 +51,9 @@ public sealed record CustomerShipmentListItemDto(
 public sealed record CustomerShipmentLotDto(Guid LotId, string LotNumber, DateOnly? ExpirationDate, decimal Quantity);
 
 /// <param name="MaxQuantity">Order balance plus the shipment tolerance (RN-82), for the draft.</param>
+/// <param name="LocationCode">Sub-warehouse it left (or the plant), once dispatched.</param>
 public sealed record CustomerShipmentLineDto(
-    Guid Id, Guid CustomerOrderLineId, Guid ItemId, string Sku, string ItemName, string? CustomerSku, string UomCode, bool TracksLots,
+    Guid Id, Guid CustomerOrderLineId, string? LocationCode, Guid ItemId, string Sku, string ItemName, string? CustomerSku, string UomCode, bool TracksLots,
     decimal OrderedQty, decimal PreviouslyShippedQty, decimal MaxQuantity, decimal Quantity, decimal? UnitCost, decimal? LineCost,
     IReadOnlyList<CustomerShipmentLotDto> Lots);
 
@@ -214,8 +218,13 @@ public sealed class CustomerShipmentService(
 
         // RN-82: tolerance and order status, before anything is written.
         order.RegisterShipment(shipment.QuantitiesByOrderLine(), tolerance);
-        var chosen = (request.Lines ?? []).ToDictionary(l => l.LineId, l => l.Lots);
-        var requests = shipment.DispatchRequests(chosen);
+        var chosen = (request.Lines ?? []).Where(l => l.Lots.Count > 0).ToDictionary(l => l.LineId, l => l.Lots);
+        // RN-45: the plant's sub-warehouse per line.
+        var picker = await WarehousePicker.LoadAsync(db, scope, shipment.FromLocationId, ct);
+        var lineWarehouses = (request.Lines ?? []).ToDictionary(l => l.LineId, l => l.WarehouseId);
+        var sources = shipment.Lines.Where(l => l.Quantity > 0)
+            .ToDictionary(l => l.Id, l => picker.Resolve(request.FromWarehouseId, lineWarehouses.GetValueOrDefault(l.Id)));
+        var requests = shipment.DispatchRequests(chosen, lineId => sources[lineId]);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         // First write claims the shipment (client's version) and the order (loaded version): a concurrent dispatch of this
@@ -269,6 +278,8 @@ public sealed class CustomerShipmentService(
         var lotIds = s.Lines.SelectMany(l => l.Lots).Select(l => l.LotId).Distinct().ToList();
         var lots = await db.Lots.AsNoTracking().Where(l => lotIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, ct);
         var names = await userDirectory.GetNamesAsync([s.CreatedBy, s.DispatchedBy], ct);
+        var stockIds = s.Lines.Select(l => l.LocationId).OfType<Guid>().Distinct().ToList();
+        var stockCodes = await db.Locations.AsNoTracking().Where(l => stockIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
 
         var lines = s.Lines.Select(l =>
         {
@@ -277,7 +288,7 @@ public sealed class CustomerShipmentService(
             var dispatched = s.Status == CustomerShipmentStatus.Dispatched;
             // Once dispatched, this shipment is already part of the order's ShippedQty.
             var previously = dispatched ? orderLine.ShippedQty - l.Quantity : orderLine.ShippedQty;
-            return new CustomerShipmentLineDto(l.Id, l.CustomerOrderLineId, l.ItemId, item.Sku, item.Name, customerSkus.GetValueOrDefault(l.ItemId),
+            return new CustomerShipmentLineDto(l.Id, l.CustomerOrderLineId, l.LocationId is { } stock ? stockCodes[stock] : null, l.ItemId, item.Sku, item.Name, customerSkus.GetValueOrDefault(l.ItemId),
                 item.Uom, item.TracksLots, orderLine.Quantity, previously, dispatched ? l.Quantity : orderLine.RemainingWithTolerance(tolerance),
                 l.Quantity, l.UnitCost, l.UnitCost is { } cost ? InventoryMath.Round(cost * l.Quantity) : null,
                 l.Lots.Select(x => new CustomerShipmentLotDto(x.LotId, lots[x.LotId].LotNumber, lots[x.LotId].ExpirationDate, x.Quantity))

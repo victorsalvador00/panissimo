@@ -25,14 +25,20 @@ public sealed record DispatchInternalTransferRequest(uint Version, IReadOnlyList
 
 public sealed record UpdateTransferRequest(uint Version, Guid ToLocationId, string? Notes, IReadOnlyList<TransferLineRequest> Lines);
 
-public sealed record DispatchLineRequest(Guid LineId, IReadOnlyList<LotQuantity> Lots);
+/// <param name="WarehouseId">Sub-warehouse this line leaves; empty takes the dispatch's (RN-45).</param>
+public sealed record DispatchLineRequest(Guid LineId, IReadOnlyList<LotQuantity> Lots, Guid? WarehouseId = null);
 
 /// <param name="Lines">Optional: lots chosen per line. Lines not listed use their planned lot or FEFO.</param>
-public sealed record DispatchTransferRequest(uint Version, string VehicleDescription, string DriverName, IReadOnlyList<DispatchLineRequest>? Lines);
+/// <param name="FromWarehouseId">Sub-warehouse of the origin every line leaves (RN-45); required when the origin has sub-warehouses.</param>
+public sealed record DispatchTransferRequest(uint Version, string VehicleDescription, string DriverName, IReadOnlyList<DispatchLineRequest>? Lines,
+    Guid? FromWarehouseId = null);
 
-public sealed record ReceiveLineRequest(Guid LineId, decimal ReceivedQty, DiscrepancyReason? DiscrepancyReason, string? DiscrepancyNotes);
+/// <param name="WarehouseId">Sub-warehouse this line enters; empty takes the receipt's (RN-45).</param>
+public sealed record ReceiveLineRequest(Guid LineId, decimal ReceivedQty, DiscrepancyReason? DiscrepancyReason, string? DiscrepancyNotes,
+    Guid? WarehouseId = null);
 
-public sealed record ReceiveTransferRequest(uint Version, IReadOnlyList<ReceiveLineRequest> Lines);
+/// <param name="ToWarehouseId">Sub-warehouse of the destination every line enters (RN-45); required when the destination has sub-warehouses.</param>
+public sealed record ReceiveTransferRequest(uint Version, IReadOnlyList<ReceiveLineRequest> Lines, Guid? ToWarehouseId = null);
 
 /// <summary>Tabs of the transfers screen (frontend §7.5).</summary>
 public enum TransferTab
@@ -71,8 +77,10 @@ public sealed record TransferListItemDto(
     int LineCount, DateTimeOffset CreatedAt, DateTimeOffset? DispatchedAt, DateTimeOffset? ReceivedAt);
 
 /// <param name="ShortQty">Loss in transit (RN-22).</param>
+/// <param name="FromStockLocationCode">Sub-warehouse it left (or the origin), once dispatched.</param>
+/// <param name="ToStockLocationCode">Sub-warehouse it entered (or the destination), once received.</param>
 public sealed record TransferLineDto(
-    Guid Id, Guid ItemId, string Sku, string ItemName, string BaseUomCode, Guid? LotId, string? LotNumber, DateOnly? ExpirationDate,
+    Guid Id, string? FromStockLocationCode, string? ToStockLocationCode, Guid ItemId, string Sku, string ItemName, string BaseUomCode, Guid? LotId, string? LotNumber, DateOnly? ExpirationDate,
     decimal ShippedQty, decimal? ReceivedQty, decimal ShortQty, decimal? UnitCost, decimal? ShortValue,
     DiscrepancyReason? DiscrepancyReason, string? DiscrepancyNotes);
 
@@ -312,8 +320,12 @@ public sealed class TransferService(
         db.EnsureVersion(transfer, request.Version);
         await EnsureActiveAsync(transfer.ToLocationId, ct);
 
-        var chosen = (request.Lines ?? []).ToDictionary(l => l.LineId, l => l.Lots);
-        var requests = transfer.DispatchRequests(chosen);
+        var chosen = (request.Lines ?? []).Where(l => l.Lots.Count > 0).ToDictionary(l => l.LineId, l => l.Lots);
+        // RN-45: the origin's sub-warehouse per line (a voucher's origin is already a sub-warehouse).
+        var picker = await WarehousePicker.LoadAsync(db, scope, transfer.FromLocationId, ct);
+        var lineWarehouses = (request.Lines ?? []).ToDictionary(l => l.LineId, l => l.WarehouseId);
+        var sources = transfer.Lines.ToDictionary(l => l.Id, l => picker.Resolve(request.FromWarehouseId, lineWarehouses.GetValueOrDefault(l.Id)));
+        var requests = transfer.DispatchRequests(chosen, lineId => sources[lineId]);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await ClaimAsync(transfer, ct);
@@ -340,7 +352,10 @@ public sealed class TransferService(
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await ClaimAsync(transfer, ct);
         var receipts = request.Lines.Select(l => new ReceiptInput(l.LineId, l.ReceivedQty, l.DiscrepancyReason, l.DiscrepancyNotes)).ToList();
-        var requests = transfer.Receive(receipts, clock.UtcNow, currentUser.UserId);
+        // RN-45: the destination's sub-warehouse per line.
+        var picker = await WarehousePicker.LoadAsync(db, scope, transfer.ToLocationId, ct);
+        var targets = request.Lines.ToDictionary(l => l.LineId, l => picker.Resolve(request.ToWarehouseId, l.WarehouseId));
+        var requests = transfer.Receive(receipts, clock.UtcNow, currentUser.UserId, lineId => targets[lineId]);
         await posting.PostAsync(requests, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -468,7 +483,11 @@ public sealed class TransferService(
         var lotIds = t.Lines.Select(l => l.LotId).OfType<Guid>().Distinct().ToList();
         var lots = await db.Lots.AsNoTracking().Where(l => lotIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, ct);
 
-        var lines = t.Lines.Select(l => new TransferLineDto(l.Id, l.ItemId, items[l.ItemId].Sku, items[l.ItemId].Name, items[l.ItemId].Uom,
+        var stockIds = t.Lines.SelectMany(l => new[] { l.FromStockLocationId, l.ToStockLocationId }).OfType<Guid>().Distinct().ToList();
+        var stockCodes = await db.Locations.AsNoTracking().Where(l => stockIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
+        var lines = t.Lines.Select(l => new TransferLineDto(l.Id,
+                l.FromStockLocationId is { } fromStock ? stockCodes[fromStock] : null, l.ToStockLocationId is { } toStock ? stockCodes[toStock] : null,
+                l.ItemId, items[l.ItemId].Sku, items[l.ItemId].Name, items[l.ItemId].Uom,
                 l.LotId, l.LotId is { } a ? lots[a].LotNumber : null, l.LotId is { } b ? lots[b].ExpirationDate : null,
                 l.ShippedQty, l.ReceivedQty, l.ShortQty, l.UnitCost, l.UnitCost is { } cost ? InventoryMath.Round(l.ShortQty * cost) : null,
                 l.DiscrepancyReason, l.DiscrepancyNotes))

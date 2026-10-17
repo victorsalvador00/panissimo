@@ -136,6 +136,8 @@ internal sealed class GoodsReceiptLineConfiguration : IEntityTypeConfiguration<G
     public void Configure(EntityTypeBuilder<GoodsReceiptLine> builder)
     {
         builder.ToTable("goods_receipt_line", "purchasing");
+        builder.HasIndex(l => l.LocationId);
+        builder.HasOne<Location>().WithMany().HasForeignKey(l => l.LocationId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(l => l.LotNumber).HasMaxLength(50);
         builder.HasIndex(l => l.PurchaseOrderLineId);
         builder.HasIndex(l => l.ItemId);

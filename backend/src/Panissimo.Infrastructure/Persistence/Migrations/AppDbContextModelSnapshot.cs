@@ -1349,6 +1349,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("discrepancy_reason");
 
+                    b.Property<Guid?>("FromStockLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("from_stock_location_id");
+
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
@@ -1367,6 +1371,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("shipped_qty");
 
+                    b.Property<Guid?>("ToStockLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("to_stock_location_id");
+
                     b.Property<Guid>("TransferId")
                         .HasColumnType("uuid")
                         .HasColumnName("transfer_id");
@@ -1379,11 +1387,17 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_transfer_line");
 
+                    b.HasIndex("FromStockLocationId")
+                        .HasDatabaseName("ix_transfer_line_from_stock_location_id");
+
                     b.HasIndex("ItemId")
                         .HasDatabaseName("ix_transfer_line_item_id");
 
                     b.HasIndex("LotId")
                         .HasDatabaseName("ix_transfer_line_lot_id");
+
+                    b.HasIndex("ToStockLocationId")
+                        .HasDatabaseName("ix_transfer_line_to_stock_location_id");
 
                     b.HasIndex("TransferId")
                         .HasDatabaseName("ix_transfer_line_transfer_id");
@@ -1601,6 +1615,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("notes");
 
+                    b.Property<Guid>("OutputLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("output_location_id");
+
                     b.Property<Guid?>("OutputLotId")
                         .HasColumnType("uuid")
                         .HasColumnName("output_lot_id");
@@ -1651,6 +1669,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_production_close_folio");
 
+                    b.HasIndex("OutputLocationId")
+                        .HasDatabaseName("ix_production_close_output_location_id");
+
                     b.HasIndex("OutputLotId")
                         .HasDatabaseName("ix_production_close_output_lot_id");
 
@@ -1676,6 +1697,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("component_item_id");
 
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
                     b.Property<Guid>("ProductionCloseId")
                         .HasColumnType("uuid")
                         .HasColumnName("production_close_id");
@@ -1700,6 +1725,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ComponentItemId")
                         .HasDatabaseName("ix_production_close_line_component_item_id");
+
+                    b.HasIndex("LocationId")
+                        .HasDatabaseName("ix_production_close_line_location_id");
 
                     b.HasIndex("ProductionCloseId")
                         .HasDatabaseName("ix_production_close_line_production_close_id");
@@ -2237,6 +2265,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
 
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
                     b.Property<Guid?>("LotId")
                         .HasColumnType("uuid")
                         .HasColumnName("lot_id");
@@ -2268,6 +2300,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ItemId")
                         .HasDatabaseName("ix_goods_receipt_line_item_id");
+
+                    b.HasIndex("LocationId")
+                        .HasDatabaseName("ix_goods_receipt_line_location_id");
 
                     b.HasIndex("LotId")
                         .HasDatabaseName("ix_goods_receipt_line_lot_id");
@@ -3269,6 +3304,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("item_id");
 
+                    b.Property<Guid?>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)")
@@ -3291,6 +3330,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ItemId")
                         .HasDatabaseName("ix_customer_shipment_line_item_id");
+
+                    b.HasIndex("LocationId")
+                        .HasDatabaseName("ix_customer_shipment_line_location_id");
 
                     b.HasIndex("ShipmentId")
                         .HasDatabaseName("ix_customer_shipment_line_shipment_id");
@@ -4010,6 +4052,12 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Panissimo.Domain.Logistics.TransferLine", b =>
                 {
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("FromStockLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_transfer_line_location_from_stock_location_id");
+
                     b.HasOne("Panissimo.Domain.Catalog.Item", null)
                         .WithMany()
                         .HasForeignKey("ItemId")
@@ -4022,6 +4070,12 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasForeignKey("LotId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_transfer_line_lot_lot_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("ToStockLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_transfer_line_location_to_stock_location_id");
 
                     b.HasOne("Panissimo.Domain.Logistics.Transfer", null)
                         .WithMany("Lines")
@@ -4042,6 +4096,13 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Panissimo.Domain.Production.ProductionClose", b =>
                 {
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("OutputLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_close_location_output_location_id");
+
                     b.HasOne("Panissimo.Domain.Inventory.Lot", null)
                         .WithMany()
                         .HasForeignKey("OutputLotId")
@@ -4064,6 +4125,13 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_production_close_line_item_component_item_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_close_line_location_location_id");
 
                     b.HasOne("Panissimo.Domain.Production.ProductionClose", null)
                         .WithMany("Lines")
@@ -4212,6 +4280,13 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_goods_receipt_line_items_item_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_goods_receipt_line_locations_location_id");
 
                     b.HasOne("Panissimo.Domain.Inventory.Lot", null)
                         .WithMany()
@@ -4429,6 +4504,12 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_customer_shipment_line_items_item_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_customer_shipment_line_locations_location_id");
 
                     b.HasOne("Panissimo.Domain.Sales.CustomerShipment", null)
                         .WithMany("Lines")

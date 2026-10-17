@@ -93,6 +93,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("Seed:AdminEmail", AdminEmail);
         builder.UseSetting("Seed:AdminPassword", AdminPassword);
         builder.UseSetting("Seed:LocationsCsv", Path.Combine(AppContext.BaseDirectory, "Fixtures", "locations.csv"));
+        // Keeps the shared plant without sub-warehouses; tests of RN-44..RN-47 create their own (B-26).
+        builder.UseSetting("Seed:PlantWarehouses", "false");
         // Many logins per test run; the limit itself is covered by its own test with a fresh factory.
         builder.UseSetting("RateLimiting:LoginPermitLimit", "1000");
         builder.ConfigureTestServices(services =>

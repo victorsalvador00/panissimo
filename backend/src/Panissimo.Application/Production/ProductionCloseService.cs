@@ -14,12 +14,16 @@ using Panissimo.Domain.Production;
 namespace Panissimo.Application.Production;
 
 /// <param name="Lots">Optional manual split (must add up to <paramref name="ActualQty"/>); without it, FEFO.</param>
-public sealed record CloseLineRequest(Guid ComponentItemId, decimal ActualQty, IReadOnlyList<LotQuantity>? Lots);
+/// <param name="WarehouseId">Sub-warehouse it is consumed from; empty takes the close's (RN-45).</param>
+public sealed record CloseLineRequest(Guid ComponentItemId, decimal ActualQty, IReadOnlyList<LotQuantity>? Lots, Guid? WarehouseId = null);
 
 /// <param name="Lines">Real consumption per component; a component not listed consumes its theoretical (RN-61).</param>
+/// <param name="ConsumptionWarehouseId">Sub-warehouse the components are consumed from (RN-45); a line may choose another.</param>
+/// <param name="OutputWarehouseId">Sub-warehouse the product enters (RN-45).</param>
 public sealed record CreateProductionCloseRequest(
     uint Version, ProductionCloseKind Kind, decimal ProducedQty, Shift? Shift, string? Notes,
-    ShortfallReason? ShortfallReason, string? ShortfallNotes, IReadOnlyList<CloseLineRequest>? Lines);
+    ShortfallReason? ShortfallReason, string? ShortfallNotes, IReadOnlyList<CloseLineRequest>? Lines,
+    Guid? ConsumptionWarehouseId = null, Guid? OutputWarehouseId = null);
 
 public sealed record ClosePreviewLineDto(
     Guid ComponentItemId, string Sku, string Name, string BaseUomCode, bool TracksLots, decimal TheoreticalQty, decimal Available,
@@ -34,13 +38,14 @@ public sealed record ClosePreviewDto(
 public sealed record ProductionCloseLotDto(Guid LotId, string LotNumber, DateOnly? ExpirationDate, decimal Quantity);
 
 public sealed record ProductionCloseLineDto(
-    Guid Id, Guid ComponentItemId, string Sku, string Name, string BaseUomCode, decimal TheoreticalQty, decimal ActualQty,
+    Guid Id, Guid ComponentItemId, string Sku, string Name, string BaseUomCode, Guid LocationId, string LocationCode, decimal TheoreticalQty,
+    decimal ActualQty,
     decimal WasteQty, decimal UnitCost, decimal TotalCost, IReadOnlyList<ProductionCloseLotDto> Lots);
 
 public sealed record ProductionCloseDto(
     Guid Id, string Folio, Guid ProductionOrderId, string OrderFolio, int Sequence, ProductionCloseKind Kind, DateOnly BusinessDate,
     Shift? Shift, Guid OutputItemId, string Sku, string ItemName, string BaseUomCode, Guid? ProductionAreaId, string? ProductionAreaName,
-    decimal ProducedQty, bool ExceedsTolerance, Guid? OutputLotId, string? OutputLotNumber, DateOnly? OutputLotExpiration, decimal TotalCost, decimal UnitCost,
+    decimal ProducedQty, bool ExceedsTolerance, Guid OutputLocationId, string OutputLocationCode, Guid? OutputLotId, string? OutputLotNumber, DateOnly? OutputLotExpiration, decimal TotalCost, decimal UnitCost,
     decimal WasteQty, decimal WasteCost, DateTimeOffset ClosedAt, Guid? ClosedBy, string? ClosedByName, string? Notes,
     IReadOnlyList<ProductionCloseLineDto> Lines);
 
@@ -166,11 +171,18 @@ public sealed class ProductionCloseService(
             throw new BusinessRuleException("whole_quantity_required", $"{output.Sku} se maneja en piezas: la cantidad producida debe ser entera.");
 
         var recipe = await db.Recipes.AsNoTracking().Include(r => r.Lines).SingleAsync(r => r.Id == order.RecipeId, ct);
-        var consumption = PlanConsumption(order, recipe, request);
+        // RN-45: each component leaves its chosen sub-warehouse; the product enters the output one.
+        var picker = await WarehousePicker.LoadAsync(db, scope, order.LocationId, ct);
+        var lineWarehouses = (request.Lines ?? []).ToDictionary(l => l.ComponentItemId, l => l.WarehouseId);
+        var consumption = PlanConsumption(order, recipe, request)
+            .Select(c => c with { LocationId = picker.Resolve(request.ConsumptionWarehouseId, lineWarehouses.GetValueOrDefault(c.ComponentItemId)) })
+            .ToList();
+        var outputLocationId = request.ProducedQty > 0 ? picker.Resolve(request.OutputWarehouseId, null) : order.LocationId;
         var componentIds = consumption.Select(c => c.ComponentItemId).ToList();
+        var sources = consumption.Select(c => c.LocationId!.Value).Distinct().ToList();
         var averageCosts = await db.ItemLocationCosts.AsNoTracking()
-            .Where(c => c.LocationId == order.LocationId && componentIds.Contains(c.ItemId))
-            .ToDictionaryAsync(c => c.ItemId, c => c.AverageCost, ct);
+            .Where(c => sources.Contains(c.LocationId) && componentIds.Contains(c.ItemId))
+            .ToDictionaryAsync(c => (c.LocationId, c.ItemId), c => c.AverageCost, ct);
 
         var closeId = Guid.CreateVersion7();
         var sequence = order.CloseCount + 1;
@@ -182,8 +194,8 @@ public sealed class ProductionCloseService(
 
         var folio = await folios.NextAsync(DocType.ProductionClose, ct);
         var requests = consumption.SelectMany(c => c.Lots.Count > 0
-                ? c.Lots.Select(l => Consume(c.ComponentItemId, l.LotId, l.Qty))
-                : c.ActualQty > 0 ? [Consume(c.ComponentItemId, null, c.ActualQty)] : [])
+                ? c.Lots.Select(l => Consume(c.LocationId!.Value, c.ComponentItemId, l.LotId, l.Qty))
+                : c.ActualQty > 0 ? [Consume(c.LocationId!.Value, c.ComponentItemId, null, c.ActualQty)] : [])
             .ToList();
         var movements = await posting.PostAsync(requests, ct);
 
@@ -191,7 +203,7 @@ public sealed class ProductionCloseService(
         var closeLines = consumption.Select(c =>
         {
             var taken = movements.Where(m => m.ItemId == c.ComponentItemId).ToList();
-            var unitCost = taken.Count > 0 ? taken[0].UnitCost : averageCosts.GetValueOrDefault(c.ComponentItemId);
+            var unitCost = taken.Count > 0 ? taken[0].UnitCost : averageCosts.GetValueOrDefault((c.LocationId!.Value, c.ComponentItemId));
             var takenLots = taken.Where(m => m.LotId is not null).Select(m => new LotQuantity(m.LotId!.Value, -m.Quantity)).ToList();
             return c with { UnitCost = unitCost, Lots = takenLots };
         }).ToList();
@@ -203,10 +215,10 @@ public sealed class ProductionCloseService(
                 ProductionClose.DocType, closeId, ct)).Id;
 
         var close = new ProductionClose(closeId, folio, order, request.Kind, clock.BusinessDate(), request.Shift ?? order.Shift,
-            request.ProducedQty, outputLotId, closeLines, clock.UtcNow, currentUser.UserId, request.Notes, exceedsTolerance);
+            request.ProducedQty, outputLotId, closeLines, clock.UtcNow, currentUser.UserId, request.Notes, exceedsTolerance, outputLocationId);
 
         if (request.ProducedQty > 0)
-            await posting.PostAsync([new MovementRequest(order.LocationId, order.OutputItemId, outputLotId, MovementType.ProductionOutput,
+            await posting.PostAsync([new MovementRequest(outputLocationId, order.OutputItemId, outputLotId, MovementType.ProductionOutput,
                 request.ProducedQty, close.UnitCost, ProductionClose.DocType, closeId, folio, $"{order.Folio} cierre {sequence}")], ct);
 
         db.ProductionCloses.Add(close);
@@ -216,8 +228,8 @@ public sealed class ProductionCloseService(
 
         return new ProductionCloseResultDto(await GetAsync(close.Id, ct), await orders.GetAsync(order.Id, ct));
 
-        MovementRequest Consume(Guid itemId, Guid? lotId, decimal qty) =>
-            new(order.LocationId, itemId, lotId, MovementType.ProductionConsumption, -qty, null, ProductionClose.DocType, closeId, folio,
+        MovementRequest Consume(Guid locationId, Guid itemId, Guid? lotId, decimal qty) =>
+            new(locationId, itemId, lotId, MovementType.ProductionConsumption, -qty, null, ProductionClose.DocType, closeId, folio,
                 $"{order.Folio} cierre {sequence}");
     }
 
@@ -332,11 +344,14 @@ public sealed class ProductionCloseService(
         var components = await ComponentsAsync(close.Lines.Select(l => l.ComponentItemId).ToList(), ct);
         var item = names.Items[order.OutputItemId];
         var users = await userDirectory.GetNamesAsync([close.ClosedBy], ct);
+        var stockIds = close.Lines.Select(l => l.LocationId).Append(close.OutputLocationId).Distinct().ToList();
+        var stockCodes = await db.Locations.AsNoTracking().Where(l => stockIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
 
         var lines = close.Lines.Select(l =>
         {
             var c = components[l.ComponentItemId];
-            return new ProductionCloseLineDto(l.Id, l.ComponentItemId, c.Sku, c.Name, c.Uom, l.TheoreticalQty, l.ActualQty, l.WasteQty,
+            return new ProductionCloseLineDto(l.Id, l.ComponentItemId, c.Sku, c.Name, c.Uom, l.LocationId, stockCodes[l.LocationId],
+                l.TheoreticalQty, l.ActualQty, l.WasteQty,
                 l.UnitCost, InventoryMath.Round(l.ActualQty * l.UnitCost),
                 l.Lots.Select(x => new ProductionCloseLotDto(x.LotId, names.Lots[x.LotId].LotNumber, names.Lots[x.LotId].ExpirationDate, x.Quantity))
                     .OrderBy(x => x.ExpirationDate).ToList());
@@ -345,8 +360,8 @@ public sealed class ProductionCloseService(
         var outputLot = close.OutputLotId is { } lotId ? names.Lots[lotId] : null;
         return new ProductionCloseDto(close.Id, close.Folio, order.Id, order.Folio, close.Sequence, close.Kind, close.BusinessDate, close.Shift,
             order.OutputItemId, item.Sku, item.Name, item.Uom, order.ProductionAreaId,
-            order.ProductionAreaId is { } a ? names.Areas.GetValueOrDefault(a) : null, close.ProducedQty, close.ExceedsTolerance, close.OutputLotId,
-            outputLot?.LotNumber, outputLot?.ExpirationDate, close.TotalCost, close.UnitCost, close.WasteQty, close.WasteCost,
+            order.ProductionAreaId is { } a ? names.Areas.GetValueOrDefault(a) : null, close.ProducedQty, close.ExceedsTolerance,
+            close.OutputLocationId, stockCodes[close.OutputLocationId], close.OutputLotId, outputLot?.LotNumber, outputLot?.ExpirationDate, close.TotalCost, close.UnitCost, close.WasteQty, close.WasteCost,
             close.ClosedAt, close.ClosedBy, users.Of(close.ClosedBy), close.Notes, lines);
     }
 

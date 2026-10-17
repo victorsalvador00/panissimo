@@ -12,6 +12,9 @@ public sealed record LocationListQuery : PageQuery
 {
     public bool IncludeInactive { get; init; }
     public LocationType? Type { get; init; }
+
+    /// <summary>The sub-warehouses of this plant or branch.</summary>
+    public Guid? ParentLocationId { get; init; }
 }
 
 public sealed record LocationDto(
@@ -19,6 +22,7 @@ public sealed record LocationDto(
     string Code,
     string Name,
     LocationType Type,
+    Guid? ParentLocationId,
     string? Address,
     bool IsActive,
     bool CanPurchase,
@@ -30,7 +34,11 @@ public sealed record LocationDto(
 /// <summary>Active location for pickers (transfer destination, orders): any active location, not only the user's.</summary>
 public sealed record LocationLookupDto(Guid Id, string Code, string Name, LocationType Type);
 
-public sealed record CreateLocationRequest(string Code, string Name, LocationType Type, string? Address);
+/// <param name="CanMoveStock">The caller may move inventory in it (RN-40, B-26).</param>
+public sealed record WarehouseDto(Guid Id, string Code, string Name, Guid ParentLocationId, bool IsActive, bool CanMoveStock);
+
+/// <param name="ParentLocationId">Required for <c>Warehouse</c>: its plant or branch (D-01, RN-44).</param>
+public sealed record CreateLocationRequest(string Code, string Name, LocationType Type, string? Address, Guid? ParentLocationId = null);
 
 public sealed class CreateLocationRequestValidator : AbstractValidator<CreateLocationRequest>
 {
@@ -41,10 +49,14 @@ public sealed class CreateLocationRequestValidator : AbstractValidator<CreateLoc
         RuleFor(x => x.Name).NotEmpty().MaximumLength(150).WithName("Nombre");
         RuleFor(x => x.Type).IsInEnum().WithName("Tipo");
         RuleFor(x => x.Address).MaximumLength(500).WithName("Dirección");
+        RuleFor(x => x.ParentLocationId).NotNull().When(x => x.Type == LocationType.Warehouse)
+            .WithMessage("Un subalmacén pertenece a una planta o sucursal: indica su ubicación padre.");
+        RuleFor(x => x.ParentLocationId).Null().When(x => x.Type != LocationType.Warehouse)
+            .WithMessage("Solo un subalmacén tiene ubicación padre.");
     }
 }
 
-/// <summary>Code and type are fixed once created (dominio §4.1).</summary>
+/// <summary>Code, type and parent are fixed once created (dominio §4.1).</summary>
 public sealed record UpdateLocationRequest(uint Version, string Name, string? Address, bool IsActive);
 
 public sealed class UpdateLocationRequestValidator : AbstractValidator<UpdateLocationRequest>
@@ -59,7 +71,7 @@ public sealed class UpdateLocationRequestValidator : AbstractValidator<UpdateLoc
 public static class LocationMapping
 {
     public static LocationDto ToDto(this Location l) =>
-        new(l.Id, l.Code, l.Name, l.Type, l.Address, l.IsActive, l.CanPurchase, l.CanProduce, l.CanSupplyBranches,
+        new(l.Id, l.Code, l.Name, l.Type, l.ParentLocationId, l.Address, l.IsActive, l.CanPurchase, l.CanProduce, l.CanSupplyBranches,
             l.CanSellToCustomers, l.Version);
 }
 
@@ -68,8 +80,11 @@ public interface ILocationService
     Task<PagedResult<LocationDto>> ListAsync(LocationListQuery query, CancellationToken ct = default);
     Task<LocationDto> GetAsync(Guid id, CancellationToken ct = default);
 
-    /// <summary>All active locations (not limited by scope), plant first, then by code.</summary>
+    /// <summary>All active plants and branches (not limited by scope), plant first, then by code. Sub-warehouses are not listed.</summary>
     Task<IReadOnlyList<LocationLookupDto>> LookupAsync(CancellationToken ct = default);
+
+    /// <summary>Active sub-warehouses of a plant or branch in the caller's scope (B-26).</summary>
+    Task<IReadOnlyList<WarehouseDto>> WarehousesAsync(Guid locationId, CancellationToken ct = default);
     Task<LocationDto> CreateAsync(CreateLocationRequest request, CancellationToken ct = default);
     Task<LocationDto> UpdateAsync(Guid id, UpdateLocationRequest request, CancellationToken ct = default);
 }
@@ -92,6 +107,8 @@ public sealed class LocationService(IAppDbContext db, ILocationScope scope, IUse
             locations = locations.Where(l => l.IsActive);
         if (query.Type is { } type)
             locations = locations.Where(l => l.Type == type);
+        if (query.ParentLocationId is { } parentId)
+            locations = locations.Where(l => l.ParentLocationId == parentId);
         if (query.SearchTerm() is { } term)
             locations = locations.Where(l => l.Code.ToLower().Contains(term) || l.Name.ToLower().Contains(term));
 
@@ -105,20 +122,47 @@ public sealed class LocationService(IAppDbContext db, ILocationScope scope, IUse
 
     public async Task<IReadOnlyList<LocationLookupDto>> LookupAsync(CancellationToken ct = default) =>
         await db.Locations.AsNoTracking()
-            .Where(l => l.IsActive)
+            .Where(l => l.IsActive && l.Type != LocationType.Warehouse)
             .OrderBy(l => l.Type == LocationType.Plant ? 0 : 1).ThenBy(l => l.Code)
             .Select(l => new LocationLookupDto(l.Id, l.Code, l.Name, l.Type))
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<WarehouseDto>> WarehousesAsync(Guid locationId, CancellationToken ct = default)
+    {
+        await FindAsync(locationId, ct);
+        var stock = scope.AllowedStockLocationIds;
+        var visible = scope.AllowedLocationIds;
+        return await db.Locations.AsNoTracking()
+            .Where(l => l.ParentLocationId == locationId && l.IsActive && visible.Contains(l.Id))
+            .OrderBy(l => l.Code)
+            .Select(l => new WarehouseDto(l.Id, l.Code, l.Name, l.ParentLocationId!.Value, l.IsActive, stock.Contains(l.Id)))
+            .ToListAsync(ct);
+    }
+
     public async Task<LocationDto> CreateAsync(CreateLocationRequest request, CancellationToken ct = default)
     {
-        var location = new Location(request.Code, request.Name, request.Type, request.Address);
+        Location location;
+        if (request.Type == LocationType.Warehouse)
+        {
+            var parent = await FindAsync(request.ParentLocationId!.Value, ct);
+            // RN-44: the stock of a location with sub-warehouses lives in them; existing stock would be left behind.
+            if (await db.StockBalances.AnyAsync(b => b.LocationId == parent.Id && b.Quantity != 0, ct))
+                throw new BusinessRuleException("location_has_stock",
+                    $"{parent.Code} ya tiene existencia: no se le pueden agregar subalmacenes (RN-44).");
+            location = Location.Warehouse(request.Code, request.Name, parent, request.Address);
+        }
+        else
+        {
+            location = new Location(request.Code, request.Name, request.Type, request.Address);
+        }
+
         if (await db.Locations.AnyAsync(l => l.Code == location.Code, ct))
             throw new RequestValidationException(new Dictionary<string, string[]> { ["code"] = [$"La ubicación '{location.Code}' ya existe."] });
 
         db.Locations.Add(location);
         await db.SaveChangesAsync(ct);
-        userAccess.InvalidateAll(); // users with locations.all must see the new location right away
+        // Users with locations.all, and users of the parent of a new sub-warehouse, must see it right away.
+        userAccess.InvalidateAll();
         return location.ToDto();
     }
 
@@ -128,6 +172,10 @@ public sealed class LocationService(IAppDbContext db, ILocationScope scope, IUse
         db.EnsureVersion(location, request.Version);
 
         location.Update(request.Name, request.Address);
+        if (!request.IsActive && location.IsActive && location.IsWarehouse
+            && await db.StockBalances.AnyAsync(b => b.LocationId == id && b.Quantity != 0, ct))
+            throw new BusinessRuleException("warehouse_has_stock",
+                $"El subalmacén {location.Code} tiene existencia: muévela antes de desactivarlo (RN-44).");
         if (request.IsActive) location.Activate(); else location.Deactivate();
 
         await db.SaveChangesAsync(ct);

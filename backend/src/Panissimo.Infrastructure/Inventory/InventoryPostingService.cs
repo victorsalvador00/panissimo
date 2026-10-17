@@ -137,6 +137,14 @@ public sealed class InventoryPostingService(AppDbContext db, IClock clock, ICurr
         var ids = list.Select(r => r.LocationId).Distinct().ToList();
         if (await db.Locations.CountAsync(l => ids.Contains(l.Id), ct) != ids.Count)
             throw new BusinessRuleException("location_not_found", "Una o más ubicaciones no existen.");
+
+        // RN-44: a location with active sub-warehouses keeps its stock in them.
+        var withWarehouses = await db.Locations.AsNoTracking()
+            .Where(l => ids.Contains(l.Id) && db.Locations.Any(w => w.ParentLocationId == l.Id && w.IsActive))
+            .Select(l => l.Code).ToListAsync(ct);
+        if (withWarehouses.Count > 0)
+            throw new BusinessRuleException("location_has_warehouses",
+                $"{string.Join(", ", withWarehouses)} tiene subalmacenes: registra el movimiento en uno de ellos (RN-44).");
     }
 
     private async Task InsertBalanceIfMissingAsync(Guid locationId, Guid itemId, Guid? lotId, CancellationToken ct)

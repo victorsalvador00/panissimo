@@ -141,7 +141,7 @@ public sealed class PhysicalCountService(
 
     public async Task<PhysicalCountDto> CreateAsync(CreatePhysicalCountRequest request, CancellationToken ct = default)
     {
-        scope.EnsureAccess(request.LocationId);
+        scope.EnsureStockAccess(request.LocationId);
         await EnsureActiveLocationAsync(request.LocationId, ct);
         await EnsureCategoryAsync(request.CategoryId, ct);
 
@@ -283,7 +283,7 @@ public sealed class PhysicalCountService(
     {
         var count = await db.PhysicalCounts.Include(c => c.Lines).SingleOrDefaultAsync(c => c.Id == id, ct)
                     ?? throw new NotFoundException("el conteo", id);
-        scope.EnsureAccess(count.LocationId);
+        scope.EnsureStockAccess(count.LocationId);
         return count;
     }
 

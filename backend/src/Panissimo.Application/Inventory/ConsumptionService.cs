@@ -109,12 +109,16 @@ public sealed class ConsumptionService(
 
     public async Task<ConsumptionDto> CreateAsync(CreateConsumptionRequest request, CancellationToken ct = default)
     {
-        scope.EnsureAccess(request.LocationId);
+        scope.EnsureStockAccess(request.LocationId);
         var location = await db.Locations.AsNoTracking().SingleOrDefaultAsync(l => l.Id == request.LocationId, ct)
                        ?? throw new NotFoundException("la ubicación", request.LocationId);
         if (!location.IsActive)
             throw new BusinessRuleException("location_inactive", $"La ubicación {location.Code} está inactiva.");
-        if (location.Type != LocationType.Branch)
+        // B-26: a branch, or a sub-warehouse of a branch.
+        var isBranch = location.Type == LocationType.Branch
+                       || (location.ParentLocationId is { } parentId
+                           && await db.Locations.AnyAsync(l => l.Id == parentId && l.Type == LocationType.Branch, ct));
+        if (!isBranch)
             throw new BusinessRuleException("consumption_branch_only",
                 "El consumo solo se registra en sucursales. En la Planta usa producción, traspasos, remisiones o ajustes.");
 

@@ -129,7 +129,7 @@ public sealed class InitialStockImportService(
         {
             if (!locations.TryGetValue(code.ToUpperInvariant(), out var location))
                 Error(Columns.Location, $"La ubicación '{code}' no existe.");
-            else if (!scope.AllowedLocationIds.Contains(location.Id))
+            else if (!scope.AllowedStockLocationIds.Contains(location.Id))
                 Error(Columns.Location, $"No tienes acceso a la ubicación '{location.Code}'.");
             else if (!location.IsActive)
                 Error(Columns.Location, $"La ubicación '{location.Code}' está inactiva.");

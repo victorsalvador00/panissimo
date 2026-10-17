@@ -7,13 +7,13 @@
 
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
-- Pruebas en verde: 219 unitarias y 133 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `RequireInternalSku` (ajuste de D-07).
+- Pruebas en verde: 221 unitarias y 137 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddSubWarehouses` (B-26a).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**B-27 terminada.** **Siguiente tarea: B-26a..B-26d** (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
+**B-27 y B-26a terminadas.** **Siguiente tarea: B-26b..B-26d** (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
 
 **Después**
 - Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
@@ -24,7 +24,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-26 en `docs/specs/backend.md` §13 y D-01 en `docs/specs/dominio.md` §8.
+4. Leer B-26b en `docs/specs/backend.md` §13 y RN-44..RN-47 en `docs/specs/dominio.md` §4.1.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -55,7 +55,7 @@
 | 4 | B-19 Remisiones | ✅ | (ver `git log`) |
 | 4 | B-20 Plan de producción | ✅ | (ver `git log`) |
 | 4 | B-27 Retrabajo por decisiones | ✅ | (ver `git log`) |
-| 4 | B-26a Subalmacenes: modelo y alcance | ⏳ | |
+| 4 | B-26a Subalmacenes: modelo y alcance | ✅ | (ver `git log`) |
 | 4 | B-26b Vale interno | ⏳ | |
 | 4 | B-26c Procesos eligen subalmacén | ⏳ | |
 | 4 | B-26d Totales por ubicación | ⏳ | |
@@ -291,6 +291,15 @@
 - Migración `RequireInternalSku` escrita a mano: renombra la columna (sin perder datos), rellena con el SKU del sistema los artículos que no tenían uno, la vuelve `NOT NULL` e índice único sin filtro.
 - CSV de artículos: el renglón sin SKU interno se sigue omitiendo con su motivo. Importación de OP: solo `sku_interno`.
 - Pruebas: 219 unitarias y 133 de integración (alta sin SKU interno o repetido → 400).
+
+### B-26a (2026-10-17)
+
+- `LocationType.Warehouse` con `ParentLocationId` (migración `AddSubWarehouses`); `Location.Warehouse(code, name, parent)`: el padre es una planta o sucursal activa, nunca otro subalmacén. `POST /locations` con `type = Warehouse` y `parentLocationId`; no se agregan subalmacenes a una ubicación con existencia ni se desactiva un subalmacén con existencia (RN-44, 422). `GET /locations/{id}/warehouses` (con `canMoveStock`); `GET /locations/lookup` ya no lista subalmacenes; la lista filtra por `parentLocationId`.
+- RN-44 en el motor: `IInventoryPostingService` rechaza movimientos en una ubicación con subalmacenes activos (`location_has_warehouses`, 422).
+- Alcance (RN-40): `UserAccess.StockLocationIds` y `ILocationScope.AllowedStockLocationIds` / `EnsureStockAccess`. Una planta o sucursal asignada trae sus subalmacenes; un subalmacén asignado mueve solo ese y ve a su padre. Ajustes, conteos, consumo (sucursal o subalmacén de sucursal) y existencias iniciales exigen acceso de inventario; las consultas de existencias, lotes y kardex leen las ubicaciones de inventario del alcance y, por una ubicación con subalmacenes, sus subalmacenes (con saldo corrido sumado en el kardex).
+- Los traspasos rechazan subalmacenes hasta B-26b/B-26c. **Pendiente para B-26c:** semilla de los 4 subalmacenes de la Planta (no se siembran aún para no romper los procesos que postean en PLANTA). **Pendiente para B-26d:** alertas de mínimo con la existencia de los subalmacenes.
+- Sin paquetes nuevos.
+- Pruebas: 221 unitarias (+2: reglas del subalmacén) y 137 de integración (+4: existencia en subalmacenes y consultas por la sucursal, reglas de alta y baja, usuario de un solo subalmacén, traspasos sin subalmacenes).
 
 ## Pendientes y decisiones abiertas
 

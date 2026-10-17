@@ -319,6 +319,9 @@ public sealed class TransferService(
     {
         var from = await EnsureActiveAsync(fromId, ct);
         var to = await EnsureActiveAsync(toId, ct);
+        if (from.IsWarehouse || to.IsWarehouse)
+            throw new BusinessRuleException("transfer_warehouse_not_allowed",
+                "Un traspaso va entre la Planta y las sucursales; entre subalmacenes se usa un vale interno.");
         if (!TransferRoutes.IsStandard(from.Type, to.Type) && access.Access?.Has(Permissions.LogisticsTransfersSpecial) != true)
             throw new ForbiddenException(SpecialRouteMessage);
 

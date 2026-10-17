@@ -1448,6 +1448,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(150)")
                         .HasColumnName("name");
 
+                    b.Property<Guid?>("ParentLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_location_id");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1474,6 +1478,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.HasIndex("Code")
                         .IsUnique()
                         .HasDatabaseName("ix_location_code");
+
+                    b.HasIndex("ParentLocationId")
+                        .HasDatabaseName("ix_location_parent_location_id");
 
                     b.ToTable("location", "org");
                 });
@@ -4011,6 +4018,15 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_transfer_line_transfers_transfer_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Organization.Location", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("ParentLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_location_location_parent_location_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Production.ProductionClose", b =>

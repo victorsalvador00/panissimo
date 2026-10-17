@@ -12,6 +12,8 @@ internal sealed class LocationConfiguration : IEntityTypeConfiguration<Location>
     public void Configure(EntityTypeBuilder<Location> builder)
     {
         builder.ToTable("location", "org");
+        builder.HasIndex(l => l.ParentLocationId);
+        builder.HasOne<Location>().WithMany().HasForeignKey(l => l.ParentLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(l => l.Code).HasMaxLength(20);
         builder.Property(l => l.Name).HasMaxLength(150);
         builder.Property(l => l.Type).HasMaxLength(20);

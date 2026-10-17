@@ -65,10 +65,34 @@ public sealed class UserAccessService(AppDbContext db, IMemoryCache cache, UserA
             .ToListAsync(ct);
 
         var allLocations = permissions.Contains(Permissions.LocationsAll);
-        var locationIds = allLocations
-            ? await db.Locations.Select(l => l.Id).ToListAsync(ct)
-            : await db.UserLocations.Where(ul => ul.UserId == userId).Select(ul => ul.LocationId).ToListAsync(ct);
+        var locations = await db.Locations.AsNoTracking().Select(l => new { l.Id, l.ParentLocationId }).ToListAsync(ct);
+        if (allLocations)
+        {
+            var every = locations.Select(l => l.Id).ToHashSet();
+            return new UserAccess(user.Id, user.IsActive, permissions.ToHashSet(), true, every, every);
+        }
 
-        return new UserAccess(user.Id, user.IsActive, permissions.ToHashSet(), allLocations, locationIds.ToHashSet());
+        // B-26: a plant or branch brings its sub-warehouses; a sub-warehouse alone moves only its own stock but shows its
+        // parent's documents.
+        var assigned = await db.UserLocations.Where(ul => ul.UserId == userId).Select(ul => ul.LocationId).ToListAsync(ct);
+        var parents = locations.Where(l => l.ParentLocationId is not null).ToDictionary(l => l.Id, l => l.ParentLocationId!.Value);
+        var stock = new HashSet<Guid>();
+        var visible = new HashSet<Guid>();
+        foreach (var id in assigned)
+        {
+            stock.Add(id);
+            visible.Add(id);
+            if (parents.TryGetValue(id, out var parent))
+            {
+                visible.Add(parent);
+                continue;
+            }
+            foreach (var child in parents.Where(p => p.Value == id).Select(p => p.Key))
+            {
+                stock.Add(child);
+                visible.Add(child);
+            }
+        }
+        return new UserAccess(user.Id, user.IsActive, permissions.ToHashSet(), false, visible, stock);
     }
 }

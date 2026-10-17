@@ -24,6 +24,13 @@ public sealed class LocationsController(ILocationService locations) : Controller
     [RequirePermission(Permissions.LocationsView, Permissions.LogisticsView, Permissions.SalesView)]
     public Task<IReadOnlyList<LocationLookupDto>> Lookup(CancellationToken ct) => locations.LookupAsync(ct);
 
+    /// <summary>Subalmacenes activos de una planta o sucursal a tu alcance, y si puedes mover inventario en cada uno (B-26).</summary>
+    [HttpGet("{id:guid}/warehouses")]
+    [RequirePermission(Permissions.LocationsView, Permissions.InventoryView, Permissions.LogisticsView, Permissions.ProductionView,
+        Permissions.PurchasingView, Permissions.SalesView)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public Task<IReadOnlyList<WarehouseDto>> Warehouses(Guid id, CancellationToken ct) => locations.WarehousesAsync(id, ct);
+
     [HttpGet("{id:guid}")]
     [RequirePermission(Permissions.LocationsView)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

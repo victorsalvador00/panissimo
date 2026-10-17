@@ -48,19 +48,27 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
         ["onHand"] = r => r.OnHand,
     };
 
-    private List<Guid> AllowedLocations(Guid? locationId)
+    /// <summary>
+    /// RN-46: the stock locations to read. A plant or branch with sub-warehouses stands for those the caller may see;
+    /// without a filter, every stock location in scope (RN-40, B-26).
+    /// </summary>
+    private async Task<List<Guid>> StockLocationsAsync(Guid? locationId, CancellationToken ct)
     {
-        if (locationId is { } id)
-        {
-            scope.EnsureAccess(id);
-            return [id];
-        }
-        return [.. scope.AllowedLocationIds];
+        var allowed = scope.AllowedStockLocationIds;
+        if (locationId is not { } id)
+            return [.. allowed];
+
+        scope.EnsureAccess(id);
+        var warehouses = await db.Locations.AsNoTracking().Where(l => l.ParentLocationId == id).Select(l => l.Id).ToListAsync(ct);
+        var result = warehouses.Prepend(id).Where(allowed.Contains).ToList();
+        if (result.Count == 0)
+            scope.EnsureStockAccess(id);
+        return result;
     }
 
     public async Task<PagedResult<StockLevelDto>> ListAsync(StockQuery query, CancellationToken ct = default)
     {
-        var locations = AllowedLocations(query.LocationId);
+        var locations = await StockLocationsAsync(query.LocationId, ct);
 
         // Every (location, item) with a balance row or a min/max setting: an item configured with a minimum
         // but never received must still show up as "below minimum".
@@ -106,11 +114,11 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
 
     public async Task<IReadOnlyList<LotStockDto>> LotsAsync(Guid locationId, Guid itemId, CancellationToken ct = default)
     {
-        scope.EnsureAccess(locationId);
+        var locations = await StockLocationsAsync(locationId, ct);
         var today = clock.BusinessDate();
 
         var rows = await (from b in db.StockBalances.AsNoTracking()
-                          where b.LocationId == locationId && b.ItemId == itemId && b.Quantity != 0
+                          where locations.Contains(b.LocationId) && b.ItemId == itemId && b.Quantity != 0
                           join l in db.Lots on b.LotId equals l.Id into lots
                           from l in lots.DefaultIfEmpty()
                           select new { b.LotId, LotNumber = l == null ? null : l.LotNumber, ExpirationDate = l == null ? null : l.ExpirationDate, b.Quantity })
@@ -125,7 +133,7 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
 
     public async Task<PagedResult<KardexEntryDto>> MovementsAsync(MovementQuery query, CancellationToken ct = default)
     {
-        var locations = AllowedLocations(query.LocationId);
+        var locations = await StockLocationsAsync(query.LocationId, ct);
         var movements = db.InventoryMovements.AsNoTracking().Where(m => locations.Contains(m.LocationId));
         if (query.ItemId is { } itemId)
             movements = movements.Where(m => m.ItemId == itemId);
@@ -159,8 +167,8 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
 
         // Running balance, as a kardex is read, when looking at one item in one location.
         var balances = new Dictionary<Guid, decimal>();
-        if (query.LocationId is { } locationId && query.ItemId is { } oneItem && page.Items.Count > 0)
-            balances = await RunningBalancesAsync(locationId, oneItem, page.Items.Select(r => r.Movement).ToList(), ct);
+        if (query.LocationId is not null && query.ItemId is { } oneItem && page.Items.Count > 0)
+            balances = await RunningBalancesAsync(locations, oneItem, page.Items.Select(r => r.Movement).ToList(), ct);
         // Looked up for the page only: a join would change the plan of the kardex query.
         var users = await userDirectory.GetNamesAsync(page.Items.Select(r => r.Movement.UserId), ct);
 
@@ -179,11 +187,11 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
     /// sequence range, so the cost does not grow with the item's history.
     /// </summary>
     private async Task<Dictionary<Guid, decimal>> RunningBalancesAsync(
-        Guid locationId, Guid itemId, IReadOnlyList<InventoryMovement> page, CancellationToken ct)
+        IReadOnlyList<Guid> locationIds, Guid itemId, IReadOnlyList<InventoryMovement> page, CancellationToken ct)
     {
         var newest = page.Max(m => m.Sequence);
         var oldest = page.Min(m => m.Sequence);
-        var history = db.InventoryMovements.AsNoTracking().Where(m => m.LocationId == locationId && m.ItemId == itemId);
+        var history = db.InventoryMovements.AsNoTracking().Where(m => locationIds.Contains(m.LocationId) && m.ItemId == itemId);
 
         var balance = await history.Where(m => m.Sequence <= newest).SumAsync(m => m.Quantity, ct);
         var inRange = await history.Where(m => m.Sequence > oldest && m.Sequence <= newest)
@@ -201,7 +209,7 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
 
     public async Task<AlertsDto> AlertsAsync(Guid? locationId, CancellationToken ct = default)
     {
-        var locations = AllowedLocations(locationId);
+        var locations = await StockLocationsAsync(locationId, ct);
         var today = clock.BusinessDate();
         var days = (int)await db.GetSettingAsync(AppSettingKeys.ExpiryAlertDays, ct);
         var limit = today.AddDays(days);

@@ -154,7 +154,7 @@ public sealed class AdjustmentService(
 
     public async Task<InventoryAdjustment> CreateInTransactionAsync(CreateAdjustmentRequest request, CancellationToken ct = default)
     {
-        scope.EnsureAccess(request.LocationId);
+        scope.EnsureStockAccess(request.LocationId);
         var location = await db.Locations.AsNoTracking().SingleOrDefaultAsync(l => l.Id == request.LocationId, ct)
                        ?? throw new NotFoundException("la ubicación", request.LocationId);
         if (!location.IsActive)

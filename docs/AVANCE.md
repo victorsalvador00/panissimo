@@ -7,13 +7,13 @@
 
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
-- Pruebas en verde: 222 unitarias y 146 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**B-27 y B-26a..B-26d terminadas (subalmacenes completos).** **Siguiente tarea: B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4) (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
+**Fase 4 del backend completa** (B-17..B-21, B-26a..B-26d, B-27). **Siguiente:** fase 5 (B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento) o arrancar el frontend (F-01); pendiente de elegir con el usuario (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
 
 **Después**
 - Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
@@ -24,7 +24,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-21 en `docs/specs/backend.md` §13 y RN-50 en `docs/specs/dominio.md` (usar `RecipeService.UsableStockAsync`, que ya suma subalmacenes).
+4. Leer la siguiente tarea elegida en `docs/specs/backend.md` §13 (o `frontend.md` §11 si es F-01).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -59,7 +59,7 @@
 | 4 | B-26b Vale interno | ✅ | (ver `git log`) |
 | 4 | B-26c Procesos eligen subalmacén | ✅ | (ver `git log`) |
 | 4 | B-26d Totales por ubicación | ✅ | (ver `git log`) |
-| 4 | B-21 Requerimiento de materia prima | ⏳ | |
+| 4 | B-21 Requerimiento de materia prima | ✅ | (ver `git log`) |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 
 ## Frontend
@@ -327,6 +327,15 @@
 - Pruebas: 222 unitarias y 146 de integración (+2: existencia, mínimo, alerta, plan y disponibilidad de OP con la existencia repartida en dos subalmacenes de una planta; conteo por subalmacén; sugerido de una sucursal con dos subalmacenes). Rendimiento del plan < 1 s sigue en verde.
 
 **B-26 (subalmacenes) completa.**
+
+### B-21 (2026-10-17)
+
+- `MaterialRequirementService` (RN-50): para la Planta, las OP `Draft`, `Released` e `InProgress` con `ScheduledDate` hasta la fecha elegida (hoy + 7 por omisión). Requerido por componente = RN-11 sobre lo pendiente de producir de cada OP (proporcional a `TheoreticalQty`); faltante = requerido + `MinQty` − existencia utilizable (sin vencidos, con subalmacenes) − en camino (saldo de OC no finales + requisiciones `Draft`, `Submitted` o `Approved`, en unidad base), nunca negativo. `RawMaterial` y `Supply` faltantes → **por comprar** con unidades de compra completas hacia arriba y su proveedor preferido; `SemiFinished` faltante → **por producir** (D-04); el resto, **cubierto**. Cada renglón lista las OP que lo originan.
+- `GET /material-requirements?locationId&to` (`purchasing.view` o `production.view`; solo la Planta). `POST /requisitions/suggested` (`purchasing.requisitions.manage`; `{ locationId, to?, neededBy?, itemIds? }`): una requisición normal en `Draft` con lo por comprar (o solo los artículos indicados), proveedor preferido y fecha requerida = la más próxima de sus OP (hoy como mínimo); sin nada por comprar → 422 `nothing_to_buy`. **Cierra el pendiente de B-15.**
+- Sin migración ni paquetes nuevos.
+- Pruebas: 230 unitarias (+8: faltante y redondeo a unidades de compra) y 148 de integración (+2: faltante con mínimo, existencia y OC en camino → 1 bulto, semiterminado por producir, insumo cubierto, OP fuera del horizonte, requisición sugerida que luego cuenta como en camino; permisos y solo Planta).
+
+**Fase 4 del backend completa** (B-17..B-21, más B-26 y B-27 por las decisiones del cliente).
 
 ## Pendientes y decisiones abiertas
 

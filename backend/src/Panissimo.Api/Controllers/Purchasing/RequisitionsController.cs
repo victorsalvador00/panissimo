@@ -12,7 +12,7 @@ namespace Panissimo.Api.Controllers.Purchasing;
 [Tags("Requisiciones")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
-public sealed class RequisitionsController(IRequisitionService requisitions) : ControllerBase
+public sealed class RequisitionsController(IRequisitionService requisitions, IMaterialRequirementService requirements) : ControllerBase
 {
     /// <summary>Requisiciones de las ubicaciones a tu alcance. Filtros: status, locationId, from y to (fecha requerida), q (folio).</summary>
     [HttpGet]
@@ -82,6 +82,21 @@ public sealed class RequisitionsController(IRequisitionService requisitions) : C
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public Task<RequisitionDto> Reject(Guid id, RejectRequisitionRequest request, CancellationToken ct) =>
         requisitions.RejectAsync(id, request, ct);
+
+    /// <summary>
+    /// Crea la requisición sugerida del requerimiento de materia prima (RN-50): una requisición normal en borrador con lo
+    /// "por comprar" en unidades de compra completas y el proveedor preferido. Opcional: solo algunos artículos.
+    /// </summary>
+    [HttpPost("suggested")]
+    [RequirePermission(Permissions.PurchasingRequisitionsManage)]
+    [ProducesResponseType<RequisitionDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<RequisitionDto>> CreateSuggested(CreateSuggestedRequisitionRequest request, CancellationToken ct)
+    {
+        var requisition = await requirements.CreateSuggestedRequisitionAsync(request, ct);
+        return CreatedAtAction(nameof(Get), new { id = requisition.Id }, requisition);
+    }
 
     /// <summary>
     /// Convierte requisiciones aprobadas en OC en borrador, agrupadas por proveedor y ubicación de entrega, con el precio

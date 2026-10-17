@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-07).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-08).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -14,7 +14,7 @@
 | 1 | B-05 Catálogos y CSV de artículos | ✅ | (ver `git log`) |
 | 1 | B-06 Motor de inventario | ✅ | (ver `git log`) |
 | 1 | B-07 Existencias, kardex, alertas, ajustes, existencias iniciales | ✅ | (ver `git log`) |
-| 1 | B-08 Conteo físico y consumo | ⏳ | |
+| 1 | B-08 Conteo físico y consumo | ✅ | (ver `git log`) |
 | 1 | B-09 Traspasos directos | ⏳ | |
 | 2 | B-10..B-13 Recetas, OP, cierres, importación de Excel | ⏳ | |
 | 3 | B-14..B-16 Proveedores, requisiciones, OC y recepciones | ⏳ | |
@@ -99,6 +99,13 @@
 - RN-05 completado en `LotRegistry`: sin caducidad capturada, un lote existente conserva la suya y uno nuevo toma fecha de negocio + `ShelfLifeDays`.
 - Migración `AddAdjustments`.
 - Pruebas: 79 unitarias y 56 de integración (+7: ajuste sin existencia → 409 con faltantes y sin movimientos, lote con caducidad por omisión y FEFO, costo y saldo corrido paginado, bajo mínimo y por caducar, alcance, piezas fraccionarias, CSV de existencias iniciales).
+
+### B-08 (2026-10-16)
+
+- `/physical-counts` (lista, detalle, alta, PUT de autoguardado con `version`, `POST /{id}/lines`, `start`, `close`, `cancel`). RN-06: el snapshot (con `FOR SHARE` para que cantidades y secuencia del kardex coincidan) se toma al iniciar; las líneas agregadas se valúan a la secuencia del snapshot; el cierre exige todo contado y registra `PhysicalCountAdjustment` por contado − snapshot, respetando los movimientos ocurridos durante el conteo. Un solo conteo en curso por ubicación (índice parcial único). Lote contado nuevo se crea con `LotRegistry`. Conteos enteros en `pza`.
+- `/consumptions` (RN-09): solo sucursales, fecha de negocio hoy o anterior, FEFO si no se elige lote; estado único `Posted`.
+- Migración `AddCountsAndConsumptions`.
+- Pruebas: 85 unitarias y 61 de integración (+5: cierre contra snapshot con venta durante el conteo y lote encontrado, un conteo en curso por ubicación, cierre incompleto, agregar línea y piezas enteras, consumo solo en sucursal/no futuro/FEFO, alcance).
 
 ## Pendientes y decisiones abiertas
 

@@ -26,6 +26,8 @@ public interface IAppDbContext
     DbSet<ItemLocationCost> ItemLocationCosts { get; }
     DbSet<InventoryMovement> InventoryMovements { get; }
     DbSet<InventoryAdjustment> InventoryAdjustments { get; }
+    DbSet<PhysicalCount> PhysicalCounts { get; }
+    DbSet<ConsumptionEntry> Consumptions { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserLocation> UserLocations { get; }
     DbSet<AuditLog> AuditLogs { get; }

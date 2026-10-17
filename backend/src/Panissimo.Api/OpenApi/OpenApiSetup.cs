@@ -72,6 +72,18 @@ public static class OpenApiSetup
                 { "itemId": "0199a1b2-0000-7000-8000-0000000000d2", "lotId": null, "lotNumber": null, "expirationDate": null,
                   "quantity": -2, "unitCost": null, "notes": "Bolsa rota" } ] }
             """,
+        [typeof(CreatePhysicalCountRequest)] = """{ "locationId": "0199a1b2-0000-7000-8000-0000000000a1", "categoryId": null, "notes": "Conteo semanal" }""",
+        [typeof(UpdatePhysicalCountRequest)] = """
+            { "version": 1234, "categoryId": null, "notes": "Conteo semanal",
+              "counts": [
+                { "lineId": "0199a1b2-0000-7000-8000-0000000000e1", "itemId": null, "lotId": null, "lotNumber": null, "expirationDate": null, "countedQty": 7 },
+                { "lineId": null, "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "lotNumber": "OP-000123-01", "expirationDate": null, "countedQty": 24 } ] }
+            """,
+        [typeof(AddCountLineRequest)] = """{ "version": 1234, "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "lotNumber": "OP-000123-02", "expirationDate": null }""",
+        [typeof(CreateConsumptionRequest)] = """
+            { "locationId": "0199a1b2-0000-7000-8000-0000000000a1", "businessDate": "2026-10-16", "notes": null,
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "quantity": 36 } ] }
+            """,
         [typeof(UpdateSettingsRequest)] = """
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },
                             { "key": "production.plan_default_days", "value": 2, "version": 1235 } ] }

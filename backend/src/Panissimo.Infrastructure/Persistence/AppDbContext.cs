@@ -26,6 +26,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ItemLocationCost> ItemLocationCosts => Set<ItemLocationCost>();
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();
+    public DbSet<PhysicalCount> PhysicalCounts => Set<PhysicalCount>();
+    public DbSet<ConsumptionEntry> Consumptions => Set<ConsumptionEntry>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

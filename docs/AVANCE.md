@@ -70,7 +70,7 @@
 | 1 | F-01 Proyecto, tema, locale, íconos, shell | ✅ | (ver `git log`) |
 | 1 | F-02 Sesión, interceptores, guardas, login, perfil | ✅ | (ver `git log`) |
 | 1 | F-03..F-08 | ⏳ | |
-| 2 | F-09..F-12 | ⏳ | |
+| 2 | F-09..F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
@@ -372,4 +372,4 @@
 - 31 pruebas unitarias (refresh único ante 401 concurrentes, expiración, guardas, `*hasPermission`, `FormErrors`, avisos por estado, ubicación activa, menú filtrado, `returnUrl`).
 - Probado en Chrome contra una API local con BD desechable: credenciales inválidas muestran el mensaje del backend; login regresa al `returnUrl`; F5 y dos pestañas mantienen la sesión; cerrar sesión en una pestaña cierra la otra; el encargado de sucursal ve solo General, Inventario y Logística, sin selector de ubicación.
 - Paquete nuevo: `openapi-typescript` 7.13.0 MIT (dev). Su peer pide TypeScript 5; se usa con el TypeScript 6 del proyecto mediante `overrides` en `package.json` (generación verificada).
-- Pendiente: el spec del frontend no tiene pantalla para los vales internos entre subalmacenes (B-26b); preguntar al usuario en qué tarea va.
+- Vales internos (B-26b): el usuario decidió hacerlos en la siguiente fase; quedaron como **F-25** en la Fase 2 de `frontend.md` §11 y su pantalla en §7.3.

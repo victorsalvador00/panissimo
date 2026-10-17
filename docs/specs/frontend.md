@@ -174,6 +174,7 @@ Rutas en español. Entre corchetes, el permiso mínimo. ★ = diseño móvil o t
 | `/inventario/ajustes`, `/nuevo`, `/:id` | Motivo; líneas (salidas en positivo que se envían negativas; Corrección con signo, lote, caducidad y costo en entradas; lote elegido o FEFO en salidas) | [inventory.adjust] |
 | ★ `/inventario/conteos`, `/:id` | Crear (ubicación, categoría opcional) → iniciar → **captura a ciegas** por tarjetas (buscador fijo, filtros Todas/Pendientes/Contadas, **autoguardado** 1 s después de la última tecla, al salir del campo o al ocultar la app, en serie con la versión anterior) → "Agregar artículo" → revisar diferencias → cerrar ("Faltan N" si hay pendientes) | [inventory.count] |
 | ★ `/inventario/consumos/nuevo`, `/consumos`, `/:id` | Solo sucursales: día (hoy o anterior), captura rápida artículo → cantidad → Enter (suma el mismo artículo), lote opcional, confirmación | [inventory.consumption] |
+| ★ `/inventario/vales-internos`, `/nuevo`, `/:id` | **Vales internos entre subalmacenes** de la ubicación activa (RN-47): pestañas Por enviar / En tránsito / Recibidos / Todos; formulario con subalmacén origen y destino (solo los de la ubicación activa, distintos) y líneas con lote planeado opcional; **Enviar** (lotes FEFO, confirmación con resumen) y **Recibir** con tarjeta por línea prellenada con lo enviado, como la recepción de traspasos; Cancelar solo en borrador | [inventory.view]; enviar y recibir [inventory.internal_transfers] |
 | `/inventario/existencias-iniciales` | CSV de existencias iniciales | [inventory.adjust] |
 | `/inventario/analisis-consumo` | Promedio diario, barras por día de la semana, tendencia, mín/máx actual y sugerido con **Aplicar sugerido** ([catalog.manage]) | [inventory.view] |
 
@@ -395,6 +396,7 @@ Cada tarea deja `npm run lint` y `npm test` en verde. **Una tarea por sesión, e
 | F-10 | Órdenes de producción: lista con pestañas y avance, formulario con explosión, detalle con pestañas | B-11 | Las acciones cambian por estado y permiso (unitarias) |
 | F-11 | ★ Cierre parcial y final, línea de tiempo de cierres, lista y detalle de cierres | B-12 | E2E 7 en escritorio, tableta y 390 px |
 | F-12 | Importación de OP desde Excel (`app-xlsx-import`) e historial | B-13 | E2E 8 en verde |
+| F-25 | ★ Vales internos entre subalmacenes (lista, formulario, enviar y recibir) y entrada "Vales internos" en el menú de Inventario | B-26b, F-08 | Vale de PLANTA-MP a PLANTA-PT: enviar → recibir con faltante; las existencias por subalmacén cambian (E2E, escritorio y 390 px) |
 
 **Fase 3: compras**
 

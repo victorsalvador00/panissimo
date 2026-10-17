@@ -32,6 +32,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ConsumptionEntry> Consumptions => Set<ConsumptionEntry>();
     public DbSet<Transfer> Transfers => Set<Transfer>();
     public DbSet<Recipe> Recipes => Set<Recipe>();
+    public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
+    public DbSet<ProductionOrderImport> ProductionOrderImports => Set<ProductionOrderImport>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

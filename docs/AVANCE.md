@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-10).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-11).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -17,7 +17,8 @@
 | 1 | B-08 Conteo físico y consumo | ✅ | (ver `git log`) |
 | 1 | B-09 Traspasos directos | ✅ | (ver `git log`) |
 | 2 | B-10 Recetas versionadas y explosión | ✅ | (ver `git log`) |
-| 2 | B-11..B-13 OP, cierres, importación de Excel | ⏳ | |
+| 2 | B-11 Órdenes de producción | ✅ | (ver `git log`) |
+| 2 | B-12..B-13 Cierres e importación de Excel | ⏳ | |
 | 3 | B-14..B-16 Proveedores, requisiciones, OC y recepciones | ⏳ | |
 | 4 | B-17..B-21 Pedidos de sucursal, clientes, remisiones, plan, requerimiento | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
@@ -126,6 +127,15 @@
 - RN-11/RN-12: teórico = Q / rendimiento × cantidad × (1 + merma %); explosión con existencia utilizable (sin lotes vencidos), faltante, costo promedio y costo estimado; `HasRecipe` marca semiterminados con receta ("por producir", RN-67).
 - Migración `AddRecipes`. El costo por versión (RN-51) queda en B-23.
 - Pruebas: 104 unitarias y 72 de integración (+5: versión N+1 y edición en su lugar, una activa y reactivación, tipos de producto y componente, ciclo de semiterminados, explosión con vencidos excluidos y costo).
+
+### B-11 (2026-10-16)
+
+- `/production-orders` (lista con `tab` = `ToProduce | InProgress | Drafts | All` y filtros `status`, `locationId`, `from`, `to`, `areaId`, `shift`, `source`, `importId`, `outputItemId`, `q`; trae `producedQty`, `progressPct`, `closeCount`), detalle (componentes con teórico, real acumulado y disponibilidad mientras está abierta; `maxAllowedQty` por la tolerancia de RN-63), alta, edición en borrador, `release`, `cancel`.
+- RN-60: borrador editable (cambiar de producto toma su receta activa); liberada se cancela solo sin cierres; en proceso no se cancela. RN-14: solo en la Planta y solo semiterminados o terminados. Área por omisión la del artículo. Piezas enteras. Fecha programada hoy o posterior. Crear o editar marca la receta como usada (RN-10).
+- `CreateInTransactionAsync` (orígenes `Manual`, `Plan`, `Import`) lo reutilizarán el plan (B-20) y la importación (B-13). Se crea la tabla `production_order_import` (sin lógica hasta B-13) para la liga `ImportId`.
+- La entidad ya lleva `ProducedQty`, `TotalCost`, `UnitCost`, `CloseCount`, datos del cierre final y `ActualQty` por línea para B-12.
+- Migración `AddProductionOrders`.
+- Pruebas: 109 unitarias y 77 de integración (+5: receta activa y área por omisión con versión conservada, sin receta → 422, solo Planta/piezas/fecha, ciclo borrador → liberada → cancelada y pestañas, permisos del supervisor).
 
 ## Pendientes y decisiones abiertas
 

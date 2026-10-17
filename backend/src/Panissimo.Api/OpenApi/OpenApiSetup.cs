@@ -114,6 +114,14 @@ public static class OpenApiSetup
               "lines": [ { "componentItemId": "0199a1b2-0000-7000-8000-0000000000d1", "quantity": 6.5, "wastePct": 2 },
                          { "componentItemId": "0199a1b2-0000-7000-8000-0000000000d2", "quantity": 1.0, "wastePct": 0 } ] }
             """,
+        [typeof(CreateProductionOrderRequest)] = """
+            { "locationId": "0199a1b2-0000-7000-8000-0000000000a9", "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9",
+              "plannedQty": 3200, "scheduledDate": "2026-10-17", "productionAreaId": null, "shift": "Night", "notes": "Pedido de fin de semana" }
+            """,
+        [typeof(UpdateProductionOrderRequest)] = """
+            { "version": 1234, "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9", "plannedQty": 3000,
+              "scheduledDate": "2026-10-17", "productionAreaId": "0199a1b2-0000-7000-8000-0000000000e1", "shift": "Night", "notes": null }
+            """,
         [typeof(UpdateSettingsRequest)] = """
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },
                             { "key": "production.plan_default_days", "value": 2, "version": 1235 } ] }

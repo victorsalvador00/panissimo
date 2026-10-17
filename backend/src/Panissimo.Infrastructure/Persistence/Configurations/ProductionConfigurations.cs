@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Panissimo.Domain.Catalog;
+using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 
 namespace Panissimo.Infrastructure.Persistence.Configurations;
@@ -29,5 +30,58 @@ internal sealed class RecipeLineConfiguration : IEntityTypeConfiguration<RecipeL
         builder.Property(l => l.WastePct).HasPrecision(5, 2);
         builder.HasIndex(l => l.ComponentItemId);
         builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class ProductionOrderConfiguration : IEntityTypeConfiguration<ProductionOrder>
+{
+    public void Configure(EntityTypeBuilder<ProductionOrder> builder)
+    {
+        builder.ToTable("production_order", "production");
+        builder.Property(o => o.Folio).HasMaxLength(30);
+        builder.Property(o => o.Status).HasMaxLength(20);
+        builder.Property(o => o.Source).HasMaxLength(20);
+        builder.Property(o => o.Shift).HasMaxLength(20);
+        builder.Property(o => o.ShortfallReason).HasMaxLength(30);
+        builder.Property(o => o.Notes).HasMaxLength(500);
+        builder.Property(o => o.ShortfallNotes).HasMaxLength(500);
+        builder.Ignore(o => o.PendingQty);
+        builder.Ignore(o => o.IsOpen);
+        builder.HasIndex(o => o.Folio).IsUnique();
+        builder.HasIndex(o => o.Status);
+        builder.HasIndex(o => new { o.LocationId, o.ScheduledDate, o.Status });
+        builder.HasIndex(o => new { o.OutputItemId, o.ScheduledDate });
+        builder.HasIndex(o => o.ImportId);
+        builder.HasOne<Location>().WithMany().HasForeignKey(o => o.LocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Recipe>().WithMany().HasForeignKey(o => o.RecipeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Item>().WithMany().HasForeignKey(o => o.OutputItemId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ProductionArea>().WithMany().HasForeignKey(o => o.ProductionAreaId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ProductionOrderImport>().WithMany().HasForeignKey(o => o.ImportId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasMany(o => o.Lines).WithOne().HasForeignKey(l => l.ProductionOrderId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(o => o.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class ProductionOrderLineConfiguration : IEntityTypeConfiguration<ProductionOrderLine>
+{
+    public void Configure(EntityTypeBuilder<ProductionOrderLine> builder)
+    {
+        builder.ToTable("production_order_line", "production");
+        builder.HasIndex(l => new { l.ProductionOrderId, l.ComponentItemId }).IsUnique();
+        builder.HasIndex(l => l.ComponentItemId);
+        builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class ProductionOrderImportConfiguration : IEntityTypeConfiguration<ProductionOrderImport>
+{
+    public void Configure(EntityTypeBuilder<ProductionOrderImport> builder)
+    {
+        builder.ToTable("production_order_import", "production");
+        builder.Property(i => i.Folio).HasMaxLength(30);
+        builder.Property(i => i.FileName).HasMaxLength(255);
+        builder.Property(i => i.FileSha256).HasMaxLength(64);
+        builder.HasIndex(i => i.Folio).IsUnique();
+        builder.HasIndex(i => i.FileSha256);
     }
 }

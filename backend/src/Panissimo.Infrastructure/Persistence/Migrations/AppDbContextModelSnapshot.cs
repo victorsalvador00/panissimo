@@ -1365,6 +1365,270 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("production_area", "production");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<int>("CloseCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("close_count");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<Guid?>("CompletedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("completed_by");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("folio");
+
+                    b.Property<Guid?>("ImportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("import_id");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("OutputItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("output_item_id");
+
+                    b.Property<decimal>("PlannedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("planned_qty");
+
+                    b.Property<decimal>("ProducedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("produced_qty");
+
+                    b.Property<Guid?>("ProductionAreaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("production_area_id");
+
+                    b.Property<Guid>("RecipeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("recipe_id");
+
+                    b.Property<DateTimeOffset?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<Guid?>("ReleasedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("released_by");
+
+                    b.Property<DateOnly>("ScheduledDate")
+                        .HasColumnType("date")
+                        .HasColumnName("scheduled_date");
+
+                    b.Property<string>("Shift")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("shift");
+
+                    b.Property<string>("ShortfallNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("shortfall_notes");
+
+                    b.Property<string>("ShortfallReason")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("shortfall_reason");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("source");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TotalCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("total_cost");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_production_order");
+
+                    b.HasIndex("Folio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_production_order_folio");
+
+                    b.HasIndex("ImportId")
+                        .HasDatabaseName("ix_production_order_import_id");
+
+                    b.HasIndex("ProductionAreaId")
+                        .HasDatabaseName("ix_production_order_production_area_id");
+
+                    b.HasIndex("RecipeId")
+                        .HasDatabaseName("ix_production_order_recipe_id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_production_order_status");
+
+                    b.HasIndex("OutputItemId", "ScheduledDate")
+                        .HasDatabaseName("ix_production_order_output_item_id_scheduled_date");
+
+                    b.HasIndex("LocationId", "ScheduledDate", "Status")
+                        .HasDatabaseName("ix_production_order_location_id_scheduled_date_status");
+
+                    b.ToTable("production_order", "production");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrderImport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("FileSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("file_sha256");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("folio");
+
+                    b.Property<int>("OrderCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_count");
+
+                    b.Property<bool>("ReleasedOnImport")
+                        .HasColumnType("boolean")
+                        .HasColumnName("released_on_import");
+
+                    b.Property<int>("RowCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("row_count");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_production_order_import");
+
+                    b.HasIndex("FileSha256")
+                        .HasDatabaseName("ix_production_order_import_file_sha256");
+
+                    b.HasIndex("Folio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_production_order_import_folio");
+
+                    b.ToTable("production_order_import", "production");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrderLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("ActualQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("actual_qty");
+
+                    b.Property<Guid>("ComponentItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("component_item_id");
+
+                    b.Property<Guid>("ProductionOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("production_order_id");
+
+                    b.Property<decimal>("TheoreticalQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("theoretical_qty");
+
+                    b.HasKey("Id")
+                        .HasName("pk_production_order_line");
+
+                    b.HasIndex("ComponentItemId")
+                        .HasDatabaseName("ix_production_order_line_component_item_id");
+
+                    b.HasIndex("ProductionOrderId", "ComponentItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_production_order_line_production_order_id_component_item_id");
+
+                    b.ToTable("production_order_line", "production");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Production.Recipe", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2132,6 +2396,59 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_transfer_line_transfers_transfer_id");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrder", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Production.ProductionOrderImport", null)
+                        .WithMany()
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_production_order_production_order_imports_import_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_order_location_location_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("OutputItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_order_item_output_item_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.ProductionArea", null)
+                        .WithMany()
+                        .HasForeignKey("ProductionAreaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_production_order_production_area_production_area_id");
+
+                    b.HasOne("Panissimo.Domain.Production.Recipe", null)
+                        .WithMany()
+                        .HasForeignKey("RecipeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_order_recipes_recipe_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrderLine", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ComponentItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_order_line_item_component_item_id");
+
+                    b.HasOne("Panissimo.Domain.Production.ProductionOrder", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_order_line_production_orders_production_order_id");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Production.Recipe", b =>
                 {
                     b.HasOne("Panissimo.Domain.Catalog.Item", null)
@@ -2221,6 +2538,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Logistics.Transfer", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrder", b =>
                 {
                     b.Navigation("Lines");
                 });

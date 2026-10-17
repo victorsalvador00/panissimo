@@ -40,6 +40,7 @@ public interface IAppDbContext
     DbSet<SupplierItem> SupplierItems { get; }
     DbSet<PurchaseRequisition> PurchaseRequisitions { get; }
     DbSet<PurchaseOrder> PurchaseOrders { get; }
+    DbSet<GoodsReceipt> GoodsReceipts { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserLocation> UserLocations { get; }
     DbSet<AuditLog> AuditLogs { get; }

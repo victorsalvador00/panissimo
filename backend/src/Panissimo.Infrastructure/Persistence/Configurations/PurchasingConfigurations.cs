@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
+using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Purchasing;
 
@@ -100,10 +101,44 @@ internal sealed class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<
         builder.Property(l => l.TaxRate).HasPrecision(5, 4);
         builder.Property(l => l.Subtotal).HasPrecision(18, 2);
         builder.Property(l => l.TaxAmount).HasPrecision(18, 2);
+        builder.Ignore(l => l.PendingQty);
         builder.HasIndex(l => l.ItemId);
         // RN-34: a requisition line becomes at most one PO line.
         builder.HasIndex(l => l.RequisitionLineId).IsUnique();
         builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<PurchaseRequisitionLine>().WithMany().HasForeignKey(l => l.RequisitionLineId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class GoodsReceiptConfiguration : IEntityTypeConfiguration<GoodsReceipt>
+{
+    public void Configure(EntityTypeBuilder<GoodsReceipt> builder)
+    {
+        builder.ToTable("goods_receipt", "purchasing");
+        builder.Property(g => g.Folio).HasMaxLength(30);
+        builder.Property(g => g.SupplierInvoiceNumber).HasMaxLength(GoodsReceipt.InvoiceMaxLength);
+        builder.Property(g => g.Notes).HasMaxLength(GoodsReceipt.NotesMaxLength);
+        builder.Ignore(g => g.TotalCost);
+        builder.HasIndex(g => g.Folio).IsUnique();
+        builder.HasIndex(g => g.PurchaseOrderId);
+        builder.HasIndex(g => new { g.LocationId, g.ReceivedAt });
+        builder.HasOne<PurchaseOrder>().WithMany().HasForeignKey(g => g.PurchaseOrderId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Location>().WithMany().HasForeignKey(g => g.LocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasMany(g => g.Lines).WithOne().HasForeignKey(l => l.GoodsReceiptId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(g => g.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class GoodsReceiptLineConfiguration : IEntityTypeConfiguration<GoodsReceiptLine>
+{
+    public void Configure(EntityTypeBuilder<GoodsReceiptLine> builder)
+    {
+        builder.ToTable("goods_receipt_line", "purchasing");
+        builder.Property(l => l.LotNumber).HasMaxLength(50);
+        builder.HasIndex(l => l.PurchaseOrderLineId);
+        builder.HasIndex(l => l.ItemId);
+        builder.HasOne<PurchaseOrderLine>().WithMany().HasForeignKey(l => l.PurchaseOrderLineId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Lot>().WithMany().HasForeignKey(l => l.LotId).OnDelete(DeleteBehavior.Restrict);
     }
 }

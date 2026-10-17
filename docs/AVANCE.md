@@ -6,16 +6,15 @@
 ## ▶ Retomar aquí (estado al 2026-10-17)
 
 **Dónde quedamos**
-- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3: B-14 y B-15 terminadas.
-- Pruebas en verde: 160 unitarias y 100 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddRequisitionsAndPurchaseOrders` (B-15).
+- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada.
+- Pruebas en verde: 172 unitarias y 106 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddPurchaseOrderFlowAndGoodsReceipts` (B-16).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
-**Siguiente tarea: B-16** (fase 3, compras):
-- B-16 Órdenes de compra (aprobación por umbral) y recepciones (mueven inventario: prueba de integración obligatoria).
+**Siguiente tarea: B-17** (fase 4): pedidos de sucursal. Conectar `ITransferLinks` en `Application/Logistics/TransferService.cs` (RN-24 actualiza el pedido al despachar, cancelar el traspaso cancela el pedido, ediciones dentro de lo aprobado; FK `transfer.branch_order_id`).
 
 **Después**
-- Fase 4: B-17 pedidos de sucursal (conectar `ITransferLinks` en `Application/Logistics/TransferService.cs`: RN-24 actualiza el pedido al despachar, cancelar el traspaso cancela el pedido, ediciones dentro de lo aprobado; FK `transfer.branch_order_id`), B-18 clientes, B-19 remisiones, B-20 plan de producción (reutilizar `ProductionOrderService.CreateManyInTransactionAsync`), B-21 requerimiento de material.
+- Fase 4: B-17 pedidos de sucursal, B-18 clientes (reutilizar `TaxIdRules`), B-19 remisiones, B-20 plan de producción (reutilizar `ProductionOrderService.CreateManyInTransactionAsync`), B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
 - Frontend F-01..F-24: ya puede empezar (el backend va una fase adelante). Opción pendiente de elegir con el usuario: seguir con compras o arrancar F-01.
 
@@ -23,7 +22,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-16 en `docs/specs/backend.md` §13 y RN-30..RN-33 en `docs/specs/dominio.md`. La entidad `PurchaseOrder` ya existe (B-15): agregarle edición, transiciones y recepciones.
+4. Leer B-17 en `docs/specs/backend.md` §13 y RN-20..RN-25 en `docs/specs/dominio.md`.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -48,7 +47,7 @@
 | 2 | B-13 Importación de OP desde Excel | ✅ | `c95444b` |
 | 3 | B-14 Proveedores y artículos de proveedor | ✅ | (ver `git log`) |
 | 3 | B-15 Requisiciones y conversión a OC | ✅ | (ver `git log`) |
-| 3 | B-16 OC y recepciones | ⏳ | |
+| 3 | B-16 OC y recepciones | ✅ | (ver `git log`) |
 | 4 | B-17..B-21 Pedidos de sucursal, clientes, remisiones, plan, requerimiento | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 
@@ -204,6 +203,17 @@
 - **Pendiente movido:** `POST /requisitions/suggested` depende de RN-50 y se hará en B-21.
 - Sin paquetes nuevos.
 - Pruebas: 160 unitarias (+12: transiciones, agrupación, redondeo) y 100 de integración (+5: conversión agrupada con totales, todo o nada, conversión concurrente, catálogo y envío, permisos de Compras y Almacén).
+
+### B-16 (2026-10-17)
+
+- `PurchaseOrder`: edición en borrador (el proveedor queda fijo; una línea existente conserva su requisición si conserva el artículo), `submit` (RN-31: subtotal ≥ `purchasing.po_approval_threshold` → `PendingApproval`; si no, `Approved` automática con `ApprovedBy` nulo), `approve`, `reject` (motivo, final), `cancel` (Draft, PendingApproval o Approved sin recepciones), `close` (solo `PartiallyReceived`).
+- RN-30: solo artículos activos del catálogo activo del proveedor; precio sugerido del catálogo y editable; IVA del artículo; enteras si la unidad de compra es `pza`. RN-33: entrega solo en la Planta.
+- `GoodsReceipt` + líneas (folio `REC`): `POST /goods-receipts` con `poVersion`; una línea puede venir en varios lotes; tolerancia `purchasing.receipt_tolerance_pct` (RN-32); lote obligatorio si el artículo maneja lotes y prohibido si no; caducidad por defecto la del lote o hoy + vida útil (RN-05). Registra `PurchaseReceipt` en la Planta con `BaseQuantity = cantidad × factor` y costo base `UnitPrice / factor` sin IVA (RN-03, RN-33), dentro de una transacción con `IInventoryPostingService`. La primera escritura reclama la OC con su versión: una recepción simultánea responde 409.
+- Endpoints `/purchase-orders` (pestañas `tab=ToApprove|ToReceive`, `pendingReceipt`, `supplierId`, `locationId`, `from/to`, q por folio o proveedor; detalle con pendiente, máximo recibible, requisición de origen y recepciones) y `/goods-receipts` (historial y detalle con costo).
+- Sin paquetes nuevos.
+- Pruebas: 172 unitarias (+12: umbral, rechazo, recepción en varios lotes, tolerancia, cancelar y cerrar, conversión a unidad base y costo) y 106 de integración (+6: compra completa requisición → OC → aprobación → recepción parcial con lote → final con kardex, lotes y costo promedio; umbral; tolerancia; recepciones simultáneas 201/409; reglas de cancelación, cierre, catálogo y lotes; permisos de Almacén y sucursal).
+
+**Fase 3 del backend completa (B-14..B-16).**
 
 ## Pendientes y decisiones abiertas
 

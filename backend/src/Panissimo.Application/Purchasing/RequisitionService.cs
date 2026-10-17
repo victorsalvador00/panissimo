@@ -261,16 +261,9 @@ public sealed class RequisitionService(
     }
 
     /// <summary>RN-34: requisitions only at the plant, in the caller's scope.</summary>
-    private async Task EnsurePlantAsync(Guid locationId, CancellationToken ct)
-    {
-        scope.EnsureAccess(locationId);
-        var location = await db.Locations.AsNoTracking().SingleOrDefaultAsync(l => l.Id == locationId, ct)
-                       ?? throw new NotFoundException("la ubicación", locationId);
-        if (location.Type != LocationType.Plant)
-            throw new BusinessRuleException("requisition_plant_only", "Las requisiciones solo se hacen en la Planta (RN-34).");
-        if (!location.IsActive)
-            throw new BusinessRuleException("location_inactive", $"La ubicación {location.Code} está inactiva.");
-    }
+    private Task EnsurePlantAsync(Guid locationId, CancellationToken ct) =>
+        PurchasingLocations.EnsurePlantAsync(db, scope, locationId, "requisition_plant_only",
+            "Las requisiciones solo se hacen en la Planta (RN-34).", ct);
 
     private async Task<PurchaseRequisition> FindAsync(Guid id, CancellationToken ct)
     {

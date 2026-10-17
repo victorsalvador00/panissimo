@@ -1914,6 +1914,140 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("recipe_line", "production");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Purchasing.GoodsReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("folio");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("PurchaseOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_order_id");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<Guid?>("ReceivedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("received_by");
+
+                    b.Property<string>("SupplierInvoiceNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("supplier_invoice_number");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_goods_receipt");
+
+                    b.HasIndex("Folio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_goods_receipt_folio");
+
+                    b.HasIndex("PurchaseOrderId")
+                        .HasDatabaseName("ix_goods_receipt_purchase_order_id");
+
+                    b.HasIndex("LocationId", "ReceivedAt")
+                        .HasDatabaseName("ix_goods_receipt_location_id_received_at");
+
+                    b.ToTable("goods_receipt", "purchasing");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Purchasing.GoodsReceiptLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("BaseQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("base_quantity");
+
+                    b.Property<DateOnly?>("ExpirationDate")
+                        .HasColumnType("date")
+                        .HasColumnName("expiration_date");
+
+                    b.Property<Guid>("GoodsReceiptId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("goods_receipt_id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<Guid?>("LotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lot_id");
+
+                    b.Property<string>("LotNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("lot_number");
+
+                    b.Property<Guid>("PurchaseOrderLineId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_order_line_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("UnitCostBase")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost_base");
+
+                    b.HasKey("Id")
+                        .HasName("pk_goods_receipt_line");
+
+                    b.HasIndex("GoodsReceiptId")
+                        .HasDatabaseName("ix_goods_receipt_line_goods_receipt_id");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_goods_receipt_line_item_id");
+
+                    b.HasIndex("LotId")
+                        .HasDatabaseName("ix_goods_receipt_line_lot_id");
+
+                    b.HasIndex("PurchaseOrderLineId")
+                        .HasDatabaseName("ix_goods_receipt_line_purchase_order_line_id");
+
+                    b.ToTable("goods_receipt_line", "purchasing");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Purchasing.PurchaseOrder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1927,6 +2061,14 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ApprovedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("approved_by");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<Guid?>("ClosedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("closed_by");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1955,6 +2097,14 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("notes");
 
+                    b.Property<DateTimeOffset?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("rejected_at");
+
+                    b.Property<Guid?>("RejectedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("rejected_by");
+
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -1965,6 +2115,14 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.Property<Guid?>("SubmittedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("submitted_by");
 
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(18, 2)
@@ -3175,6 +3333,53 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_recipe_line_recipes_recipe_id");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Purchasing.GoodsReceipt", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_goods_receipt_locations_location_id");
+
+                    b.HasOne("Panissimo.Domain.Purchasing.PurchaseOrder", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_goods_receipt_purchase_orders_purchase_order_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Purchasing.GoodsReceiptLine", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Purchasing.GoodsReceipt", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("GoodsReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_goods_receipt_line_goods_receipts_goods_receipt_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_goods_receipt_line_items_item_id");
+
+                    b.HasOne("Panissimo.Domain.Inventory.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_goods_receipt_line_lots_lot_id");
+
+                    b.HasOne("Panissimo.Domain.Purchasing.PurchaseOrderLine", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseOrderLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_goods_receipt_line_purchase_order_line_purchase_order_line_");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Purchasing.PurchaseOrder", b =>
                 {
                     b.HasOne("Panissimo.Domain.Organization.Location", null)
@@ -3347,6 +3552,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Production.Recipe", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Purchasing.GoodsReceipt", b =>
                 {
                     b.Navigation("Lines");
                 });

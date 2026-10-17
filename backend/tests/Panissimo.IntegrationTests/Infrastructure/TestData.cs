@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Panissimo.Application.Common;
 using Panissimo.Application.Inventory;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Organization;
 using Panissimo.Infrastructure.Persistence;
 
 namespace Panissimo.IntegrationTests.Infrastructure;
@@ -19,7 +21,8 @@ public static class TestData
 
     /// <summary>Creates an active item with a unique SKU starting with <paramref name="prefix"/>.</summary>
     public static async Task<Item> CreateItemAsync(this ApiFactory factory, string prefix, ItemType type = ItemType.RawMaterial,
-        string uom = "kg", bool tracksLots = false, int? shelfLifeDays = null, ItemPresentation? presentation = null)
+        string uom = "kg", bool tracksLots = false, int? shelfLifeDays = null, ItemPresentation? presentation = null,
+        string? purchaseUom = null, decimal? purchaseToBaseFactor = null)
     {
         await using var scope = factory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -31,11 +34,12 @@ public static class TestData
             await db.SaveChangesAsync();
         }
         var uomId = await db.UnitsOfMeasure.Where(u => u.Code == uom).Select(u => u.Id).SingleAsync();
+        Guid? purchaseUomId = purchaseUom is null ? null : await db.UnitsOfMeasure.Where(u => u.Code == purchaseUom).Select(u => u.Id).SingleAsync();
         if (type == ItemType.FinishedGood)
             presentation ??= ItemPresentation.Bulk;
 
         var item = new Item(new ItemDefinition($"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 9)], $"{prefix} de prueba", type,
-            category.Id, uomId, null, null, tracksLots, shelfLifeDays, StorageCondition.Ambient, 0m, presentation));
+            category.Id, uomId, purchaseUomId, purchaseToBaseFactor, tracksLots, shelfLifeDays, StorageCondition.Ambient, 0m, presentation));
         db.Items.Add(item);
         await db.SaveChangesAsync();
         return item;
@@ -56,6 +60,21 @@ public static class TestData
             [new MovementRequest(locationId, itemId, lotId, MovementType.Adjustment, quantity, unitCost, "Test", Guid.Empty, "TEST", null)], default);
         await db.SaveChangesAsync();
         await tx.CommitAsync();
+    }
+
+    /// <summary>Sets a system parameter and returns its previous value, to restore it at the end of the test.</summary>
+    public static async Task<decimal> SetSettingAsync(this ApiFactory factory, string key, decimal value)
+    {
+        await using var scope = factory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var previous = await db.GetSettingAsync(key, default);
+        var setting = await db.AppSettings.SingleOrDefaultAsync(s => s.Key == key);
+        if (setting is null)
+            db.AppSettings.Add(new AppSetting(key, value));
+        else
+            setting.SetValue(value);
+        await db.SaveChangesAsync();
+        return previous;
     }
 
     public static async Task<decimal> StockAsync(this ApiFactory factory, Guid locationId, Guid itemId)

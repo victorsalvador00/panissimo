@@ -160,6 +160,23 @@ public static class OpenApiSetup
               "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "quantity": 45, "suggestedSupplierId": null } ] }
             """,
         [typeof(RejectRequisitionRequest)] = """{ "version": 1234, "reason": "Hay existencia suficiente para la semana" }""",
+        [typeof(CreatePurchaseOrderRequest)] = """
+            { "supplierId": "0199a1b2-0000-7000-8000-0000000000e1", "deliveryLocationId": "0199a1b2-0000-7000-8000-0000000000a1",
+              "expectedDate": "2026-10-22", "notes": null,
+              "lines": [ { "lineId": null, "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "quantity": 40, "unitPrice": null },
+                         { "lineId": null, "itemId": "0199a1b2-0000-7000-8000-0000000000d2", "quantity": 6, "unitPrice": 88.5 } ] }
+            """,
+        [typeof(UpdatePurchaseOrderRequest)] = """
+            { "version": 1234, "deliveryLocationId": "0199a1b2-0000-7000-8000-0000000000a1", "expectedDate": "2026-10-23", "notes": "Entregar antes de las 7:00",
+              "lines": [ { "lineId": "0199a1b2-0000-7000-8000-0000000000c1", "itemId": "0199a1b2-0000-7000-8000-0000000000d1",
+                           "quantity": 45, "unitPrice": 598 } ] }
+            """,
+        [typeof(RejectPurchaseOrderRequest)] = """{ "version": 1234, "reason": "Precio arriba de lo cotizado" }""",
+        [typeof(CreateGoodsReceiptRequest)] = """
+            { "purchaseOrderId": "0199a1b2-0000-7000-8000-0000000000b9", "poVersion": 1234, "supplierInvoiceNumber": "A-15873", "notes": null,
+              "lines": [ { "poLineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 30, "lotNumber": "L2610-A", "expirationDate": "2027-04-30" },
+                         { "poLineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 10, "lotNumber": "L2610-B", "expirationDate": null } ] }
+            """,
         [typeof(ConvertRequisitionsRequest)] = """
             { "requisitionIds": ["0199a1b2-0000-7000-8000-0000000000b1", "0199a1b2-0000-7000-8000-0000000000b2"] }
             """,

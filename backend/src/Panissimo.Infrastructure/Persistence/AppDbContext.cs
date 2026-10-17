@@ -40,6 +40,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<SupplierItem> SupplierItems => Set<SupplierItem>();
     public DbSet<PurchaseRequisition> PurchaseRequisitions => Set<PurchaseRequisition>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

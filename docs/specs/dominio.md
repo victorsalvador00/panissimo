@@ -477,19 +477,26 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 6. Explosión de recetas de un nivel.
 7. No hay reservas de existencia: pedidos, OP y planes no apartan inventario.
 
-## 8. Decisiones abiertas (por confirmar con Paníssimo)
+## 8. Decisiones (revisadas con Paníssimo el 2026-10-17)
 
-Cada decisión tiene una **propuesta**; las reglas de la sección 5 están escritas con ella. Si el cliente decide otra cosa, se actualiza la regla antes de implementar la tarea afectada.
+Cada decisión tenía una **propuesta**; las reglas de la sección 5 se escribieron con ella. Cuando la decisión difiere, la regla afectada se actualiza en la tarea de retrabajo indicada **antes** de implementarla.
 
-| ID | Pregunta | Propuesta | Afecta |
-|---|---|---|---|
-| D-01 | ¿Cuántas sucursales hay, con qué códigos y nombres? ¿Hay un CEDIS o almacén de terminado separado de la planta? | Una sola planta (`PLANTA`) que también es almacén de terminado; sucursales cargadas desde un CSV de semilla | B-02 |
-| D-02 | ¿Lote por cierre parcial o un solo lote por OP? | Un lote por cierre (cada tramo se hornea en otro momento y su caducidad puede diferir) | B-12 |
-| D-03 | ¿Tolerancia de sobreproducción y motivos de faltante? | 10 % configurable; motivos: falta de insumo, falta de personal, falla de equipo, ajuste de demanda, otro | B-12 |
-| D-04 | ¿Los semiterminados se producen con su propia OP o se consumen "en cascada" dentro de la OP del terminado? | Su propia OP (un nivel), con generación asistida desde el plan | B-20, B-21 |
-| D-05 | ¿El empaquetado es un SKU distinto del granel? ¿Una sucursal puede pedir empaquetado o un cliente granel? | SKU distinto con su receta (semiterminado + bolsa + etiqueta). Sucursales: granel e insumos; clientes: empaquetado | B-05, B-17, B-18 |
-| D-06 | ¿Se necesitan precios por cliente en pedido y remisión? | Opcionales e informativos (sin CFDI ni cobranza) | B-18 |
-| D-07 | ¿El Excel de OP sale de la Matriz Maestra? ¿Con qué SKU? | Plantilla propia con los SKU del sistema; agregar a la Matriz una columna con ese SKU | B-13 |
-| D-08 | ¿Cómo se registran devoluciones y rechazos de clientes? | Ajuste de entrada; documento propio como ampliación | — |
-| D-09 | ¿Cuántos clientes y puntos de entrega hay? ¿Quién confirma y quién despacha? | Confirma Ventas a clientes; despacha Almacén planta o Distribución | B-18, B-19 |
-| D-10 | ¿Cuántos usuarios por rol? | — (semilla y capacitación) | B-04 |
+| ID | Pregunta | Decisión | Estado | Afecta |
+|---|---|---|---|---|
+| D-01 | ¿Cuántas sucursales hay? ¿Hay un CEDIS o almacén de terminado separado de la planta? | Una sola planta, con **subalmacenes** (catálogo editable, alta y baja lógica; arranque: Materias primas, Insumos/empaque, Semiterminados, Producto terminado). Cada subalmacén lleva **existencia, kardex y conteo propios**. Los procesos usan su subalmacén directo (recepción → MP/insumos; cierre de OP consume de MP/semiterminados y deja el producto en semiterminados/terminado; despachos salen de terminado) y hay **vale interno** para movimientos manuales entre subalmacenes. Sucursales desde el CSV de semilla (lista pendiente) | Decidida, **cambia** la propuesta | B-02, B-26 |
+| D-02 | ¿Lote por cierre parcial o un solo lote por OP? | Un lote por cierre | Confirmada | B-12 |
+| D-03 | ¿Tolerancia de sobreproducción y motivos de faltante? | Tolerancia 10 % configurable pero **solo informativa**: no bloquea el cierre; el cierre que la excede queda marcado. Motivos sin cambio | Decidida, **cambia** la propuesta | B-12, B-27 |
+| D-04 | ¿Los semiterminados se producen con su propia OP o en cascada? | Su propia OP (un nivel), con generación asistida desde el plan | Confirmada | B-20, B-21 |
+| D-05 | ¿El empaquetado es un SKU distinto? ¿Quién pide qué presentación? | SKU distinto con su receta. **Sucursales y clientes pueden pedir granel y empaquetado** (sucursales también insumos); nunca semiterminados ni materias primas | Decidida, **cambia** la propuesta | B-05, B-17, B-18, B-27 |
+| D-06 | ¿Precios por cliente en pedido y remisión? | Opcionales e informativos (sin CFDI ni cobranza) | Confirmada | B-18 |
+| D-07 | ¿El Excel de OP sale de la Matriz Maestra? ¿Con qué SKU? | Plantilla propia, con **equivalencia de códigos**: cada artículo guarda su código de la Matriz y la importación acepta el SKU del sistema o ese código | Decidida, **cambia** la propuesta | B-13, B-27 |
+| D-08 | ¿Cómo se registran devoluciones y rechazos de clientes? | Ajuste de entrada que además permite capturar, por línea, qué parte es **merma** con su propio motivo | Decidida, **amplía** la propuesta | B-27 |
+| D-09 | ¿Cuántos clientes y puntos de entrega? ¿Quién confirma y quién despacha? | 20 a 100 clientes. Confirma Ventas a clientes; despacha Almacén planta o Distribución | Confirmada | B-18, B-19 |
+| D-10 | ¿Cuántos usuarios por rol? | Se define antes del arranque (semilla de demo y capacitación) | Abierta, no bloquea | B-04, B-25 |
+
+**Otras decisiones de la revisión (2026-10-17):**
+- RN-70: la reposición a stock del plan reserva `MaxQty` como stock objetivo el primer día cuando la existencia proyectada al final del rango queda debajo de `MinQty` (implementado en B-20, confirmado).
+- RN-31: el umbral de aprobación de OC arranca en 0 (toda OC pasa por aprobación).
+- RN-32: cerrar con saldo una OC pide **motivo** (B-27).
+- Cliente: el **código es editable** mientras siga siendo único (B-27).
+- RN-34: una requisición **puede repetir** un artículo; cada renglón repetido exige una **nota** que explique por qué (B-27).

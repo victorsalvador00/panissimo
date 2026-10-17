@@ -11,7 +11,9 @@
 - Migraciones hasta `AddProductionOrderDemand` (B-20).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
-**Siguiente tarea: B-21** (cierra la fase 4): requerimiento de materia prima (RN-50) y `POST /requisitions/suggested` (pendiente de B-15). Reutilizar `IDemandSource` y `ProductionPlanCalculator` donde aplique; semiterminado "por producir" (D-04).
+**Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
+
+**Siguiente tarea: B-27** (retrabajo chico por decisiones), luego **B-26** (subalmacenes, grande) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
 
 **Después**
 - Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
@@ -22,7 +24,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-21 en `docs/specs/backend.md` §13 y RN-50 en `docs/specs/dominio.md`.
+4. Leer B-27 en `docs/specs/backend.md` §13 y las decisiones en `docs/specs/dominio.md` §8.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -52,6 +54,8 @@
 | 4 | B-18 Clientes y pedidos de cliente | ✅ | (ver `git log`) |
 | 4 | B-19 Remisiones | ✅ | (ver `git log`) |
 | 4 | B-20 Plan de producción | ✅ | (ver `git log`) |
+| 4 | B-27 Retrabajo por decisiones | ⏳ | |
+| 4 | B-26 Subalmacenes de la planta | ⏳ | |
 | 4 | B-21 Requerimiento de materia prima | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 
@@ -260,4 +264,5 @@
 
 ## Pendientes y decisiones abiertas
 
-- D-01..D-10 (dominio §8) siguen como **propuesta**. B-02 usa D-01 (PLANTA + CSV de sucursales); B-04 depende de D-10 (no bloquea: solo semilla y capacitación).
+- D-01..D-09 decididas el 2026-10-17 (dominio §8); retrabajo en B-27 y B-26. D-10 abierta (no bloquea: semilla y capacitación).
+- Falta la lista real de sucursales para `deploy/seed/locations.csv` (D-01).

@@ -106,6 +106,7 @@ public static class DependencyInjection
         services.AddSingleton<IExcelOrderReader, ClosedXmlOrderReader>();
         services.AddScoped<IProductionOrderImportService, ProductionOrderImportService>();
         services.AddScoped<ISupplierService, SupplierService>();
+        services.AddScoped<IRequisitionService, RequisitionService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

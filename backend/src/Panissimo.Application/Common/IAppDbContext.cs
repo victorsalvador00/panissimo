@@ -38,6 +38,8 @@ public interface IAppDbContext
     DbSet<ProductionClose> ProductionCloses { get; }
     DbSet<Supplier> Suppliers { get; }
     DbSet<SupplierItem> SupplierItems { get; }
+    DbSet<PurchaseRequisition> PurchaseRequisitions { get; }
+    DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserLocation> UserLocations { get; }
     DbSet<AuditLog> AuditLogs { get; }

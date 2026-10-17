@@ -149,6 +149,20 @@ public static class OpenApiSetup
         [typeof(UpdateSupplierItemRequest)] = """
             { "version": 1234, "supplierSku": "HAR-PAN-44", "price": 598, "leadTimeDays": 2, "isPreferred": true, "isActive": true }
             """,
+        [typeof(CreateRequisitionRequest)] = """
+            { "locationId": "0199a1b2-0000-7000-8000-0000000000a1", "neededBy": "2026-10-24", "notes": "Semana de muertos",
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "quantity": 40, "suggestedSupplierId": null },
+                         { "itemId": "0199a1b2-0000-7000-8000-0000000000d2", "quantity": 12,
+                           "suggestedSupplierId": "0199a1b2-0000-7000-8000-0000000000e1" } ] }
+            """,
+        [typeof(UpdateRequisitionRequest)] = """
+            { "version": 1234, "neededBy": "2026-10-25", "notes": null,
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "quantity": 45, "suggestedSupplierId": null } ] }
+            """,
+        [typeof(RejectRequisitionRequest)] = """{ "version": 1234, "reason": "Hay existencia suficiente para la semana" }""",
+        [typeof(ConvertRequisitionsRequest)] = """
+            { "requisitionIds": ["0199a1b2-0000-7000-8000-0000000000b1", "0199a1b2-0000-7000-8000-0000000000b2"] }
+            """,
     };
 
     public static IServiceCollection AddPanissimoOpenApi(this IServiceCollection services) =>

@@ -6,13 +6,12 @@
 ## ▶ Retomar aquí (estado al 2026-10-17)
 
 **Dónde quedamos**
-- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3: B-14 terminada.
-- Pruebas en verde: 148 unitarias y 95 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddSuppliers` (B-14).
+- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3: B-14 y B-15 terminadas.
+- Pruebas en verde: 160 unitarias y 100 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddRequisitionsAndPurchaseOrders` (B-15).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
-**Siguiente tarea: B-15** (fase 3, compras), luego B-16:
-- B-15 Requisiciones y su conversión a OC.
+**Siguiente tarea: B-16** (fase 3, compras):
 - B-16 Órdenes de compra (aprobación por umbral) y recepciones (mueven inventario: prueba de integración obligatoria).
 
 **Después**
@@ -24,7 +23,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-15 en `docs/specs/backend.md` §13 y RN-34 en `docs/specs/dominio.md`.
+4. Leer B-16 en `docs/specs/backend.md` §13 y RN-30..RN-33 en `docs/specs/dominio.md`. La entidad `PurchaseOrder` ya existe (B-15): agregarle edición, transiciones y recepciones.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -48,7 +47,8 @@
 | 2 | B-12 Cierres parciales y final | ✅ | `1be95dd` |
 | 2 | B-13 Importación de OP desde Excel | ✅ | `c95444b` |
 | 3 | B-14 Proveedores y artículos de proveedor | ✅ | (ver `git log`) |
-| 3 | B-15..B-16 Requisiciones, OC y recepciones | ⏳ | |
+| 3 | B-15 Requisiciones y conversión a OC | ✅ | (ver `git log`) |
+| 3 | B-16 OC y recepciones | ⏳ | |
 | 4 | B-17..B-21 Pedidos de sucursal, clientes, remisiones, plan, requerimiento | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 
@@ -193,6 +193,17 @@
 - Sin paquetes nuevos.
 - Pruebas: 148 unitarias (+25: RFC, proveedor y fila) y 95 de integración (+6: RFC y genéricos, cambio de preferido con 409 por versión, artículos permitidos, desactivar y reactivar, 4 marcas de preferido en paralelo, permisos). Sin el candado, la prueba en paralelo falla.
 - Decisión de API: el spec decía `PUT /suppliers/{id}/items`; se implementó por fila (`/items/{supplierItemId}`, con `version`) para seguir la concurrencia optimista por fila.
+
+### B-15 (2026-10-17)
+
+- `PurchaseRequisition` + líneas (`Draft → Submitted → Approved → Converted`; `Rejected` desde `Submitted` con motivo; `Cancelled` desde `Draft`, `Submitted` o `Approved`). Solo en la Planta y en el alcance; `NeededBy` no pasada al crear, editar y enviar; cantidades en unidad de compra (enteras si es `pza`); solo materias primas e insumos activos, sin repetir.
+- Proveedor por línea: vacío toma el preferido activo; uno indicado debe estar activo y vender el artículo. Enviar exige proveedor en todas las líneas.
+- `PurchaseOrder` + líneas creada en esta tarea (B-16 le agrega edición, envío, aprobación y recepciones): importes `numeric(18,2)` redondeados por línea (`PurchaseOrderMath`), encabezado = suma de líneas.
+- `POST /requisitions/convert` (`purchasing.po.manage`): `RequisitionConversion.Group` agrupa por proveedor + entrega, una línea de OC por línea de requisición (`RequisitionLineId`, índice único), precio del catálogo, IVA del artículo, fecha esperada = `NeededBy` más próxima, OC en `Draft` con nota "Generada desde REQ-…". Revalida proveedor, catálogo y artículo; cualquier problema → 422 sin convertir nada. Reclama las requisiciones con su versión antes de crear las OC: una conversión simultánea responde 409.
+- Endpoints `/requisitions` (lista con status, locationId, from/to, q), detalle (importe estimado con el precio actual y OC de cada línea), alta, edición, `submit`, `cancel` (`purchasing.requisitions.manage`), `approve`, `reject` (`purchasing.po.approve`).
+- **Pendiente movido:** `POST /requisitions/suggested` depende de RN-50 y se hará en B-21.
+- Sin paquetes nuevos.
+- Pruebas: 160 unitarias (+12: transiciones, agrupación, redondeo) y 100 de integración (+5: conversión agrupada con totales, todo o nada, conversión concurrente, catálogo y envío, permisos de Compras y Almacén).
 
 ## Pendientes y decisiones abiertas
 

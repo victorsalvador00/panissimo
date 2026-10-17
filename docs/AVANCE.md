@@ -8,7 +8,7 @@
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 219 unitarias y 133 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `RenameMatrixCodeToInternalCode` (ajuste de D-07).
+- Migraciones hasta `RequireInternalSku` (ajuste de D-07).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
@@ -281,6 +281,13 @@
 - La importación de OP identifica el producto **solo** por el código interno: la columna de la plantilla es `codigo_interno` (antes `sku`) y el SKU del sistema ya no se acepta. Un artículo sin código interno no puede importarse.
 - CSV de artículos: un renglón sin código interno (o un archivo sin la columna) se **omite** y el resultado (`ItemImportResult.skipped`) dice el renglón y el motivo; los demás se importan. Los errores de los renglones restantes siguen siendo todo o nada.
 - Pruebas: 219 unitarias y 133 de integración (+1: renglones omitidos sin código interno; la importación de OP rechaza el SKU del sistema). `TestData.CreateItemAsync` asigna `INT-{sku}` a los artículos de prueba.
+
+### Ajuste 2 de D-07 (2026-10-17)
+
+- El código interno pasa a llamarse **SKU interno** (`Item.InternalSku`, API `internalSku`, columna `internal_sku`, CSV y plantilla de OP `sku_interno`; textos "SKU interno") y es **obligatorio y único** en el catálogo: alta y edición por API lo exigen (400 en `internalSku` si falta o se repite); en `ItemDefinition`, `CreateItemRequest` y `UpdateItemRequest` va justo después de `Sku`.
+- Migración `RequireInternalSku` escrita a mano: renombra la columna (sin perder datos), rellena con el SKU del sistema los artículos que no tenían uno, la vuelve `NOT NULL` e índice único sin filtro.
+- CSV de artículos: el renglón sin SKU interno se sigue omitiendo con su motivo. Importación de OP: solo `sku_interno`.
+- Pruebas: 219 unitarias y 133 de integración (alta sin SKU interno o repetido → 400).
 
 ## Pendientes y decisiones abiertas
 

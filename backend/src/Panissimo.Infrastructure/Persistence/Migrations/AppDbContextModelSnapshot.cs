@@ -204,10 +204,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
-                    b.Property<string>("InternalCode")
+                    b.Property<string>("InternalSku")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
-                        .HasColumnName("internal_code");
+                        .HasColumnName("internal_sku");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
@@ -308,10 +309,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_item_category_id");
 
-                    b.HasIndex("InternalCode")
+                    b.HasIndex("InternalSku")
                         .IsUnique()
-                        .HasDatabaseName("ix_item_internal_code")
-                        .HasFilter("internal_code IS NOT NULL");
+                        .HasDatabaseName("ix_item_internal_sku");
 
                     b.HasIndex("Name")
                         .HasDatabaseName("ix_item_name");

@@ -128,7 +128,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 **ItemCategory**: `Name` (único), `IsActive`.
 
 **Item**
-- `Sku` (único, se guarda en mayúsculas), `InternalCode` (código interno de Paníssimo, ej. `SKU0001`; opcional en el catálogo, único; es el **único** identificador que acepta la importación de OP, D-07), `Name`, `Type` (`RawMaterial | Supply | SemiFinished | FinishedGood`), `CategoryId`.
+- `Sku` (único, se guarda en mayúsculas), `InternalSku` (**SKU interno** de Paníssimo, ej. `SKU0001`; **obligatorio y único**, en mayúsculas; es el único identificador que acepta la importación de OP, D-07), `Name`, `Type` (`RawMaterial | Supply | SemiFinished | FinishedGood`), `CategoryId`.
 - `BaseUomId`: unidad en la que se lleva el inventario.
 - `PurchaseUomId` (opcional) + `PurchaseToBaseFactor` (> 0; ej. bulto → 44 kg). Si no hay unidad de compra, el factor es 1.
 - `TracksLots` (bool), `ShelfLifeDays` (opcional, ≥ 0), `StorageCondition` (`Ambient | Refrigerated | Frozen`).
@@ -353,7 +353,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   | Columna | Obligatoria | Regla |
   |---|---|---|
   | `fecha` | Sí | Fecha programada (celda de fecha o texto `dd/mm/aaaa`). No pasada |
-  | `codigo_interno` | Sí | `InternalCode` (D-07; no el SKU del sistema) de un artículo activo `SemiFinished` o `FinishedGood` con receta activa |
+  | `sku_interno` | Sí | `InternalSku` (D-07; no el SKU del sistema) de un artículo activo `SemiFinished` o `FinishedGood` con receta activa |
   | `cantidad` | Sí | > 0, hasta 4 decimales (entero si es `pza`) |
   | `area` | No | Código o nombre de un área activa. Vacío = área del artículo |
   | `turno` | No | `Día`, `Tarde` o `Noche`. Vacío = sin turno |
@@ -489,7 +489,7 @@ Cada decisión tenía una **propuesta**; las reglas de la sección 5 se escribie
 | D-04 | ¿Los semiterminados se producen con su propia OP o en cascada? | Su propia OP (un nivel), con generación asistida desde el plan | Confirmada | B-20, B-21 |
 | D-05 | ¿El empaquetado es un SKU distinto? ¿Quién pide qué presentación? | SKU distinto con su receta. **Sucursales y clientes pueden pedir granel y empaquetado** (sucursales también insumos); nunca semiterminados ni materias primas | Decidida, **cambia** la propuesta | B-05, B-17, B-18, B-27 |
 | D-06 | ¿Precios por cliente en pedido y remisión? | Opcionales e informativos (sin CFDI ni cobranza) | Confirmada | B-18 |
-| D-07 | ¿El Excel de OP sale de la Matriz Maestra? ¿Con qué SKU? | Plantilla propia; cada artículo guarda su **código interno** (el de Paníssimo) y la importación de OP lo identifica **solo** por ese código (columna `codigo_interno`), nunca por el SKU del sistema. En el CSV de artículos, un renglón sin código interno se **omite** y se informa el motivo | Decidida, **cambia** la propuesta | B-13, B-27 |
+| D-07 | ¿El Excel de OP sale de la Matriz Maestra? ¿Con qué SKU? | Plantilla propia; cada artículo tiene un **SKU interno** (el de Paníssimo), **obligatorio y único** en el catálogo, y la importación de OP lo identifica **solo** por él (columna `sku_interno`), nunca por el SKU del sistema. En el CSV de artículos, un renglón sin SKU interno se **omite** y se informa el motivo | Decidida, **cambia** la propuesta | B-13, B-27 |
 | D-08 | ¿Cómo se registran devoluciones y rechazos de clientes? | Ajuste de entrada que además permite capturar, por línea, qué parte es **merma** con su propio motivo | Decidida, **amplía** la propuesta | B-27 |
 | D-09 | ¿Cuántos clientes y puntos de entrega? ¿Quién confirma y quién despacha? | 20 a 100 clientes. Confirma Ventas a clientes; despacha Almacén planta o Distribución | Confirmada | B-18, B-19 |
 | D-10 | ¿Cuántos usuarios por rol? | Se define antes del arranque (semilla de demo y capacitación) | Abierta, no bloquea | B-04, B-25 |

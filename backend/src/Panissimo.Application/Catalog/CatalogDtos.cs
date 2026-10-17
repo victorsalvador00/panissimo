@@ -70,7 +70,7 @@ public sealed record ItemLookupDto(
 public sealed record ItemListItemDto(
     Guid Id,
     string Sku,
-    string? InternalCode,
+    string InternalSku,
     string Name,
     ItemType Type,
     ItemPresentation? Presentation,
@@ -86,7 +86,7 @@ public sealed record ItemListItemDto(
 public sealed record ItemDto(
     Guid Id,
     string Sku,
-    string? InternalCode,
+    string InternalSku,
     string Name,
     ItemType Type,
     Guid CategoryId,
@@ -115,6 +115,7 @@ public sealed record ItemDto(
 
 public sealed record CreateItemRequest(
     string Sku,
+    string InternalSku,
     string Name,
     ItemType Type,
     Guid CategoryId,
@@ -130,17 +131,17 @@ public sealed record CreateItemRequest(
     int? UnitsPerPackage,
     Guid? ProductionAreaId,
     decimal? ProductionMultiple,
-    decimal? UnitWeightGrams,
-    string? InternalCode = null)
+    decimal? UnitWeightGrams)
 {
-    public ItemDefinition ToDefinition() => new(Sku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
+    public ItemDefinition ToDefinition() => new(Sku, InternalSku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
         PurchaseToBaseFactor, TracksLots, ShelfLifeDays, StorageCondition, TaxRate, Presentation, BulkItemId,
-        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams, InternalCode);
+        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams);
 }
 
 public sealed record UpdateItemRequest(
     uint Version,
     string Sku,
+    string InternalSku,
     string Name,
     ItemType Type,
     Guid CategoryId,
@@ -157,12 +158,11 @@ public sealed record UpdateItemRequest(
     Guid? ProductionAreaId,
     decimal? ProductionMultiple,
     decimal? UnitWeightGrams,
-    bool IsActive,
-    string? InternalCode = null)
+    bool IsActive)
 {
-    public ItemDefinition ToDefinition() => new(Sku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
+    public ItemDefinition ToDefinition() => new(Sku, InternalSku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
         PurchaseToBaseFactor, TracksLots, ShelfLifeDays, StorageCondition, TaxRate, Presentation, BulkItemId,
-        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams, InternalCode);
+        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams);
 }
 
 // Min/max per location
@@ -177,7 +177,7 @@ public sealed record UpdateItemLocationSettingsRequest(IReadOnlyList<ItemLocatio
 
 // Import
 
-/// <param name="Skipped">Rows left out, with the reason (D-07: a row without internal code).</param>
+/// <param name="Skipped">Rows left out, with the reason (D-07: a row without internal SKU).</param>
 public sealed record ItemImportResult(int Created, int Updated, IReadOnlyList<ImportError> Skipped);
 
 public static class CatalogMapping

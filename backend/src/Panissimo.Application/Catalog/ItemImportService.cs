@@ -18,7 +18,7 @@ public interface IItemImportService
 
 /// <summary>
 /// Item CSV (backend §13, B-05): sku, nombre, tipo, categoria and unidad_base are required; the rest are optional.
-/// D-07: a row without codigo_interno is skipped (reported in the result) and the rest is imported.
+/// D-07: sku_interno is required; a row without it is skipped (reported in the result) and the rest is imported.
 /// A packaged row may point (sku_granel) to a bulk item that already exists or that comes in the same file.
 /// </summary>
 public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IItemImportService
@@ -44,14 +44,14 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         public const string Area = "area";
         public const string Multiple = "multiplo_op";
         public const string Weight = "gramaje_g";
-        public const string InternalCode = "codigo_interno";
+        public const string InternalSku = "sku_interno";
 
         public static readonly IReadOnlyList<string> Required = [Sku, Name, Type, Category, BaseUom];
 
         public static readonly IReadOnlyList<string> All =
         [
             .. Required, PurchaseUom, Factor, TracksLots, ShelfLife, Storage, Tax, Presentation, BulkSku, UnitsPerPackage,
-            Area, Multiple, Weight, InternalCode,
+            Area, Multiple, Weight, InternalSku,
         ];
     }
 
@@ -90,7 +90,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         ["productionAreaId"] = Columns.Area,
         ["productionMultiple"] = Columns.Multiple,
         ["unitWeightGrams"] = Columns.Weight,
-        ["internalCode"] = Columns.InternalCode,
+        ["internalSku"] = Columns.InternalSku,
     };
 
     private sealed record ParsedRow(int Line, ItemDefinition Definition, string? BulkSku)
@@ -114,14 +114,14 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         var seenSkus = new Dictionary<string, int>();
 
         var skipped = new List<ImportError>();
-        var hasInternalColumn = document.Headers.Contains(Columns.InternalCode);
+        var hasInternalColumn = document.Headers.Contains(Columns.InternalSku);
         foreach (var row in document.Rows)
         {
-            if (row.Get(Columns.InternalCode).Length == 0)
+            if (row.Get(Columns.InternalSku).Length == 0)
             {
-                skipped.Add(new ImportError(row.Line, Columns.InternalCode, hasInternalColumn
-                    ? "Renglón omitido: falta el código interno."
-                    : $"Renglón omitido: el archivo no trae la columna {Columns.InternalCode}."));
+                skipped.Add(new ImportError(row.Line, Columns.InternalSku, hasInternalColumn
+                    ? "Renglón omitido: falta el SKU interno."
+                    : $"Renglón omitido: el archivo no trae la columna {Columns.InternalSku}."));
                 continue;
             }
 
@@ -158,7 +158,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         errors.AddRange(await ValidateFixedOnceMovedAsync(parsed, existing, ct));
         errors.AddRange(await ValidateBulkWithPackagedAsync(parsed, existing, ct));
 
-        errors.AddRange(await ValidateInternalCodesAsync(parsed, ct));
+        errors.AddRange(await ValidateInternalSkusAsync(parsed, ct));
 
         if (errors.Count > 0)
             throw new ImportValidationException([.. errors.OrderBy(e => e.Row)]);
@@ -272,19 +272,19 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
             areasByKey);
     }
 
-    /// <summary>D-07: an internal code is unique in the file and in the catalog.</summary>
-    private async Task<IEnumerable<ImportError>> ValidateInternalCodesAsync(IReadOnlyList<ParsedRow> parsed, CancellationToken ct)
+    /// <summary>D-07: an internal SKU is unique in the file and in the catalog.</summary>
+    private async Task<IEnumerable<ImportError>> ValidateInternalSkusAsync(IReadOnlyList<ParsedRow> parsed, CancellationToken ct)
     {
         var errors = new List<ImportError>();
-        foreach (var duplicate in parsed.GroupBy(r => r.Definition.InternalCode!).Where(g => g.Count() > 1))
-            errors.AddRange(duplicate.Skip(1).Select(r => new ImportError(r.Line, Columns.InternalCode,
-                $"El código interno '{duplicate.Key}' está repetido (ya aparece en la fila {duplicate.First().Line}).")));
+        foreach (var duplicate in parsed.GroupBy(r => ItemRules.NormalizeInternalSku(r.Definition.InternalSku)).Where(g => g.Count() > 1))
+            errors.AddRange(duplicate.Skip(1).Select(r => new ImportError(r.Line, Columns.InternalSku,
+                $"El SKU interno '{duplicate.Key}' está repetido (ya aparece en la fila {duplicate.First().Line}).")));
 
-        var codes = parsed.Select(r => r.Definition.InternalCode!).Distinct().ToList();
-        var taken = await db.Items.AsNoTracking().Where(i => codes.Contains(i.InternalCode!))
-            .ToDictionaryAsync(i => i.InternalCode!, i => i.Sku, ct);
-        errors.AddRange(parsed.Where(r => taken.TryGetValue(r.Definition.InternalCode!, out var sku) && sku != r.Sku)
-            .Select(r => new ImportError(r.Line, Columns.InternalCode, $"El código interno '{r.Definition.InternalCode}' ya lo usa otro artículo.")));
+        var codes = parsed.Select(r => ItemRules.NormalizeInternalSku(r.Definition.InternalSku)).Distinct().ToList();
+        var taken = await db.Items.AsNoTracking().Where(i => codes.Contains(i.InternalSku))
+            .ToDictionaryAsync(i => i.InternalSku, i => i.Sku, ct);
+        errors.AddRange(parsed.Where(r => taken.TryGetValue(ItemRules.NormalizeInternalSku(r.Definition.InternalSku), out var sku) && sku != r.Sku)
+            .Select(r => new ImportError(r.Line, Columns.InternalSku, $"El SKU interno '{ItemRules.NormalizeInternalSku(r.Definition.InternalSku)}' ya lo usa otro artículo.")));
         return errors;
     }
 
@@ -392,9 +392,9 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
 
         return errors.Count > before
             ? null
-            : new ParsedRow(row.Line, new ItemDefinition(row.Get(Columns.Sku), row.Get(Columns.Name), type, categoryId, baseUomId,
-                purchaseUomId, factor, tracksLots, shelfLife, storage, taxRate, presentation, null, unitsPerPackage, areaId,
-                multiple, weight, ItemRules.NormalizeInternalCode(row.Get(Columns.InternalCode))), bulkSku);
+            : new ParsedRow(row.Line, new ItemDefinition(row.Get(Columns.Sku), row.Get(Columns.InternalSku), row.Get(Columns.Name), type, categoryId,
+                baseUomId, purchaseUomId, factor, tracksLots, shelfLife, storage, taxRate, presentation, null, unitsPerPackage, areaId,
+                multiple, weight), bulkSku);
 
         Guid? ResolveUom(string column, string label)
         {

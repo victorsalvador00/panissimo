@@ -91,15 +91,15 @@ public sealed class ProductionOrderImportService(
     public static class Columns
     {
         public const string Date = "fecha";
-        /// <summary>D-07: products are identified only by their internal code, not by the system SKU.</summary>
-        public const string InternalCode = "codigo_interno";
+        /// <summary>D-07: products are identified only by their internal SKU, not by the system SKU.</summary>
+        public const string InternalSku = "sku_interno";
         public const string Quantity = "cantidad";
         public const string Area = "area";
         public const string Shift = "turno";
         public const string Location = "ubicacion";
         public const string Notes = "notas";
 
-        public static readonly IReadOnlyList<string> Required = [Date, InternalCode, Quantity];
+        public static readonly IReadOnlyList<string> Required = [Date, InternalSku, Quantity];
         public static readonly IReadOnlyList<string> All = [.. Required, Area, Shift, Location, Notes];
     }
 
@@ -271,10 +271,10 @@ public sealed class ProductionOrderImportService(
         _ => "Noche",
     };
 
-    private sealed record ImportItem(Guid Id, string Sku, string? InternalCode, string Name, ItemType Type, bool IsActive, Guid? AreaId, string Uom);
+    private sealed record ImportItem(Guid Id, string Sku, string InternalSku, string Name, ItemType Type, bool IsActive, Guid? AreaId, string Uom);
 
     private sealed record Catalogs(
-        IReadOnlyDictionary<string, ImportItem> ItemsByInternalCode,
+        IReadOnlyDictionary<string, ImportItem> ItemsByInternalSku,
         IReadOnlyDictionary<Guid, ImportItem> Items,
         IReadOnlyDictionary<Guid, int> RecipeVersions,
         IReadOnlyDictionary<string, ProductionArea> AreasByKey,
@@ -286,11 +286,11 @@ public sealed class ProductionOrderImportService(
     /// <summary>Products, areas and plants resolved in a few queries for the whole file.</summary>
     private async Task<Catalogs> LoadCatalogsAsync(ExcelSheet sheet, CancellationToken ct)
     {
-        var codes = sheet.Rows.Select(r => r.Get(Columns.InternalCode)?.Text).OfType<string>().Select(ItemRules.NormalizeSku).Distinct().ToList();
+        var codes = sheet.Rows.Select(r => r.Get(Columns.InternalSku)?.Text).OfType<string>().Select(ItemRules.NormalizeSku).Distinct().ToList();
         var items = await (from i in db.Items.AsNoTracking()
                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
-                           where codes.Contains(i.InternalCode!)
-                           select new ImportItem(i.Id, i.Sku, i.InternalCode, i.Name, i.Type, i.IsActive, i.ProductionAreaId, u.Code)).ToListAsync(ct);
+                           where codes.Contains(i.InternalSku)
+                           select new ImportItem(i.Id, i.Sku, i.InternalSku, i.Name, i.Type, i.IsActive, i.ProductionAreaId, u.Code)).ToListAsync(ct);
         var itemIds = items.Select(i => i.Id).ToList();
         var recipes = await db.Recipes.AsNoTracking().Where(r => itemIds.Contains(r.OutputItemId) && r.IsActive)
             .ToDictionaryAsync(r => r.OutputItemId, r => r.VersionNumber, ct);
@@ -307,7 +307,7 @@ public sealed class ProductionOrderImportService(
         var plants = await db.Locations.AsNoTracking().Where(l => l.Type == LocationType.Plant).ToListAsync(ct);
         var defaultPlant = plants.Where(p => p.IsActive && allowed.Contains(p.Id)).OrderBy(p => p.Code != Location.PlantCode).FirstOrDefault();
 
-        return new Catalogs(items.ToDictionary(i => i.InternalCode!), items.ToDictionary(i => i.Id), recipes, areasByKey,
+        return new Catalogs(items.ToDictionary(i => i.InternalSku), items.ToDictionary(i => i.Id), recipes, areasByKey,
             areas.ToDictionary(a => a.Id, a => a.Name), plants.ToDictionary(p => p.Code), plants.ToDictionary(p => p.Id, p => p.Code), defaultPlant);
     }
 
@@ -331,16 +331,16 @@ public sealed class ProductionOrderImportService(
         }
 
         ImportItem? item = null;
-        if (row.Get(Columns.InternalCode) is { } codeCell)
+        if (row.Get(Columns.InternalSku) is { } codeCell)
         {
             var code = ItemRules.NormalizeSku(codeCell.Text);
-            if (!catalogs.ItemsByInternalCode.TryGetValue(code, out item) || !item.IsActive)
-                Error(Columns.InternalCode, $"El código interno '{codeCell.Text}' no existe o su artículo no está activo.");
+            if (!catalogs.ItemsByInternalSku.TryGetValue(code, out item) || !item.IsActive)
+                Error(Columns.InternalSku, $"El SKU interno '{codeCell.Text}' no existe o su artículo no está activo.");
             else if (!RecipeRules.CanBeProduced(item.Type))
-                Error(Columns.InternalCode, $"{item.Sku} no se produce: solo semiterminados y productos terminados.");
+                Error(Columns.InternalSku, $"{item.Sku} no se produce: solo semiterminados y productos terminados.");
             else if (!catalogs.RecipeVersions.ContainsKey(item.Id))
-                Error(Columns.InternalCode, $"{item.Sku} no tiene receta activa.");
-            if (errors.Any(e => e.Row == row.Row && e.Column == Columns.InternalCode))
+                Error(Columns.InternalSku, $"{item.Sku} no tiene receta activa.");
+            if (errors.Any(e => e.Row == row.Row && e.Column == Columns.InternalSku))
                 item = null;
         }
 

@@ -29,7 +29,7 @@ public class ProductionOrderTests(ApiFactory factory)
             areaId = await db.ProductionAreas.Where(a => a.Code == "BIZ-DIA").Select(a => a.Id).SingleAsync();
             var item = await db.Items.SingleAsync(i => i.Id == bread.Id);
             var uom = await db.UnitsOfMeasure.SingleAsync(u => u.Code == "pza");
-            item.Update(new ItemDefinition(item.Sku, item.Name, item.Type, item.CategoryId, uom.Id, null, null, true, 3,
+            item.Update(new ItemDefinition(item.Sku, item.InternalSku, item.Name, item.Type, item.CategoryId, uom.Id, null, null, true, 3,
                 StorageCondition.Ambient, 0, ItemPresentation.Bulk, ProductionAreaId: areaId, ProductionMultiple: 12));
             await db.SaveChangesAsync();
         }

@@ -2692,6 +2692,367 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("supplier_item", "purchasing");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Sales.Customer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("contact_name");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(13)
+                        .HasColumnType("character varying(13)")
+                        .HasColumnName("tax_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_code");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_customer_name");
+
+                    b.HasIndex("TaxId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_tax_id")
+                        .HasFilter("tax_id IS NOT NULL AND tax_id NOT IN ('XAXX010101000', 'XEXX010101000')");
+
+                    b.ToTable("customer", "sales");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerDeliveryPoint", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("address");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_delivery_point");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_customer_delivery_point_customer_id");
+
+                    b.ToTable("customer_delivery_point", "sales");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CustomerSku")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("customer_sku");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<decimal?>("Price")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("price");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_item");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_customer_item_item_id");
+
+                    b.HasIndex("CustomerId", "ItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_item_customer_id_item_id");
+
+                    b.ToTable("customer_item", "sales");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<string>("CloseReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("close_reason");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<Guid?>("ClosedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("closed_by");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("confirmed_at");
+
+                    b.Property<Guid?>("ConfirmedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("confirmed_by");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CustomerReference")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("customer_reference");
+
+                    b.Property<Guid?>("DeliveryPointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_point_id");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("folio");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateOnly>("RequiredDate")
+                        .HasColumnType("date")
+                        .HasColumnName("required_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("SupplyingLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplying_location_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_order");
+
+                    b.HasIndex("DeliveryPointId")
+                        .HasDatabaseName("ix_customer_order_delivery_point_id");
+
+                    b.HasIndex("Folio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_order_folio");
+
+                    b.HasIndex("CustomerId", "Status")
+                        .HasDatabaseName("ix_customer_order_customer_id_status");
+
+                    b.HasIndex("SupplyingLocationId", "RequiredDate", "Status")
+                        .HasDatabaseName("ix_customer_order_supplying_location_id_required_date_status");
+
+                    b.ToTable("customer_order", "sales");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerOrderLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CustomerOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_order_id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<int>("LineNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("line_number");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("ShippedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("shipped_qty");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_order_line");
+
+                    b.HasIndex("CustomerOrderId")
+                        .HasDatabaseName("ix_customer_order_line_customer_order_id");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_customer_order_line_item_id");
+
+                    b.ToTable("customer_order_line", "sales");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Security.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3661,6 +4022,73 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_supplier_item_supplier_supplier_id");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerDeliveryPoint", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Sales.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_delivery_point_customer_customer_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerItem", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Sales.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_item_customer_customer_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_item_items_item_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerOrder", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Sales.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_order_customer_customer_id");
+
+                    b.HasOne("Panissimo.Domain.Sales.CustomerDeliveryPoint", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryPointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_customer_order_customer_delivery_point_delivery_point_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("SupplyingLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_order_locations_supplying_location_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerOrderLine", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Sales.CustomerOrder", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("CustomerOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_order_line_customer_orders_customer_order_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_order_line_items_item_id");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Security.RefreshToken", b =>
                 {
                     b.HasOne("Panissimo.Infrastructure.Identity.AppUser", null)
@@ -3763,6 +4191,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Purchasing.PurchaseRequisition", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerOrder", b =>
                 {
                     b.Navigation("Lines");
                 });

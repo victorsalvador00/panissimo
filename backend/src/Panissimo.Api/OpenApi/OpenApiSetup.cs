@@ -7,6 +7,7 @@ using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
 using Panissimo.Application.Purchasing;
+using Panissimo.Application.Sales;
 using Panissimo.Application.Security;
 
 namespace Panissimo.Api.OpenApi;
@@ -148,6 +149,29 @@ public static class OpenApiSetup
                                           { "lineId": "0199a1b2-0000-7000-8000-0000000000c2", "approvedQty": 0 } ] }
             """,
         [typeof(RejectBranchOrderRequest)] = """{ "version": 1234, "reason": "Sin producción ese día" }""",
+        [typeof(CreateCustomerRequest)] = """
+            { "code": "CLI-001", "name": "Cafeterías del Bajío S.A. de C.V.", "taxId": "CBA010522AT1", "contactName": "Marta Ruiz",
+              "phone": "477 765 4321", "email": "compras@cafebajio.mx", "notes": null }
+            """,
+        [typeof(UpdateCustomerRequest)] = """
+            { "version": 1234, "name": "Cafeterías del Bajío S.A. de C.V.", "taxId": null, "contactName": "Marta Ruiz",
+              "phone": "477 765 4321", "email": "compras@cafebajio.mx", "notes": "Recibe de 7 a 10", "isActive": true }
+            """,
+        [typeof(CreateDeliveryPointRequest)] = """{ "name": "Sucursal Centro", "address": "Madero 120, León, Gto." }""",
+        [typeof(UpdateDeliveryPointRequest)] = """{ "version": 1234, "name": "Sucursal Centro", "address": "Madero 122, León, Gto.", "isActive": true }""",
+        [typeof(CreateCustomerItemRequest)] = """{ "itemId": "0199a1b2-0000-7000-8000-0000000000d3", "customerSku": "PAN-CONCHA-6", "price": 42.5 }""",
+        [typeof(UpdateCustomerItemRequest)] = """{ "version": 1234, "customerSku": "PAN-CONCHA-6", "price": 44, "isActive": true }""",
+        [typeof(CreateCustomerOrderRequest)] = """
+            { "customerId": "0199a1b2-0000-7000-8000-0000000000f5", "deliveryPointId": null, "requiredDate": "2026-10-20",
+              "customerReference": "OC-7781", "notes": null,
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d3", "quantity": 120, "unitPrice": null } ] }
+            """,
+        [typeof(UpdateCustomerOrderRequest)] = """
+            { "version": 1234, "deliveryPointId": "0199a1b2-0000-7000-8000-0000000000f6", "requiredDate": "2026-10-21",
+              "customerReference": "OC-7781", "notes": "Entregar en andén 2",
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d3", "quantity": 150, "unitPrice": 42.5 } ] }
+            """,
+        [typeof(CloseCustomerOrderRequest)] = """{ "version": 1234, "reason": "El cliente ya no requiere el saldo" }""",
         [typeof(CreateSupplierRequest)] = """
             { "taxId": "HAM980312AB5", "name": "Harinera del Bajío S.A. de C.V.", "contactName": "Jorge Ríos",
               "phone": "477 123 4567", "email": "ventas@harinerabajio.mx", "paymentTermsDays": 30 }

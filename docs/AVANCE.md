@@ -6,15 +6,15 @@
 ## ▶ Retomar aquí (estado al 2026-10-17)
 
 **Dónde quedamos**
-- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17 terminada.
-- Pruebas en verde: 188 unitarias y 112 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddBranchOrders` (B-17).
+- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17 y B-18 terminadas.
+- Pruebas en verde: 198 unitarias y 117 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddCustomersAndCustomerOrders` (B-18).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
-**Siguiente tarea: B-18** (fase 4): clientes, puntos de entrega, artículos de cliente y pedidos de cliente (RN-80, RN-82 sin remisiones). Reutilizar `TaxIdRules` para el RFC opcional del cliente.
+**Siguiente tarea: B-19** (fase 4): remisiones (§5.2 del backend). Agregar a `CustomerOrder` el registro de lo remisionado (RN-82 con `sales.shipment_tolerance_pct`; `PartiallyShipped`/`Shipped`; el cierre con saldo ya existe) y el despacho con `CustomerShipment` negativo (FEFO, vencidos rechazados).
 
 **Después**
-- Fase 4: B-18 clientes (reutilizar `TaxIdRules`), B-19 remisiones, B-20 plan de producción (reutilizar `ProductionOrderService.CreateManyInTransactionAsync`), B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
+- Fase 4: B-19 remisiones, B-20 plan de producción (reutilizar `ProductionOrderService.CreateManyInTransactionAsync`), B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
 - Frontend F-01..F-24: ya puede empezar (el backend va una fase adelante). Opción pendiente de elegir con el usuario: seguir con compras o arrancar F-01.
 
@@ -22,7 +22,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-18 en `docs/specs/backend.md` §13 y RN-80..RN-83 en `docs/specs/dominio.md` (§4.6 Ventas).
+4. Leer B-19 en `docs/specs/backend.md` §13 y §5.2, y RN-81..RN-83 en `docs/specs/dominio.md`.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -49,7 +49,8 @@
 | 3 | B-15 Requisiciones y conversión a OC | ✅ | (ver `git log`) |
 | 3 | B-16 OC y recepciones | ✅ | (ver `git log`) |
 | 4 | B-17 Pedidos de sucursal | ✅ | (ver `git log`) |
-| 4 | B-18..B-21 Clientes, remisiones, plan, requerimiento | ⏳ | |
+| 4 | B-18 Clientes y pedidos de cliente | ✅ | (ver `git log`) |
+| 4 | B-19..B-21 Remisiones, plan, requerimiento | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 
 ## Frontend
@@ -225,6 +226,15 @@
 - Endpoints `/branch-orders` (lista con `tab=ToApprove`, status, locationId, from/to, q), alta, edición, `submit`, `cancel` (`logistics.orders.create`), `approve`, `reject` (`logistics.orders.approve`).
 - Sin paquetes nuevos.
 - Pruebas: 188 unitarias (+16: artículos permitidos, sugerido, aprobación, RN-24, cancelación, rechazo) y 112 de integración (+6: pedido → traspaso → despacho → recepción → `Fulfilled`; ediciones del traspaso ligado y despacho parcial; cancelar el traspaso cancela el pedido; empaquetado y semiterminado → 422, todo en cero, rechazo; sugerido; alcance de la sucursal).
+
+### B-18 (2026-10-17)
+
+- Esquema `sales`, migración `AddCustomersAndCustomerOrders`: `Customer` (código único, fijo al crearse, en mayúsculas; RFC opcional con `TaxIdRules`, único salvo genéricos con índice parcial), `CustomerDeliveryPoint`, `CustomerItem` (solo `FinishedGood` empaquetado activo, una vez por cliente; clave del cliente y precio informativo opcional, D-06) y `CustomerOrder` + líneas.
+- RN-80: cliente activo; punto de entrega opcional del mismo cliente y activo; fecha requerida no pasada (también al confirmar); al menos una línea; solo empaquetados activos sin repetir (granel u otros → **422**, D-05); enteras en `pza`. Lo surte la Planta activa (D-01) y toda acción exige la Planta en el alcance. El precio vacío toma el del artículo del cliente.
+- Estados: `Draft → Confirmed` (ya no se edita), `Cancelled` desde `Draft` o `Confirmed` sin remisionado, `Closed` con motivo solo desde `PartiallyShipped` (se alcanza con las remisiones de B-19).
+- Endpoints `/customers` (lista con q por código, nombre o RFC; lookup; delivery-points; items, edición por fila `PUT /customers/{id}/items/{customerItemId}`) y `/customer-orders` (pestañas `tab=ToFulfill|Drafts`, customerId, status, from/to, q por folio, referencia o cliente; avance %; `confirm`, `cancel`, `close`). Permisos `sales.view`, `sales.customers.manage`, `sales.orders.manage`.
+- Sin paquetes nuevos.
+- Pruebas: 198 unitarias (+10: código, RFC opcional, artículos vendibles, transiciones del pedido) y 117 de integración (+5: código y RFC únicos con genéricos, puntos de entrega y artículos, pedido con granel → 422, precio por omisión, confirmado no editable, cliente inactivo, permisos de Ventas, Almacén y sucursal).
 
 ## Pendientes y decisiones abiertas
 

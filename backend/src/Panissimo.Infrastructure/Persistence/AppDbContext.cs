@@ -9,6 +9,7 @@ using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 using Panissimo.Domain.Purchasing;
+using Panissimo.Domain.Sales;
 using Panissimo.Domain.Security;
 using Panissimo.Infrastructure.Identity;
 
@@ -42,6 +43,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<PurchaseRequisition> PurchaseRequisitions => Set<PurchaseRequisition>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
+    public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<CustomerDeliveryPoint> CustomerDeliveryPoints => Set<CustomerDeliveryPoint>();
+    public DbSet<CustomerItem> CustomerItems => Set<CustomerItem>();
+    public DbSet<CustomerOrder> CustomerOrders => Set<CustomerOrder>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

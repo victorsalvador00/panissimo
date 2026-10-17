@@ -7,6 +7,7 @@ using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 using Panissimo.Domain.Purchasing;
+using Panissimo.Domain.Sales;
 using Panissimo.Domain.Security;
 
 namespace Panissimo.Application.Common;
@@ -42,6 +43,10 @@ public interface IAppDbContext
     DbSet<PurchaseRequisition> PurchaseRequisitions { get; }
     DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<GoodsReceipt> GoodsReceipts { get; }
+    DbSet<Customer> Customers { get; }
+    DbSet<CustomerDeliveryPoint> CustomerDeliveryPoints { get; }
+    DbSet<CustomerItem> CustomerItems { get; }
+    DbSet<CustomerOrder> CustomerOrders { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserLocation> UserLocations { get; }
     DbSet<AuditLog> AuditLogs { get; }

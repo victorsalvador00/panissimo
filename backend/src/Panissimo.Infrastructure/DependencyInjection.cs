@@ -9,6 +9,7 @@ using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
 using Panissimo.Application.Purchasing;
+using Panissimo.Application.Sales;
 using Panissimo.Application.Security;
 using Panissimo.Infrastructure.Csv;
 using Panissimo.Infrastructure.Excel;
@@ -110,6 +111,8 @@ public static class DependencyInjection
         services.AddScoped<IRequisitionService, RequisitionService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IGoodsReceiptService, GoodsReceiptService>();
+        services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<ICustomerOrderService, CustomerOrderService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

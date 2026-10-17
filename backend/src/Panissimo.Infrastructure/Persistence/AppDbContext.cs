@@ -34,6 +34,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Recipe> Recipes => Set<Recipe>();
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderImport> ProductionOrderImports => Set<ProductionOrderImport>();
+    public DbSet<ProductionClose> ProductionCloses => Set<ProductionClose>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

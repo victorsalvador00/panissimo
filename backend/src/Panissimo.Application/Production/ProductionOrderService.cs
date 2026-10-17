@@ -270,9 +270,8 @@ public sealed class ProductionOrderService(
 
     private static decimal ProgressPct(ProductionOrder o) => decimal.Round(o.ProducedQty / o.PlannedQty * 100, 1);
 
-    /// <summary>RN-63: total produced may not exceed PlannedQty × (1 + tolerance).</summary>
     private async Task<decimal> MaxAllowedAsync(ProductionOrder o, CancellationToken ct) =>
-        InventoryMath.Round(o.PlannedQty * (1 + await db.GetSettingAsync(AppSettingKeys.OverrunTolerancePct, ct) / 100m));
+        o.MaxAllowedQty(await db.GetSettingAsync(AppSettingKeys.OverrunTolerancePct, ct));
 
     private async Task<ProductionOrder> FindAsync(Guid id, CancellationToken ct)
     {

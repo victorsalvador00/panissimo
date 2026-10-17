@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Panissimo.Domain.Catalog;
+using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 
@@ -83,5 +84,48 @@ internal sealed class ProductionOrderImportConfiguration : IEntityTypeConfigurat
         builder.Property(i => i.FileSha256).HasMaxLength(64);
         builder.HasIndex(i => i.Folio).IsUnique();
         builder.HasIndex(i => i.FileSha256);
+    }
+}
+
+internal sealed class ProductionCloseConfiguration : IEntityTypeConfiguration<ProductionClose>
+{
+    public void Configure(EntityTypeBuilder<ProductionClose> builder)
+    {
+        builder.ToTable("production_close", "production");
+        builder.Property(c => c.Folio).HasMaxLength(30);
+        builder.Property(c => c.Kind).HasMaxLength(20);
+        builder.Property(c => c.Shift).HasMaxLength(20);
+        builder.Property(c => c.Notes).HasMaxLength(500);
+        builder.Ignore(c => c.WasteQty);
+        builder.Ignore(c => c.WasteCost);
+        builder.HasIndex(c => c.Folio).IsUnique();
+        // RN-66: one close per sequence of an order.
+        builder.HasIndex(c => new { c.ProductionOrderId, c.Sequence }).IsUnique();
+        builder.HasIndex(c => c.BusinessDate);
+        builder.HasOne<ProductionOrder>().WithMany().HasForeignKey(c => c.ProductionOrderId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Lot>().WithMany().HasForeignKey(c => c.OutputLotId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasMany(c => c.Lines).WithOne().HasForeignKey(l => l.ProductionCloseId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(c => c.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class ProductionCloseLineConfiguration : IEntityTypeConfiguration<ProductionCloseLine>
+{
+    public void Configure(EntityTypeBuilder<ProductionCloseLine> builder)
+    {
+        builder.ToTable("production_close_line", "production");
+        builder.HasIndex(l => l.ComponentItemId);
+        builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasMany(l => l.Lots).WithOne().HasForeignKey(x => x.LineId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(l => l.Lots).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class ProductionCloseLineLotConfiguration : IEntityTypeConfiguration<ProductionCloseLineLot>
+{
+    public void Configure(EntityTypeBuilder<ProductionCloseLineLot> builder)
+    {
+        builder.ToTable("production_close_line_lot", "production");
+        builder.HasOne<Lot>().WithMany().HasForeignKey(x => x.LotId).OnDelete(DeleteBehavior.Restrict);
     }
 }

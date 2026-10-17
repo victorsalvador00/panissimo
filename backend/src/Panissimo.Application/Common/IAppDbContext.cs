@@ -34,6 +34,7 @@ public interface IAppDbContext
     DbSet<Recipe> Recipes { get; }
     DbSet<ProductionOrder> ProductionOrders { get; }
     DbSet<ProductionOrderImport> ProductionOrderImports { get; }
+    DbSet<ProductionClose> ProductionCloses { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserLocation> UserLocations { get; }
     DbSet<AuditLog> AuditLogs { get; }

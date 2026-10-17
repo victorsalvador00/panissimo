@@ -1365,6 +1365,186 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("production_area", "production");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionClose", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("BusinessDate")
+                        .HasColumnType("date")
+                        .HasColumnName("business_date");
+
+                    b.Property<DateTimeOffset>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<Guid?>("ClosedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("closed_by");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("folio");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid?>("OutputLotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("output_lot_id");
+
+                    b.Property<decimal>("ProducedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("produced_qty");
+
+                    b.Property<Guid>("ProductionOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("production_order_id");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer")
+                        .HasColumnName("sequence");
+
+                    b.Property<string>("Shift")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("shift");
+
+                    b.Property<decimal>("TotalCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("total_cost");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_production_close");
+
+                    b.HasIndex("BusinessDate")
+                        .HasDatabaseName("ix_production_close_business_date");
+
+                    b.HasIndex("Folio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_production_close_folio");
+
+                    b.HasIndex("OutputLotId")
+                        .HasDatabaseName("ix_production_close_output_lot_id");
+
+                    b.HasIndex("ProductionOrderId", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("ix_production_close_production_order_id_sequence");
+
+                    b.ToTable("production_close", "production");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionCloseLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("ActualQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("actual_qty");
+
+                    b.Property<Guid>("ComponentItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("component_item_id");
+
+                    b.Property<Guid>("ProductionCloseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("production_close_id");
+
+                    b.Property<decimal>("TheoreticalQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("theoretical_qty");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost");
+
+                    b.Property<decimal>("WasteQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("waste_qty");
+
+                    b.HasKey("Id")
+                        .HasName("pk_production_close_line");
+
+                    b.HasIndex("ComponentItemId")
+                        .HasDatabaseName("ix_production_close_line_component_item_id");
+
+                    b.HasIndex("ProductionCloseId")
+                        .HasDatabaseName("ix_production_close_line_production_close_id");
+
+                    b.ToTable("production_close_line", "production");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionCloseLineLot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("LineId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("line_id");
+
+                    b.Property<Guid>("LotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lot_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.HasKey("Id")
+                        .HasName("pk_production_close_line_lot");
+
+                    b.HasIndex("LineId")
+                        .HasDatabaseName("ix_production_close_line_lot_line_id");
+
+                    b.HasIndex("LotId")
+                        .HasDatabaseName("ix_production_close_line_lot_lot_id");
+
+                    b.ToTable("production_close_line_lot", "production");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrder", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2396,6 +2576,56 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_transfer_line_transfers_transfer_id");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionClose", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Inventory.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("OutputLotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_production_close_lot_output_lot_id");
+
+                    b.HasOne("Panissimo.Domain.Production.ProductionOrder", null)
+                        .WithMany()
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_close_production_orders_production_order_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionCloseLine", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ComponentItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_close_line_item_component_item_id");
+
+                    b.HasOne("Panissimo.Domain.Production.ProductionClose", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("ProductionCloseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_close_line_production_closes_production_close_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionCloseLineLot", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Production.ProductionCloseLine", null)
+                        .WithMany("Lots")
+                        .HasForeignKey("LineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_close_line_lot_production_close_line_line_id");
+
+                    b.HasOne("Panissimo.Domain.Inventory.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_close_line_lot_lot_lot_id");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrder", b =>
                 {
                     b.HasOne("Panissimo.Domain.Production.ProductionOrderImport", null)
@@ -2540,6 +2770,16 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Panissimo.Domain.Logistics.Transfer", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionClose", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionCloseLine", b =>
+                {
+                    b.Navigation("Lots");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrder", b =>

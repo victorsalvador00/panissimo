@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-11).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-12).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -18,7 +18,8 @@
 | 1 | B-09 Traspasos directos | ✅ | (ver `git log`) |
 | 2 | B-10 Recetas versionadas y explosión | ✅ | (ver `git log`) |
 | 2 | B-11 Órdenes de producción | ✅ | (ver `git log`) |
-| 2 | B-12..B-13 Cierres e importación de Excel | ⏳ | |
+| 2 | B-12 Cierres parciales y final | ✅ | (ver `git log`) |
+| 2 | B-13 Importación de OP desde Excel | ⏳ | |
 | 3 | B-14..B-16 Proveedores, requisiciones, OC y recepciones | ⏳ | |
 | 4 | B-17..B-21 Pedidos de sucursal, clientes, remisiones, plan, requerimiento | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
@@ -136,6 +137,13 @@
 - La entidad ya lleva `ProducedQty`, `TotalCost`, `UnitCost`, `CloseCount`, datos del cierre final y `ActualQty` por línea para B-12.
 - Migración `AddProductionOrders`.
 - Pruebas: 109 unitarias y 77 de integración (+5: receta activa y área por omisión con versión conservada, sin receta → 422, solo Planta/piezas/fecha, ciclo borrador → liberada → cancelada y pestañas, permisos del supervisor).
+
+### B-12 (2026-10-16)
+
+- `GET /production-orders/{id}/close-preview?qty` (teórico, existencia utilizable, costo estimado, lote y caducidad que se crearían), `GET/POST /production-orders/{id}/closes` (201 con `{ close, order }`), `GET /production-closes` (filtros `locationId`, `from`, `to`, `areaId`, `itemId`, `productionOrderId`, `kind`, `q`) y `/production-closes/{id}` (consumos, lotes, merma, lote producido).
+- §5.1 en una transacción: reclamo de la fila de la OP con `version` (RN-66: cierres simultáneos 201/409); RN-61 consumo real por componente (por omisión el teórico de lo producido en el cierre; lotes elegidos que deben sumar o FEFO; vencidos rechazados); RN-62 lote `{folio}-{nn}` con caducidad = fecha de negocio + vida útil (sin lote si el artículo no maneja lotes); RN-64 costo del cierre = Σ consumo real × costo promedio, entrada al costo unitario del cierre y acumulado en la OP; RN-13 merma por línea (real − teórico) y su costo; RN-63 tolerancia (`production.overrun_tolerance_pct`, también en parciales), motivo de faltante en el cierre final (notas con `Other`), cierre final en 0 solo con cierres previos y sin consumos; RN-65 los cierres son inmutables; turno por omisión el de la OP.
+- Migración `AddProductionCloses` (índice único `(production_order_id, sequence)`).
+- Pruebas: 119 unitarias y 83 de integración (+6: 2 parciales + final con kardex, tres lotes y caducidad, costos por cierre y acumulado, merma; faltante 409 sin movimientos; cierres concurrentes 201/409; cancelar con cierres 422 y tolerancia; cierre final en 0 y suma de lotes; supervisor cierra).
 
 ## Pendientes y decisiones abiertas
 

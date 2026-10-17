@@ -122,6 +122,13 @@ public static class OpenApiSetup
             { "version": 1234, "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9", "plannedQty": 3000,
               "scheduledDate": "2026-10-17", "productionAreaId": "0199a1b2-0000-7000-8000-0000000000e1", "shift": "Night", "notes": null }
             """,
+        [typeof(CreateProductionCloseRequest)] = """
+            { "version": 1234, "kind": "Partial", "producedQty": 1200, "shift": "Night", "notes": "Primer tramo",
+              "shortfallReason": null, "shortfallNotes": null,
+              "lines": [ { "componentItemId": "0199a1b2-0000-7000-8000-0000000000d1", "actualQty": 62.4, "lots": null },
+                         { "componentItemId": "0199a1b2-0000-7000-8000-0000000000d2", "actualQty": 12,
+                           "lots": [ { "lotId": "0199a1b2-0000-7000-8000-0000000000f1", "qty": 12 } ] } ] }
+            """,
         [typeof(UpdateSettingsRequest)] = """
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },
                             { "key": "production.plan_default_days", "value": 2, "version": 1235 } ] }

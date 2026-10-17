@@ -128,6 +128,75 @@ public class ProductionOrder : AuditableEntity, IVersioned
         }
     }
 
+    /// <summary>RN-62: lot of the close <paramref name="sequence"/>, e.g. <c>OP-000123-01</c>.</summary>
+    public string LotNumberFor(int sequence) => $"{Folio}-{sequence:D2}";
+
+    /// <summary>RN-63: total produced may not exceed PlannedQty × (1 + tolerance).</summary>
+    public decimal MaxAllowedQty(decimal overrunTolerancePct) => InventoryMath.Round(PlannedQty * (1 + overrunTolerancePct / 100m));
+
+    /// <summary>
+    /// RN-61 and RN-63 checks before anything is posted: status, quantity per kind, overrun tolerance (also on partial
+    /// closes) and, on a final close below plan, the shortfall reason (with notes for Other).
+    /// </summary>
+    public void EnsureCanClose(ProductionCloseKind kind, decimal producedQty, decimal overrunTolerancePct,
+        ShortfallReason? shortfallReason, string? shortfallNotes)
+    {
+        if (Status is not (ProductionOrderStatus.Released or ProductionOrderStatus.InProgress))
+            throw new BusinessRuleException("production_order_not_open",
+                "Solo una orden liberada o en proceso admite cierres (RN-61).");
+        if (producedQty < 0 || InventoryMath.Round(producedQty) != producedQty)
+            throw new BusinessRuleException("invalid_quantity", "La cantidad producida no puede ser negativa y admite máximo 4 decimales.");
+        if (kind == ProductionCloseKind.Partial && producedQty == 0)
+            throw new BusinessRuleException("production_close_without_output", "Un cierre parcial requiere una cantidad producida mayor que cero.");
+        if (kind == ProductionCloseKind.Final && producedQty == 0 && CloseCount == 0)
+            throw new BusinessRuleException("production_close_without_output",
+                "La orden no tiene cierres: un cierre final debe registrar producción. Si no se produjo nada, cancélala.");
+
+        var total = ProducedQty + producedQty;
+        var max = MaxAllowedQty(overrunTolerancePct);
+        if (total > max)
+            throw new BusinessRuleException("production_overrun",
+                $"El total producido ({total:0.####}) supera lo planeado más la tolerancia. Máximo permitido: {max:0.####}.");
+
+        if (kind == ProductionCloseKind.Final && total < PlannedQty)
+        {
+            if (shortfallReason is null)
+                throw new BusinessRuleException("production_shortfall_reason_required",
+                    "Se produjo menos de lo planeado: indica el motivo del faltante (RN-63).");
+            if (shortfallReason == Production.ShortfallReason.Other && string.IsNullOrWhiteSpace(shortfallNotes))
+                throw new BusinessRuleException("production_shortfall_notes_required", "Describe el motivo del faltante en las notas.");
+        }
+    }
+
+    /// <summary>RN-61/RN-63/RN-64: adds the close to the accumulated quantities and cost and moves the status.</summary>
+    public void RegisterClose(ProductionClose close, ShortfallReason? shortfallReason, string? shortfallNotes)
+    {
+        if (close.ProductionOrderId != Id || close.Sequence != CloseCount + 1)
+            throw new ArgumentException("The close does not follow this order's last close.", nameof(close));
+
+        CloseCount++;
+        ProducedQty += close.ProducedQty;
+        TotalCost = InventoryMath.Round(TotalCost + close.TotalCost);
+        UnitCost = ProducedQty > 0 ? InventoryMath.Round(TotalCost / ProducedQty) : 0;
+        foreach (var line in close.Lines)
+            _lines.Single(l => l.ComponentItemId == line.ComponentItemId).AddActual(line.ActualQty);
+
+        if (close.Kind == ProductionCloseKind.Partial)
+        {
+            Status = ProductionOrderStatus.InProgress;
+            return;
+        }
+
+        Status = ProductionOrderStatus.Completed;
+        CompletedAt = close.ClosedAt;
+        CompletedBy = close.ClosedBy;
+        if (ProducedQty < PlannedQty)
+        {
+            ShortfallReason = shortfallReason;
+            ShortfallNotes = string.IsNullOrWhiteSpace(shortfallNotes) ? null : shortfallNotes.Trim();
+        }
+    }
+
     private void Apply(ProductionOrderPlan plan, DateOnly today)
     {
         if (!plan.Recipe.IsActive)
@@ -170,4 +239,6 @@ public class ProductionOrderLine : Entity
 
     /// <summary>Real consumption accumulated over the closes.</summary>
     public decimal ActualQty { get; private set; }
+
+    internal void AddActual(decimal quantity) => ActualQty += quantity;
 }

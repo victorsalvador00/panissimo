@@ -57,6 +57,9 @@ public static class TransactionLockScopes
 {
     public const string Lot = "lot";
     public const string PreferredSupplier = "preferred-supplier";
+
+    /// <summary>Writes to a supplier's items and its deactivation; taken before <see cref="PreferredSupplier"/>.</summary>
+    public const string Supplier = "supplier";
 }
 
 /// <summary>

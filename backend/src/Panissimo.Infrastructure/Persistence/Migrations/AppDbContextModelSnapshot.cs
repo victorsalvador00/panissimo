@@ -1914,6 +1914,159 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("recipe_line", "production");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Purchasing.Supplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("contact_name");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("PaymentTermsDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("payment_terms_days");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("TaxId")
+                        .IsRequired()
+                        .HasMaxLength(13)
+                        .HasColumnType("character varying(13)")
+                        .HasColumnName("tax_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_supplier");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_supplier_name");
+
+                    b.HasIndex("TaxId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_supplier_tax_id")
+                        .HasFilter("tax_id NOT IN ('XAXX010101000', 'XEXX010101000')");
+
+                    b.ToTable("supplier", "purchasing");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Purchasing.SupplierItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsPreferred")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_preferred");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<int>("LeadTimeDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("lead_time_days");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("price");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<string>("SupplierSku")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("supplier_sku");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_supplier_item");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_supplier_item_item_id");
+
+                    b.HasIndex("SupplierId", "ItemId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_supplier_item_supplier_id_item_id");
+
+                    b.HasIndex(new[] { "ItemId" }, "preferred")
+                        .IsUnique()
+                        .HasDatabaseName("ix_supplier_item_preferred")
+                        .HasFilter("is_preferred");
+
+                    b.ToTable("supplier_item", "purchasing");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Security.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2704,6 +2857,23 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_recipe_line_recipes_recipe_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Purchasing.SupplierItem", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_supplier_item_item_item_id");
+
+                    b.HasOne("Panissimo.Domain.Purchasing.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_supplier_item_supplier_supplier_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Security.RefreshToken", b =>

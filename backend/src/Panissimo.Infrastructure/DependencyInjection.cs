@@ -8,6 +8,7 @@ using Panissimo.Application.Inventory;
 using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
+using Panissimo.Application.Purchasing;
 using Panissimo.Application.Security;
 using Panissimo.Infrastructure.Csv;
 using Panissimo.Infrastructure.Excel;
@@ -104,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<IProductionCloseService, ProductionCloseService>();
         services.AddSingleton<IExcelOrderReader, ClosedXmlOrderReader>();
         services.AddScoped<IProductionOrderImportService, ProductionOrderImportService>();
+        services.AddScoped<ISupplierService, SupplierService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

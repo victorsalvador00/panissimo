@@ -3,16 +3,15 @@
 > Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16, cierre de sesión (B-13, fase 2 del backend completa).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
-## ▶ Retomar aquí (estado al 2026-10-16)
+## ▶ Retomar aquí (estado al 2026-10-17)
 
 **Dónde quedamos**
-- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`; árbol limpio. Último commit `c95444b` (B-13).
-- Pruebas en verde: 123 unitarias y 89 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddProductionCloses` (B-13 no requirió migración).
+- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3: B-14 terminada.
+- Pruebas en verde: 148 unitarias y 95 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddSuppliers` (B-14).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
-**Siguiente tarea: B-14** (fase 3, compras), luego B-15 y B-16:
-- B-14 Proveedores: RFC válido (RN-35), un solo proveedor preferido por artículo, `/items/{id}/supplier-offers`.
+**Siguiente tarea: B-15** (fase 3, compras), luego B-16:
 - B-15 Requisiciones y su conversión a OC.
 - B-16 Órdenes de compra (aprobación por umbral) y recepciones (mueven inventario: prueba de integración obligatoria).
 
@@ -25,7 +24,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-14 en `docs/specs/backend.md` §13 y RN-35 en `docs/specs/dominio.md`.
+4. Leer B-15 en `docs/specs/backend.md` §13 y RN-34 en `docs/specs/dominio.md`.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -48,7 +47,8 @@
 | 2 | B-11 Órdenes de producción | ✅ | `f7babc5` |
 | 2 | B-12 Cierres parciales y final | ✅ | `1be95dd` |
 | 2 | B-13 Importación de OP desde Excel | ✅ | `c95444b` |
-| 3 | B-14..B-16 Proveedores, requisiciones, OC y recepciones | ⏳ | |
+| 3 | B-14 Proveedores y artículos de proveedor | ✅ | (ver `git log`) |
+| 3 | B-15..B-16 Requisiciones, OC y recepciones | ⏳ | |
 | 4 | B-17..B-21 Pedidos de sucursal, clientes, remisiones, plan, requerimiento | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 
@@ -183,6 +183,16 @@
 - Pruebas: 123 unitarias (+4 del lector y la plantilla) y 89 de integración (+6: errores por fila sin crear nada, agrupación y liga a `IMP`, avisos de duplicado y OP existente con confirmación, liberar al importar y permiso, plantilla, rendimiento 3,000 filas: validación < 5 s e importación < 10 s con `Category=Performance`). Las reglas RN-90..RN-93 se prueban de punta a punta contra la API en lugar de unitarias aisladas.
 
 **Fase 2 del backend completa (B-10..B-13).**
+
+### B-14 (2026-10-17)
+
+- `Supplier` y `SupplierItem` (esquema `purchasing`, migración `AddSuppliers`). `TaxIdRules` en `Domain/Common` (lo reutilizará el cliente en B-18): RFC de 12 o 13 caracteres con fecha AAMMDD válida, en mayúsculas; no se verifica el dígito de la homoclave. Únicos con índice parcial que excluye `XAXX010101000` y `XEXX010101000`; la validación previa responde 400 en `taxId`.
+- Endpoints: `GET/POST /suppliers` (q por razón social o RFC, `includeInactive`), `GET/PUT /suppliers/{id}`, `GET /suppliers/lookup`, `GET/POST /suppliers/{id}/items`, `PUT /suppliers/{id}/items/{supplierItemId}` y `GET /items/{id}/supplier-offers` (proveedores activos: primero el preferido, luego el más barato por unidad base). Permisos `purchasing.view` y `purchasing.suppliers.manage`; catálogo global, sin alcance de ubicación.
+- RN-35: marcar preferido desmarca el anterior dentro de una transacción con dos candados en orden fijo (`supplier` y luego `preferred-supplier` por artículo) y un índice único parcial `ix_supplier_item_preferred`. Una fila inactiva nunca es preferida. Desactivar el proveedor quita sus preferencias; sus artículos responden 422 `supplier_inactive` hasta reactivarlo.
+- Solo se agregan materias primas e insumos activos, una vez por proveedor. `PricePerBaseUnit` = precio / factor de compra (4 decimales).
+- Sin paquetes nuevos.
+- Pruebas: 148 unitarias (+25: RFC, proveedor y fila) y 95 de integración (+6: RFC y genéricos, cambio de preferido con 409 por versión, artículos permitidos, desactivar y reactivar, 4 marcas de preferido en paralelo, permisos). Sin el candado, la prueba en paralelo falla.
+- Decisión de API: el spec decía `PUT /suppliers/{id}/items`; se implementó por fila (`/items/{supplierItemId}`, con `version`) para seguir la concurrencia optimista por fila.
 
 ## Pendientes y decisiones abiertas
 

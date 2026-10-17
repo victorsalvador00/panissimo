@@ -6,6 +6,7 @@ using Panissimo.Application.Inventory;
 using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
+using Panissimo.Application.Purchasing;
 using Panissimo.Application.Security;
 
 namespace Panissimo.Api.OpenApi;
@@ -132,6 +133,21 @@ public static class OpenApiSetup
         [typeof(UpdateSettingsRequest)] = """
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },
                             { "key": "production.plan_default_days", "value": 2, "version": 1235 } ] }
+            """,
+        [typeof(CreateSupplierRequest)] = """
+            { "taxId": "HAM980312AB5", "name": "Harinera del Bajío S.A. de C.V.", "contactName": "Jorge Ríos",
+              "phone": "477 123 4567", "email": "ventas@harinerabajio.mx", "paymentTermsDays": 30 }
+            """,
+        [typeof(UpdateSupplierRequest)] = """
+            { "version": 1234, "taxId": "HAM980312AB5", "name": "Harinera del Bajío S.A. de C.V.", "contactName": "Jorge Ríos",
+              "phone": "477 123 4567", "email": "ventas@harinerabajio.mx", "paymentTermsDays": 45, "isActive": true }
+            """,
+        [typeof(CreateSupplierItemRequest)] = """
+            { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "supplierSku": "HAR-PAN-44", "price": 612.5,
+              "leadTimeDays": 3, "isPreferred": true }
+            """,
+        [typeof(UpdateSupplierItemRequest)] = """
+            { "version": 1234, "supplierSku": "HAR-PAN-44", "price": 598, "leadTimeDays": 2, "isPreferred": true, "isActive": true }
             """,
     };
 

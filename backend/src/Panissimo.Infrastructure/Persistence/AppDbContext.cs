@@ -8,6 +8,7 @@ using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
+using Panissimo.Domain.Purchasing;
 using Panissimo.Domain.Security;
 using Panissimo.Infrastructure.Identity;
 
@@ -35,6 +36,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderImport> ProductionOrderImports => Set<ProductionOrderImport>();
     public DbSet<ProductionClose> ProductionCloses => Set<ProductionClose>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<SupplierItem> SupplierItems => Set<SupplierItem>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

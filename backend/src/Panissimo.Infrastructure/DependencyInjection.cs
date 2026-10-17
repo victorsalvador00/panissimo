@@ -113,6 +113,7 @@ public static class DependencyInjection
         services.AddScoped<IGoodsReceiptService, GoodsReceiptService>();
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<ICustomerOrderService, CustomerOrderService>();
+        services.AddScoped<ICustomerShipmentService, CustomerShipmentService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

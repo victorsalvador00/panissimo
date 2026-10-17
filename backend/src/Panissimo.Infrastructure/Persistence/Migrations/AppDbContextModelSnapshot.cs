@@ -3053,6 +3053,193 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("customer_order_line", "sales");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<Guid>("CustomerOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_order_id");
+
+                    b.Property<Guid?>("DeliveryPointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivery_point_id");
+
+                    b.Property<DateTimeOffset?>("DispatchedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("dispatched_at");
+
+                    b.Property<Guid?>("DispatchedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("dispatched_by");
+
+                    b.Property<string>("DriverName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("driver_name");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("folio");
+
+                    b.Property<Guid>("FromLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("from_location_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("ReceivedByName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("received_by_name");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("VehicleDescription")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("vehicle_description");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_shipment");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_customer_shipment_customer_id");
+
+                    b.HasIndex("CustomerOrderId")
+                        .HasDatabaseName("ix_customer_shipment_customer_order_id");
+
+                    b.HasIndex("DeliveryPointId")
+                        .HasDatabaseName("ix_customer_shipment_delivery_point_id");
+
+                    b.HasIndex("Folio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_customer_shipment_folio");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_customer_shipment_status");
+
+                    b.HasIndex("FromLocationId", "Status")
+                        .HasDatabaseName("ix_customer_shipment_from_location_id_status");
+
+                    b.ToTable("customer_shipment", "sales");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CustomerOrderLineId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_order_line_id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("ShipmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shipment_id");
+
+                    b.Property<decimal?>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_shipment_line");
+
+                    b.HasIndex("CustomerOrderLineId")
+                        .HasDatabaseName("ix_customer_shipment_line_customer_order_line_id");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_customer_shipment_line_item_id");
+
+                    b.HasIndex("ShipmentId")
+                        .HasDatabaseName("ix_customer_shipment_line_shipment_id");
+
+                    b.ToTable("customer_shipment_line", "sales");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentLineLot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("LineId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("line_id");
+
+                    b.Property<Guid>("LotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lot_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_shipment_line_lot");
+
+                    b.HasIndex("LineId")
+                        .HasDatabaseName("ix_customer_shipment_line_lot_line_id");
+
+                    b.HasIndex("LotId")
+                        .HasDatabaseName("ix_customer_shipment_line_lot_lot_id");
+
+                    b.ToTable("customer_shipment_line_lot", "sales");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Security.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4089,6 +4276,77 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_customer_order_line_items_item_id");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipment", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Sales.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_customer_customer_id");
+
+                    b.HasOne("Panissimo.Domain.Sales.CustomerOrder", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_customer_order_customer_order_id");
+
+                    b.HasOne("Panissimo.Domain.Sales.CustomerDeliveryPoint", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryPointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_customer_shipment_customer_delivery_point_delivery_point_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("FromLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_locations_from_location_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentLine", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Sales.CustomerOrderLine", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerOrderLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_line_customer_order_line_customer_order_l");
+
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_line_items_item_id");
+
+                    b.HasOne("Panissimo.Domain.Sales.CustomerShipment", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_line_customer_shipment_shipment_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentLineLot", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Sales.CustomerShipmentLine", null)
+                        .WithMany("Lots")
+                        .HasForeignKey("LineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_line_lot_customer_shipment_line_line_id");
+
+                    b.HasOne("Panissimo.Domain.Inventory.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_line_lot_lots_lot_id");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Security.RefreshToken", b =>
                 {
                     b.HasOne("Panissimo.Infrastructure.Identity.AppUser", null)
@@ -4198,6 +4456,16 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Panissimo.Domain.Sales.CustomerOrder", b =>
                 {
                     b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipment", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentLine", b =>
+                {
+                    b.Navigation("Lots");
                 });
 #pragma warning restore 612, 618
         }

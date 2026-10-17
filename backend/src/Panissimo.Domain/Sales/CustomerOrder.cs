@@ -100,6 +100,27 @@ public class CustomerOrder : AuditableEntity, IVersioned
         CancelledAt = now;
     }
 
+    /// <summary>RN-81: only confirmed or partially shipped orders are shipped.</summary>
+    public bool IsShippable => Status is CustomerOrderStatus.Confirmed or CustomerOrderStatus.PartiallyShipped;
+
+    /// <summary>
+    /// RN-82: adds a dispatched shipment to the lines. What is shipped per line never exceeds the ordered quantity plus
+    /// <paramref name="tolerancePct"/>. All lines complete → Shipped; otherwise PartiallyShipped.
+    /// </summary>
+    public void RegisterShipment(IReadOnlyDictionary<Guid, decimal> quantitiesByLine, decimal tolerancePct)
+    {
+        if (!IsShippable)
+            throw new BusinessRuleException("customer_order_not_shippable",
+                "Solo se remisiona un pedido confirmado o parcialmente remisionado (RN-81).");
+        foreach (var (lineId, quantity) in quantitiesByLine)
+        {
+            var line = _lines.SingleOrDefault(l => l.Id == lineId)
+                       ?? throw new BusinessRuleException("customer_order_line_not_found", "Una línea indicada no pertenece al pedido.");
+            line.Ship(quantity, tolerancePct);
+        }
+        Status = _lines.All(l => l.ShippedQty >= l.Quantity) ? CustomerOrderStatus.Shipped : CustomerOrderStatus.PartiallyShipped;
+    }
+
     /// <summary>RN-82: a partially shipped order may be closed with its balance, with a reason.</summary>
     public void Close(string reason, DateTimeOffset now, Guid? userId)
     {
@@ -171,4 +192,18 @@ public class CustomerOrderLine : Entity
     public decimal? UnitPrice { get; private set; }
 
     public decimal PendingQty => Math.Max(0, Quantity - ShippedQty);
+
+    /// <summary>RN-82: the most that may still be shipped on this line, tolerance included.</summary>
+    public decimal RemainingWithTolerance(decimal tolerancePct) =>
+        Math.Max(0, InventoryMath.Round(Quantity * (1 + tolerancePct / 100)) - ShippedQty);
+
+    internal void Ship(decimal quantity, decimal tolerancePct)
+    {
+        var max = RemainingWithTolerance(tolerancePct);
+        if (quantity > max)
+            throw new BusinessRuleException("shipment_over_tolerance",
+                $"La línea {LineNumber} excede lo pedido: puedes remisionar máximo {max:0.####} más " +
+                $"(pedido {Quantity:0.####}, tolerancia {tolerancePct:0.##} %, RN-82).");
+        ShippedQty += quantity;
+    }
 }

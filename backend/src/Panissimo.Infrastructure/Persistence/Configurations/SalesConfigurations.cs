@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
+using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Sales;
 
@@ -81,5 +82,54 @@ internal sealed class CustomerOrderLineConfiguration : IEntityTypeConfiguration<
         builder.Ignore(l => l.PendingQty);
         builder.HasIndex(l => l.ItemId);
         builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class CustomerShipmentConfiguration : IEntityTypeConfiguration<CustomerShipment>
+{
+    public void Configure(EntityTypeBuilder<CustomerShipment> builder)
+    {
+        builder.ToTable("customer_shipment", "sales");
+        builder.Property(s => s.Folio).HasMaxLength(30);
+        builder.Property(s => s.Status).HasMaxLength(20);
+        builder.Property(s => s.Notes).HasMaxLength(CustomerShipment.NotesMaxLength);
+        builder.Property(s => s.VehicleDescription).HasMaxLength(150);
+        builder.Property(s => s.DriverName).HasMaxLength(150);
+        builder.Property(s => s.ReceivedByName).HasMaxLength(150);
+        builder.HasIndex(s => s.Folio).IsUnique();
+        builder.HasIndex(s => s.Status);
+        builder.HasIndex(s => s.CustomerOrderId);
+        builder.HasIndex(s => new { s.FromLocationId, s.Status });
+        builder.HasIndex(s => s.CustomerId);
+        builder.HasOne<CustomerOrder>().WithMany().HasForeignKey(s => s.CustomerOrderId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Customer>().WithMany().HasForeignKey(s => s.CustomerId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<CustomerDeliveryPoint>().WithMany().HasForeignKey(s => s.DeliveryPointId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Location>().WithMany().HasForeignKey(s => s.FromLocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasMany(s => s.Lines).WithOne().HasForeignKey(l => l.ShipmentId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(s => s.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class CustomerShipmentLineConfiguration : IEntityTypeConfiguration<CustomerShipmentLine>
+{
+    public void Configure(EntityTypeBuilder<CustomerShipmentLine> builder)
+    {
+        builder.ToTable("customer_shipment_line", "sales");
+        builder.HasIndex(l => l.CustomerOrderLineId);
+        builder.HasIndex(l => l.ItemId);
+        builder.HasOne<CustomerOrderLine>().WithMany().HasForeignKey(l => l.CustomerOrderLineId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasMany(l => l.Lots).WithOne().HasForeignKey(x => x.LineId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(l => l.Lots).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+internal sealed class CustomerShipmentLineLotConfiguration : IEntityTypeConfiguration<CustomerShipmentLineLot>
+{
+    public void Configure(EntityTypeBuilder<CustomerShipmentLineLot> builder)
+    {
+        builder.ToTable("customer_shipment_line_lot", "sales");
+        builder.HasIndex(x => x.LotId);
+        builder.HasOne<Lot>().WithMany().HasForeignKey(x => x.LotId).OnDelete(DeleteBehavior.Restrict);
     }
 }

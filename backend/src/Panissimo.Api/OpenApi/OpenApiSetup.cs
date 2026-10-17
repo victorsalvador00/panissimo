@@ -172,6 +172,17 @@ public static class OpenApiSetup
               "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d3", "quantity": 150, "unitPrice": 42.5 } ] }
             """,
         [typeof(CloseCustomerOrderRequest)] = """{ "version": 1234, "reason": "El cliente ya no requiere el saldo" }""",
+        [typeof(UpdateCustomerShipmentRequest)] = """
+            { "version": 1234, "notes": "Entregar por andén 2",
+              "lines": [ { "lineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 96 },
+                         { "lineId": "0199a1b2-0000-7000-8000-0000000000c2", "quantity": 0 } ] }
+            """,
+        [typeof(DispatchCustomerShipmentRequest)] = """
+            { "version": 1234, "vehicleDescription": "Camioneta 3 (GTO-12-345)", "driverName": "Luis Pérez", "receivedByName": null,
+              "lines": [ { "lineId": "0199a1b2-0000-7000-8000-0000000000c1",
+                           "lots": [ { "lotId": "0199a1b2-0000-7000-8000-0000000000f1", "qty": 60 },
+                                     { "lotId": "0199a1b2-0000-7000-8000-0000000000f2", "qty": 36 } ] } ] }
+            """,
         [typeof(CreateSupplierRequest)] = """
             { "taxId": "HAM980312AB5", "name": "Harinera del Bajío S.A. de C.V.", "contactName": "Jorge Ríos",
               "phone": "477 123 4567", "email": "ventas@harinerabajio.mx", "paymentTermsDays": 30 }

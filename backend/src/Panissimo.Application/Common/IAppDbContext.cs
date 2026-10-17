@@ -47,6 +47,7 @@ public interface IAppDbContext
     DbSet<CustomerDeliveryPoint> CustomerDeliveryPoints { get; }
     DbSet<CustomerItem> CustomerItems { get; }
     DbSet<CustomerOrder> CustomerOrders { get; }
+    DbSet<CustomerShipment> CustomerShipments { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserLocation> UserLocations { get; }
     DbSet<AuditLog> AuditLogs { get; }

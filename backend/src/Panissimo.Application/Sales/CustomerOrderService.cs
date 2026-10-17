@@ -54,11 +54,13 @@ public sealed record CustomerOrderLineDto(
     Guid Id, int LineNumber, Guid ItemId, string Sku, string ItemName, string UomCode, string? CustomerSku, decimal Quantity,
     decimal ShippedQty, decimal PendingQty, decimal? UnitPrice, decimal? Amount);
 
+public sealed record CustomerOrderShipmentDto(Guid Id, string Folio, CustomerShipmentStatus Status, DateTimeOffset CreatedAt, DateTimeOffset? DispatchedAt);
+
 public sealed record CustomerOrderDto(
     Guid Id, string Folio, Guid CustomerId, string CustomerCode, string CustomerName, Guid? DeliveryPointId, string? DeliveryPointName,
     string? DeliveryPointAddress, Guid SupplyingLocationId, string SupplyingLocationCode, DateOnly RequiredDate, string? CustomerReference,
     CustomerOrderStatus Status, string? Notes, IReadOnlyList<CustomerOrderLineDto> Lines, decimal EstimatedSubtotal,
-    DateTimeOffset? ConfirmedAt, string? ConfirmedByName, DateTimeOffset? CancelledAt, DateTimeOffset? ClosedAt, string? ClosedByName,
+    IReadOnlyList<CustomerOrderShipmentDto> Shipments, DateTimeOffset? ConfirmedAt, string? ConfirmedByName, DateTimeOffset? CancelledAt, DateTimeOffset? ClosedAt, string? ClosedByName,
     string? CloseReason, DateTimeOffset CreatedAt, string? CreatedByName, DateTimeOffset? UpdatedAt, string? UpdatedByName, uint Version);
 
 public sealed class CustomerOrderLineRequestValidator : AbstractValidator<CustomerOrderLineRequest>
@@ -299,6 +301,8 @@ public sealed class CustomerOrderService(
             .ToDictionaryAsync(x => x.Id, ct);
         var customerSkus = await db.CustomerItems.AsNoTracking().Where(r => r.CustomerId == o.CustomerId && itemIds.Contains(r.ItemId))
             .ToDictionaryAsync(r => r.ItemId, r => r.CustomerSku, ct);
+        var shipments = await db.CustomerShipments.AsNoTracking().Where(s => s.CustomerOrderId == o.Id).OrderBy(s => s.CreatedAt)
+            .Select(s => new CustomerOrderShipmentDto(s.Id, s.Folio, s.Status, s.CreatedAt, s.DispatchedAt)).ToListAsync(ct);
         var names = await userDirectory.GetNamesAsync([o.CreatedBy, o.UpdatedBy, o.ConfirmedBy, o.ClosedBy], ct);
 
         var lines = o.Lines.OrderBy(l => l.LineNumber).Select(l => new CustomerOrderLineDto(l.Id, l.LineNumber, l.ItemId, items[l.ItemId].Sku,
@@ -307,7 +311,7 @@ public sealed class CustomerOrderService(
 
         return new CustomerOrderDto(o.Id, o.Folio, o.CustomerId, customer.Code, customer.Name, o.DeliveryPointId, point?.Name, point?.Address,
             o.SupplyingLocationId, plantCode, o.RequiredDate, o.CustomerReference, o.Status, o.Notes, lines, lines.Sum(l => l.Amount ?? 0),
-            o.ConfirmedAt, names.Of(o.ConfirmedBy), o.CancelledAt, o.ClosedAt, names.Of(o.ClosedBy), o.CloseReason, o.CreatedAt,
+            shipments, o.ConfirmedAt, names.Of(o.ConfirmedBy), o.CancelledAt, o.ClosedAt, names.Of(o.ClosedBy), o.CloseReason, o.CreatedAt,
             names.Of(o.CreatedBy), o.UpdatedAt, names.Of(o.UpdatedBy), o.Version);
     }
 }

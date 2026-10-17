@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16, cierre de sesión (B-13, fase 2 del backend completa).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-01, arranque del frontend).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,22 +9,22 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Frontend sin iniciar (no existe `/frontend` todavía).
+- Backend fases 1-4 completas. Frontend iniciado: F-01 terminada (proyecto Angular 22 en `/frontend`).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Fase 4 del backend completa** (B-17..B-21, B-26a..B-26d, B-27). **Siguiente:** fase 5 (B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento) o arrancar el frontend (F-01); pendiente de elegir con el usuario (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
+**Siguiente:** F-02 (login, sesión, interceptores) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
-- Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-01..F-24: ya puede empezar (el backend va una fase adelante). Opción pendiente de elegir con el usuario: seguir con compras o arrancar F-01.
+- Frontend F-02..F-24.
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer la siguiente tarea elegida en `docs/specs/backend.md` §13 (o `frontend.md` §11 si es F-01).
+4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-02).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -66,7 +66,8 @@
 
 | Fase | Tarea | Estado | Commit |
 |---|---|---|---|
-| 1 | F-01..F-08 | ⏳ | |
+| 1 | F-01 Proyecto, tema, locale, íconos, shell | ✅ | (ver `git log`) |
+| 1 | F-02..F-08 | ⏳ | |
 | 2 | F-09..F-12 | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
@@ -341,3 +342,17 @@
 
 - D-01..D-09 decididas el 2026-10-17 (dominio §8); retrabajo en B-27 y B-26. D-10 abierta (no bloquea: semilla y capacitación).
 - Falta la lista real de sucursales para `deploy/seed/locations.csv` (D-01).
+
+### F-01 (2026-10-17)
+
+- Proyecto `frontend/` con `ng new` (Angular 22.2, standalone, zoneless, sin SSR, Vitest + jsdom). Carpetas `core/`, `shared/`, `features/` (vacías con `.gitkeep` hasta su tarea) y `styles/`.
+- Tema Material 3 (`styles/_theme.scss`): base `theme-type: color-scheme` con paleta **verde** (decisión del usuario: el claro no va en azules) y paleta azure para el oscuro, aplicada con `html[data-theme='dark']` o, sin atributo, con `prefers-color-scheme: dark`. Tokens `--pan-*` con `light-dark()` en `styles/_tokens.scss`.
+- `ThemeService` (`core/theme`): Claro / Oscuro / Según el sistema (default), `localStorage` `pan.theme` (sistema = sin clave), `html[data-theme]`; script en `index.html` lo aplica antes del arranque (sin destello). 4 pruebas.
+- Locale `es-MX` (`LOCALE_ID`, `MAT_DATE_LOCALE`), Roboto local (`@fontsource/roboto` 400/500/700), `provideHttpClient(withFetch())`, environments con `apiBaseUrl: '/api/v1'`, `proxy.conf.mjs` (`/api` y `/health` a `PAN_API_URL`, default 8090).
+- Íconos: `npm run icons` busca los íconos en `src/` (`<mat-icon>`, `fontIcon=`, `icon: '...'`, sin comentarios) y genera `public/fonts/material-symbols.woff2` con `scripts/subset-material-symbols.py` (fonttools + brotli; instancia FILL 0/wght 400/opsz 24 y conserva las ligaduras `rlig` de Material Symbols; 5 íconos ≈ 2 KB). `npm run icons:check` (parte de `lint`) falla si se usa un ícono fuera del subconjunto.
+- Shell provisional (`core/layout/shell`): barra superior con marca y menú de tema; página "Inicio" provisional. F-03 agrega menú lateral, ubicación activa, usuario y migas.
+- `npm run lint` = ESLint (angular-eslint) + `icons:check` + Prettier.
+- `frontend/Dockerfile` (node:24-alpine → caddy:2-alpine en `/srv`) con `frontend/Caddyfile` propio; `deploy/Caddyfile` de producción (proxy `/api` y `/health` a `api:8080`, SPA fallback, caché inmutable para `nombre-HASH.js/css` y `no-cache` para `index.html` y rutas). Verificado con contenedor y `caddy validate`.
+- Probado en Chrome: tema oscuro según el sistema, cambio a claro verde sin destello y persistente tras recargar.
+- Paquetes nuevos (licencia en la versión instalada): `@angular/material` 22.2.3 MIT, `@angular/cdk` 22.2.3 MIT, `@fontsource/roboto` 5.3.0 OFL-1.1, `material-symbols` 0.48.0 Apache-2.0 (dev), `angular-eslint` 22.6.0 MIT, `eslint` 10.13.0 MIT, `typescript-eslint` 8.71.0 MIT. Scripts de instalación nativos (`esbuild`, `lmdb`, `@parcel/watcher`, `msgpackr-extract`) quedan denegados en npm 11; el build no los necesita.
+- Pendiente: `deploy/docker-compose.yml` de producción (con el servicio web) se arma en la tarea de despliegue.

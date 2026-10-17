@@ -1,0 +1,14 @@
+# Static serving of the built app (standalone image). Production uses deploy/Caddyfile.
+:80 {
+	encode zstd gzip
+	root * /srv
+	# Angular names its bundles name-HASH.js / .css: cache them forever.
+	@hashed path_regexp -[0-9A-Z]{8}\.(js|css)$
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	# index.html and the app routes (paths without an extension) are always revalidated.
+	@html not path_regexp \.[0-9A-Za-z]+$
+	header @html Cache-Control "no-cache"
+	header /index.html Cache-Control "no-cache"
+	try_files {path} /index.html
+	file_server
+}

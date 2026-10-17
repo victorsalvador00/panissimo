@@ -1,0 +1,22 @@
+// Design tokens (frontend §4.1). light-dark() pairs follow the html color-scheme set by the theme.
+:root {
+  // Page and cards: soft green background in light (user decision, 2026-10-17), white cards with a soft shadow;
+  // Material dark grey (not black) in dark.
+  --pan-page-bg: light-dark(#eef5ee, #1d1b20);
+  --pan-card-bg: light-dark(#ffffff, #2b2930);
+  --pan-card-shadow: light-dark(0 2px 8px rgb(30 80 40 / 8%), 0 2px 8px rgb(0 0 0 / 40%));
+  --pan-card-radius: 16px;
+  --pan-soft-bg: light-dark(#e1eee2, #36343b);
+
+  // Top bar: green in light, navy with "neon blue" text in dark.
+  --pan-topbar-bg: light-dark(#2e7d32, #0a1a3d);
+  --pan-topbar-fg: light-dark(#ffffff, #90befe);
+  --pan-topbar-line: light-dark(transparent, #2a63ff);
+
+  // Dark "neon blue" accents for navigation, top bar and help (frontend §4.1).
+  --pan-neon-text: #90befe;
+  --pan-neon-secondary: #6f9dff;
+  --pan-neon-primary: #4f86ff;
+  --pan-glow: light-dark(none, 0 0 10px rgb(79 134 255 / 45%));
+  --pan-focus-glow: light-dark(none, 0 0 0 3px rgb(79 134 255 / 40%));
+}

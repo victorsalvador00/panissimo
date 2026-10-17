@@ -1,0 +1,58 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--pan-topbar-bg);
+  color: var(--pan-topbar-fg);
+  border-bottom: 1px solid var(--pan-topbar-line);
+  box-shadow: var(--pan-glow);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.topbar .mat-mdc-icon-button {
+  color: inherit;
+}
+
+// The menu renders in an overlay, outside this component.
+::ng-deep .mat-mdc-menu-item.selected {
+  color: var(--mat-sys-primary);
+  font-weight: 700;
+
+  .mat-icon {
+    color: var(--mat-sys-primary);
+  }
+}
+
+.content {
+  flex: 1;
+  padding: 24px;
+}
+
+// < 600 px: only the brand icon (its link keeps the accessible name).
+@media (max-width: 599.98px) {
+  .brand-name {
+    display: none;
+  }
+
+  .content {
+    padding: 16px;
+  }
+}

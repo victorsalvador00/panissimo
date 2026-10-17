@@ -1,0 +1,28 @@
+// Shared screen styles (frontend §4.1). F-03 completes them with the layout and the shared components.
+.pan-card {
+  background: var(--pan-card-bg);
+  border-radius: var(--pan-card-radius);
+  box-shadow: var(--pan-card-shadow);
+  padding: 24px;
+}
+
+.pan-page-title {
+  margin: 0 0 16px;
+  font: var(--mat-sys-headline-small);
+  font-weight: 700;
+}
+
+:focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+  box-shadow: var(--pan-focus-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

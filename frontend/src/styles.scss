@@ -1,0 +1,5 @@
+// Global styles (frontend §4.1). Components keep their own styles; shared pieces live in styles/.
+@use 'styles/theme';
+@use 'styles/tokens';
+@use 'styles/material-symbols';
+@use 'styles/ui';

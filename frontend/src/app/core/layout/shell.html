@@ -1,0 +1,28 @@
+<mat-toolbar class="topbar">
+  <a class="brand" href="/" aria-label="SGO Paníssimo, inicio">
+    <mat-icon aria-hidden="true">bakery_dining</mat-icon>
+    <span class="brand-name">SGO Paníssimo</span>
+  </a>
+  <span class="spacer"></span>
+  <button mat-icon-button [matMenuTriggerFor]="themeMenu" aria-label="Tema">
+    <mat-icon>{{ themeIcon() }}</mat-icon>
+  </button>
+  <mat-menu #themeMenu="matMenu">
+    @for (option of options; track option.mode) {
+      <button
+        mat-menu-item
+        role="menuitemradio"
+        [attr.aria-checked]="theme.mode() === option.mode"
+        [class.selected]="theme.mode() === option.mode"
+        (click)="theme.setMode(option.mode)"
+      >
+        <mat-icon>{{ option.icon }}</mat-icon>
+        <span>{{ option.label }}</span>
+      </button>
+    }
+  </mat-menu>
+</mat-toolbar>
+
+<main class="content">
+  <router-outlet />
+</main>

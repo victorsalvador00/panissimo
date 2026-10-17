@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="utf-8" />
+    <title>SGO Paníssimo</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <script>
+      // Applies the saved theme before Angular boots, so there is no flash (frontend §4.1).
+      // Keep in sync with ThemeService: no key = follow the system.
+      (function () {
+        try {
+          var theme = localStorage.getItem('pan.theme');
+          if (theme === 'light' || theme === 'dark')
+            document.documentElement.dataset['theme'] = theme;
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <app-root></app-root>
+  </body>
+</html>

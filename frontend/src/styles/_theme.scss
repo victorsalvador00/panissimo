@@ -1,0 +1,59 @@
+@use '@angular/material' as mat;
+
+// Material 3 (frontend §4.1). The light theme is green (user decision, 2026-10-17) and the dark one keeps the
+// "neon blue": the base theme is green with `theme-type: color-scheme`, and the dark palette replaces it when the
+// screen is dark, chosen (html[data-theme='dark']) or by the system (no data-theme and prefers-color-scheme: dark).
+html {
+  color-scheme: light dark;
+
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$green-palette,
+        tertiary: mat.$chartreuse-palette,
+        theme-type: color-scheme,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+@mixin dark-palette {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+        theme-type: dark,
+      ),
+    )
+  );
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+  @include dark-palette;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    @include dark-palette;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--pan-page-bg);
+  color: var(--mat-sys-on-surface);
+}

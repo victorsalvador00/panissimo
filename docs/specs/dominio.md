@@ -41,6 +41,8 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 | Ubicación | `Location` | Planta o sucursal |
 | Planta | `Plant` | `LocationType.Plant` |
 | Sucursal | `Branch` | `LocationType.Branch` |
+| Subalmacén | `Warehouse` | `LocationType.Warehouse` (hija de una planta o sucursal, D-01) |
+| Vale interno | `Transfer` con `Kind = Internal` | Traspaso con recepción entre subalmacenes de la misma ubicación |
 | Artículo | `Item` | Materia prima, insumo, semiterminado o terminado |
 | Materia prima | `RawMaterial` | Harina, azúcar, margarina… |
 | Insumo / uso general | `Supply` | Empaque, etiquetas, limpieza, papelería. Se compra y se consume; no tiene receta |
@@ -113,9 +115,14 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 ### 4.1 Organización
 
 **Location**
-- `Code` (único, ej. `PLANTA`, `SUC-01`), `Name`, `Type` (`Plant | Branch`), `Address`, `IsActive`.
+- `Code` (único, ej. `PLANTA`, `SUC-01`, `PLANTA-MP`), `Name`, `Type` (`Plant | Branch | Warehouse`), `ParentLocationId` (solo `Warehouse`: su planta o sucursal), `Address`, `IsActive`.
 - Derivados: `CanPurchase`, `CanProduce`, `CanSupplyBranches` y `CanSellToCustomers` son verdaderos solo para `Plant`.
-- El nombre es editable; el código y el tipo no cambian después del alta.
+- El nombre es editable; el código, el tipo y la ubicación padre no cambian después del alta.
+- **Subalmacenes (D-01, B-26):** una planta o sucursal puede tener subalmacenes (catálogo editable, baja lógica). Los documentos (OP, OC, pedidos, plan) siguen ligados a la planta o sucursal; la existencia vive en los subalmacenes:
+  - **RN-44**: una ubicación con subalmacenes activos no tiene existencia propia: todo movimiento se registra en uno de sus subalmacenes. No se agregan subalmacenes a una ubicación que ya tiene existencia, ni se desactiva un subalmacén con existencia.
+  - **RN-45**: los procesos **siempre eligen** el subalmacén: uno en el encabezado del documento que aplica a todas sus líneas y cada línea puede cambiarlo (recepción de compra, cierre de OP —consumo y producto—, despacho y recepción de traspasos, despacho de remisiones). Ajustes, conteos, consumo y devoluciones se hacen sobre un subalmacén.
+  - **RN-46**: las consultas por planta o sucursal (plan, sugerido de pedidos, existencia en origen, disponibilidad de OP, alertas, requerimiento de MP) suman sus subalmacenes. Existencias y kardex se consultan por subalmacén o por la ubicación completa.
+  - **RN-47 (vale interno)**: mueve producto entre subalmacenes de la misma ubicación con recepción, como un traspaso: `Draft → Dispatched → Received | ReceivedWithDiscrepancies`; `Cancelled` solo en `Draft`. Enviar exige el subalmacén origen y recibir el destino. El costo viaja con el producto (RN-04).
 
 **ProductionArea**: `Code` (único), `Name`, `SortOrder`, `IsActive`. Semilla (editable): Bizcocho Día, Pan de Sal Día, Pan de Sal Noche, Rondo, Repostería, Panquelería, Pastelería, Congelado, Bocadillos, Masas, Empaque.
 
@@ -433,7 +440,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 ### Seguridad
 
-- **RN-40 (permisos y alcance)**: un rol es un conjunto de permisos; un usuario tiene uno o más roles y una o más ubicaciones. Solo ve y opera datos de sus ubicaciones, salvo con `locations.all`.
+- **RN-40 (permisos y alcance)**: un rol es un conjunto de permisos; un usuario tiene uno o más roles y una o más ubicaciones. Solo ve y opera datos de sus ubicaciones, salvo con `locations.all`. Una ubicación asignada incluye sus subalmacenes. Un usuario puede tener asignado **solo un subalmacén**: entonces mueve inventario solo en ese subalmacén y ve los documentos de su ubicación padre (B-26).
 - **RN-41**: toda operación que mueva inventario o cambie el estado de un documento, y todo cambio a catálogos, usuarios, roles y parámetros, queda en `AuditLog`.
 - **RN-42**: un usuario inactivo no inicia sesión. La cuenta se bloquea 15 minutos tras 5 intentos fallidos.
 - **RN-43 (anti-escalamiento)**: el rol Administrador siempre conserva todos los permisos. Nadie otorga ni quita permisos o ubicaciones que no tiene, ni administra usuarios con más acceso que él.

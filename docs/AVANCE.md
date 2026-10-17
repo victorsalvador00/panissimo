@@ -13,7 +13,7 @@
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**B-27 terminada.** **Siguiente tarea: B-26** (subalmacenes, grande) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
+**B-27 terminada.** **Siguiente tarea: B-26a..B-26d** (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
 
 **Después**
 - Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
@@ -55,7 +55,10 @@
 | 4 | B-19 Remisiones | ✅ | (ver `git log`) |
 | 4 | B-20 Plan de producción | ✅ | (ver `git log`) |
 | 4 | B-27 Retrabajo por decisiones | ✅ | (ver `git log`) |
-| 4 | B-26 Subalmacenes de la planta | ⏳ | |
+| 4 | B-26a Subalmacenes: modelo y alcance | ⏳ | |
+| 4 | B-26b Vale interno | ⏳ | |
+| 4 | B-26c Procesos eligen subalmacén | ⏳ | |
+| 4 | B-26d Totales por ubicación | ⏳ | |
 | 4 | B-21 Requerimiento de materia prima | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 

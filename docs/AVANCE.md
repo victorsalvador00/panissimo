@@ -10,7 +10,7 @@
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
 - Backend fases 1-4 completas. Frontend: F-01 y F-02 terminadas (proyecto Angular 22 en `/frontend`).
-- **BD de desarrollo atorada:** el contenedor `panissimo-dev-api-1` no arranca (`relation "supplier" already exists`): la BD aplicó un borrador viejo de `AddSuppliers` (`20261017170015`) que luego se reemplazó por `20261017170111`. Solo tiene datos de semilla; las tablas `purchasing.supplier` y `purchasing.supplier_item` están vacías. Arreglo propuesto (pendiente de que el usuario lo autorice): borrar esas dos tablas y el renglón de `__ef_migrations_history`, o recrear la BD de desarrollo.
+- BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 

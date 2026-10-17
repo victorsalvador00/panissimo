@@ -33,8 +33,11 @@ public class SeedTests(ApiFactory factory)
         await using var scope = factory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        Assert.Equal(DatabaseSeeder.UnitsOfMeasure.Count, await db.UnitsOfMeasure.CountAsync());
-        Assert.Equal(DatabaseSeeder.ProductionAreas.Count, await db.ProductionAreas.CountAsync());
+        // Other tests of the collection add their own units and areas.
+        var units = await db.UnitsOfMeasure.Select(u => u.Code).ToListAsync();
+        Assert.All(DatabaseSeeder.UnitsOfMeasure, u => Assert.Contains(u.Code, units));
+        var areas = await db.ProductionAreas.Select(a => a.Code).ToListAsync();
+        Assert.All(DatabaseSeeder.ProductionAreas, a => Assert.Contains(a.Code, areas));
 
         var settings = await db.AppSettings.AsNoTracking().ToDictionaryAsync(s => s.Key, s => s.DecimalValue);
         Assert.Equal(SettingDefinitions.All.Count, settings.Count);

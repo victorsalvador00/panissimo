@@ -17,6 +17,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ProductionArea> ProductionAreas => Set<ProductionArea>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<UnitOfMeasure> UnitsOfMeasure => Set<UnitOfMeasure>();
+    public DbSet<ItemCategory> ItemCategories => Set<ItemCategory>();
+    public DbSet<Item> Items => Set<Item>();
+    public DbSet<ItemLocationSetting> ItemLocationSettings => Set<ItemLocationSetting>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

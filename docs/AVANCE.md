@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-04).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-05).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -11,7 +11,7 @@
 | 1 | B-02 AppDbContext, interceptores, folios, candados, semilla base. `InitialCreate` | ✅ | (ver `git log`) |
 | 1 | B-03 Identity, login, refresh rotativo, permisos, alcance, rate limit | ✅ | (ver `git log`) |
 | 1 | B-04 Usuarios, roles, bitácora, ubicaciones, settings | ✅ | (ver `git log`) |
-| 1 | B-05 Catálogos y CSV de artículos | ⏳ | |
+| 1 | B-05 Catálogos y CSV de artículos | ✅ | (ver `git log`) |
 | 1 | B-06 Motor de inventario | ⏳ | |
 | 1 | B-07 Existencias, kardex, alertas, ajustes, existencias iniciales | ⏳ | |
 | 1 | B-08 Conteo físico y consumo | ⏳ | |
@@ -72,6 +72,15 @@
 - Comunes de Application: `PageQuery`/`PagedResult` (máx. 100), `ApplySort` con lista blanca (400 si el campo no existe), `EnsureVersion` (409), `GetSettingAsync`, `VersionRequest`.
 - Nota: los enums se guardan como texto; ordenar por ellos es alfabético (la Planta se ordena primero de forma explícita).
 - Pruebas: 34 unitarias y 33 de integración (+9: alta de usuario y alcance, ubicaciones con versión, anti-escalamiento, rol Administrador bloqueado, cambio de permisos inmediato, desactivación, bitácora de usuario, parámetros con límites y versión).
+
+### B-05 (2026-10-16)
+
+- `/units-of-measure`, `/item-categories`, `/production-areas` (código fijo, orden, activa), `/items` (filtros `type`, `presentation`, `categoryId`, `areaId`, `bulkItemId`, `includeInactive`), `/items/lookup` (≤ 50; `q`, `type`, `presentation`, `areaId`, `id`), `/items/{id}/location-settings`, `POST /imports/items` (multipart, 2 MB).
+- `Item` con tipos `RawMaterial | Supply | SemiFinished | FinishedGood`, `Presentation` (obligatoria solo en terminados), `BulkItemId` y `UnitsPerPackage` (solo empaquetados; el granel debe ser terminado a granel activo y no él mismo), `ProductionAreaId` (solo producidos), `ProductionMultiple` (> 0, default 1; entero si la unidad base es `pza`), `UnitWeightGrams`. Un granel con empaquetados ligados no deja de ser granel.
+- CSV (`sku,nombre,tipo,categoria,unidad_base,unidad_compra,factor_compra,maneja_lotes,vida_util_dias,almacenamiento,iva,presentacion,sku_granel,piezas_por_paquete,area,multiplo_op,gramaje_g`): todo o nada, errores por fila y columna (`rowErrors`), sin distinguir mayúsculas ni acentos en valores, área por código o nombre, `sku_granel` puede venir en el mismo archivo; SKU existente se actualiza (conserva su estado activo).
+- Migración `AddCatalog`.
+- Pendiente para B-06: impedir cambiar la unidad base o el control de lotes de un artículo con movimientos (API y CSV), en cuanto exista el kardex.
+- Pruebas: 49 unitarias y 41 de integración (granel + empaquetado ligado, liga inválida, múltiplo fraccionario en `pza`, lookup por filtros, mín/máx, áreas, CSV con errores sin importar nada, CSV con liga en el mismo archivo y actualización, permisos).
 
 ## Pendientes y decisiones abiertas
 

@@ -2,9 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Organization;
+using Panissimo.Application.Production;
 using Panissimo.Application.Security;
+using Panissimo.Infrastructure.Csv;
 using Panissimo.Infrastructure.Identity;
 using Panissimo.Infrastructure.Persistence;
 using Panissimo.Infrastructure.Persistence.Interceptors;
@@ -75,6 +78,12 @@ public static class DependencyInjection
         services.AddScoped<IAuditLogQueries, AuditLogQueries>();
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<ISettingsService, SettingsService>();
+        services.AddSingleton<ICsvReader, CsvFileReader>();
+        services.AddScoped<IUnitOfMeasureService, UnitOfMeasureService>();
+        services.AddScoped<IItemCategoryService, ItemCategoryService>();
+        services.AddScoped<IProductionAreaService, ProductionAreaService>();
+        services.AddScoped<IItemService, ItemService>();
+        services.AddScoped<IItemImportService, ItemImportService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

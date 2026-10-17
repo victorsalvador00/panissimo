@@ -178,6 +178,227 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("user_token", "security");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Catalog.Item", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BaseUomId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("base_uom_id");
+
+                    b.Property<Guid?>("BulkItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bulk_item_id");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Presentation")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("presentation");
+
+                    b.Property<Guid?>("ProductionAreaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("production_area_id");
+
+                    b.Property<decimal>("ProductionMultiple")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("production_multiple");
+
+                    b.Property<decimal>("PurchaseToBaseFactor")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("purchase_to_base_factor");
+
+                    b.Property<Guid?>("PurchaseUomId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("purchase_uom_id");
+
+                    b.Property<int?>("ShelfLifeDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("shelf_life_days");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("sku");
+
+                    b.Property<string>("StorageCondition")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("storage_condition");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasPrecision(5, 4)
+                        .HasColumnType("numeric(5,4)")
+                        .HasColumnName("tax_rate");
+
+                    b.Property<bool>("TracksLots")
+                        .HasColumnType("boolean")
+                        .HasColumnName("tracks_lots");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("type");
+
+                    b.Property<decimal?>("UnitWeightGrams")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("unit_weight_grams");
+
+                    b.Property<int?>("UnitsPerPackage")
+                        .HasColumnType("integer")
+                        .HasColumnName("units_per_package");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_item");
+
+                    b.HasIndex("BaseUomId")
+                        .HasDatabaseName("ix_item_base_uom_id");
+
+                    b.HasIndex("BulkItemId")
+                        .HasDatabaseName("ix_item_bulk_item_id");
+
+                    b.HasIndex("CategoryId")
+                        .HasDatabaseName("ix_item_category_id");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_item_name");
+
+                    b.HasIndex("ProductionAreaId")
+                        .HasDatabaseName("ix_item_production_area_id");
+
+                    b.HasIndex("PurchaseUomId")
+                        .HasDatabaseName("ix_item_purchase_uom_id");
+
+                    b.HasIndex("Sku")
+                        .IsUnique()
+                        .HasDatabaseName("ix_item_sku");
+
+                    b.HasIndex("Type", "Presentation")
+                        .HasDatabaseName("ix_item_type_presentation");
+
+                    b.ToTable("item", "catalog");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Catalog.ItemCategory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_item_category");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_item_category_name");
+
+                    b.ToTable("item_category", "catalog");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Catalog.ItemLocationSetting", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
+                    b.Property<decimal>("MaxQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("max_qty");
+
+                    b.Property<decimal>("MinQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("min_qty");
+
+                    b.HasKey("ItemId", "LocationId")
+                        .HasName("pk_item_location_setting");
+
+                    b.HasIndex("LocationId")
+                        .HasDatabaseName("ix_item_location_setting_location_id");
+
+                    b.ToTable("item_location_setting", "catalog");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Catalog.UnitOfMeasure", b =>
                 {
                     b.Property<Guid>("Id")
@@ -778,6 +999,58 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_token_user_user_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Catalog.Item", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.UnitOfMeasure", null)
+                        .WithMany()
+                        .HasForeignKey("BaseUomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_units_of_measure_base_uom_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("BulkItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_item_item_bulk_item_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.ItemCategory", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_item_category_category_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.ProductionArea", null)
+                        .WithMany()
+                        .HasForeignKey("ProductionAreaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_item_production_areas_production_area_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.UnitOfMeasure", null)
+                        .WithMany()
+                        .HasForeignKey("PurchaseUomId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_item_units_of_measure_purchase_uom_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Catalog.ItemLocationSetting", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_location_setting_item_item_id");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_location_setting_locations_location_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Security.RefreshToken", b =>

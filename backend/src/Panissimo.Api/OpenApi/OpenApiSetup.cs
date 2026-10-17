@@ -1,7 +1,9 @@
 using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
+using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Organization;
+using Panissimo.Application.Production;
 using Panissimo.Application.Security;
 
 namespace Panissimo.Api.OpenApi;
@@ -35,6 +37,32 @@ public static class OpenApiSetup
             """,
         [typeof(CreateLocationRequest)] = """{ "code": "SUC-11", "name": "Sucursal Plaza Sur", "type": "Branch", "address": "Av. Sur 200" }""",
         [typeof(UpdateLocationRequest)] = """{ "version": 1234, "name": "Sucursal Centro", "address": "Av. Juárez 100, Col. Centro", "isActive": true }""",
+        [typeof(CreateUnitOfMeasureRequest)] = """{ "code": "bolsa", "name": "Bolsa", "kind": "Unit" }""",
+        [typeof(UpdateUnitOfMeasureRequest)] = """{ "version": 1234, "name": "Bolsa", "kind": "Unit", "isActive": true }""",
+        [typeof(CreateItemCategoryRequest)] = """{ "name": "Pan dulce" }""",
+        [typeof(UpdateItemCategoryRequest)] = """{ "version": 1234, "name": "Pan dulce", "isActive": true }""",
+        [typeof(CreateProductionAreaRequest)] = """{ "code": "HOJ-NOC", "name": "Hojaldre Noche", "sortOrder": 120 }""",
+        [typeof(UpdateProductionAreaRequest)] = """{ "version": 1234, "name": "Hojaldre Noche", "sortOrder": 120, "isActive": true }""",
+        [typeof(CreateItemRequest)] = """
+            { "sku": "TRENZA-EMB", "name": "Trenza embolsada 6 pzas", "type": "FinishedGood",
+              "categoryId": "0199a1b2-0000-7000-8000-0000000000c1", "baseUomId": "0199a1b2-0000-7000-8000-0000000000b5",
+              "purchaseUomId": null, "purchaseToBaseFactor": null, "tracksLots": true, "shelfLifeDays": 5,
+              "storageCondition": "Ambient", "taxRate": 0, "presentation": "Packaged",
+              "bulkItemId": "0199a1b2-0000-7000-8000-0000000000d9", "unitsPerPackage": 6,
+              "productionAreaId": "0199a1b2-0000-7000-8000-0000000000e1", "productionMultiple": 6, "unitWeightGrams": 85 }
+            """,
+        [typeof(UpdateItemRequest)] = """
+            { "version": 1234, "sku": "HAR-001", "name": "Harina de trigo", "type": "RawMaterial",
+              "categoryId": "0199a1b2-0000-7000-8000-0000000000c1", "baseUomId": "0199a1b2-0000-7000-8000-0000000000b1",
+              "purchaseUomId": "0199a1b2-0000-7000-8000-0000000000b7", "purchaseToBaseFactor": 44, "tracksLots": true,
+              "shelfLifeDays": 180, "storageCondition": "Ambient", "taxRate": 0, "presentation": null, "bulkItemId": null,
+              "unitsPerPackage": null, "productionAreaId": null, "productionMultiple": 1, "unitWeightGrams": null, "isActive": true }
+            """,
+        [typeof(UpdateItemLocationSettingsRequest)] = """
+            { "settings": [
+                { "locationId": "0199a1b2-0000-7000-8000-0000000000a9", "minQty": 200, "maxQty": 600 },
+                { "locationId": "0199a1b2-0000-7000-8000-0000000000a1", "minQty": null, "maxQty": null } ] }
+            """,
         [typeof(UpdateSettingsRequest)] = """
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },
                             { "key": "production.plan_default_days", "value": 2, "version": 1235 } ] }

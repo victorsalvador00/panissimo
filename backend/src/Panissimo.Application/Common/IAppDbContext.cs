@@ -17,6 +17,9 @@ public interface IAppDbContext
     DbSet<ProductionArea> ProductionAreas { get; }
     DbSet<AppSetting> AppSettings { get; }
     DbSet<UnitOfMeasure> UnitsOfMeasure { get; }
+    DbSet<ItemCategory> ItemCategories { get; }
+    DbSet<Item> Items { get; }
+    DbSet<ItemLocationSetting> ItemLocationSettings { get; }
     DbSet<RolePermission> RolePermissions { get; }
     DbSet<UserLocation> UserLocations { get; }
     DbSet<AuditLog> AuditLogs { get; }

@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-03).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-04).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -10,7 +10,7 @@
 | 1 | B-01 Solución, Program.cs, Serilog, ProblemDetails, JSON, health, OpenAPI + Scalar, Docker, compose dev, CLAUDE.md | ✅ | (ver `git log`) |
 | 1 | B-02 AppDbContext, interceptores, folios, candados, semilla base. `InitialCreate` | ✅ | (ver `git log`) |
 | 1 | B-03 Identity, login, refresh rotativo, permisos, alcance, rate limit | ✅ | (ver `git log`) |
-| 1 | B-04 Usuarios, roles, bitácora, ubicaciones, settings | ⏳ | |
+| 1 | B-04 Usuarios, roles, bitácora, ubicaciones, settings | ✅ | (ver `git log`) |
 | 1 | B-05 Catálogos y CSV de artículos | ⏳ | |
 | 1 | B-06 Motor de inventario | ⏳ | |
 | 1 | B-07 Existencias, kardex, alertas, ajustes, existencias iniciales | ⏳ | |
@@ -63,6 +63,15 @@
 - Migración `AddRefreshTokens`.
 - Pruebas: 34 unitarias y 24 de integración (login, cookie, 401, bloqueo, inactivo, `/me`, rotación con gracia y robo, logout, cambio de contraseña, 403 por permiso y por ubicación con un controlador de prueba, 429).
 - Paquetes nuevos (licencia): Microsoft.AspNetCore.Authentication.JwtBearer 10.0.12 (MIT).
+
+### B-04 (2026-10-16)
+
+- `/users` (lista con filtros, alta, edición, `reset-password`, `activate`, `deactivate`), `/roles` (matriz de permisos), `/permissions` (agrupados por módulo), `/audit-log` (filtros; `entityId` incluye llaves compuestas `id|…`), `/locations` (alcance del usuario, alta, edición con `version`), `/locations/lookup` (todas las activas, Planta primero; `locations.view` o `logistics.view` o `sales.view`), `/settings` (lista tipada y PUT parcial con `version` por parámetro).
+- RN-43 (`PrivilegeGuard`): no se otorgan ni quitan roles, permisos o ubicaciones que no se tienen; no se administra a un usuario con más acceso; el rol Administrador conserva todos los permisos (`admin_role_locked`); nadie se quita a sí mismo `security.users.manage`/`security.roles.manage` ni se desactiva.
+- Desactivar o restablecer contraseña revoca las sesiones; cambios de rol invalidan la caché de accesos de todos.
+- Comunes de Application: `PageQuery`/`PagedResult` (máx. 100), `ApplySort` con lista blanca (400 si el campo no existe), `EnsureVersion` (409), `GetSettingAsync`, `VersionRequest`.
+- Nota: los enums se guardan como texto; ordenar por ellos es alfabético (la Planta se ordena primero de forma explícita).
+- Pruebas: 34 unitarias y 33 de integración (+9: alta de usuario y alcance, ubicaciones con versión, anti-escalamiento, rol Administrador bloqueado, cambio de permisos inmediato, desactivación, bitácora de usuario, parámetros con límites y versión).
 
 ## Pendientes y decisiones abiertas
 

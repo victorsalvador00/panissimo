@@ -18,17 +18,17 @@ public class AuthTests(ApiFactory factory)
     private const string Refresh = "/api/v1/auth/refresh";
 
     private static async Task<string> CodeOf(HttpResponseMessage response) =>
-        (await response.Content.ReadFromJsonAsync<ProblemDetails>())!.Extensions["code"]!.ToString()!;
+        (await response.Content.ReadJsonAsync<ProblemDetails>())!.Extensions["code"]!.ToString()!;
 
     [Fact]
     public async Task Login_returns_access_token_and_sets_the_refresh_cookie()
     {
         var client = factory.CreateHttpsClient();
 
-        var response = await client.PostAsJsonAsync(Login, new LoginRequest(ApiFactory.AdminEmail, ApiFactory.AdminPassword));
+        var response = await client.PostJsonAsync(Login, new LoginRequest(ApiFactory.AdminEmail, ApiFactory.AdminPassword));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        var token = await response.Content.ReadJsonAsync<TokenResponse>();
         Assert.False(string.IsNullOrEmpty(token!.AccessToken));
         Assert.Equal(15 * 60, token.ExpiresIn);
         var cookie = Assert.Single(response.Headers.GetValues("Set-Cookie"));
@@ -42,7 +42,7 @@ public class AuthTests(ApiFactory factory)
     [Fact]
     public async Task Wrong_password_returns_401_in_spanish()
     {
-        var response = await factory.CreateHttpsClient().PostAsJsonAsync(Login, new LoginRequest(ApiFactory.AdminEmail, "Incorrecta123"));
+        var response = await factory.CreateHttpsClient().PostJsonAsync(Login, new LoginRequest(ApiFactory.AdminEmail, "Incorrecta123"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("invalid_credentials", await CodeOf(response));
@@ -56,8 +56,8 @@ public class AuthTests(ApiFactory factory)
         var client = factory.CreateHttpsClient();
 
         for (var i = 0; i < 5; i++)
-            await client.PostAsJsonAsync(Login, new LoginRequest(email, "Incorrecta123"));
-        var response = await client.PostAsJsonAsync(Login, new LoginRequest(email, ApiFactory.DefaultPassword));
+            await client.PostJsonAsync(Login, new LoginRequest(email, "Incorrecta123"));
+        var response = await client.PostJsonAsync(Login, new LoginRequest(email, ApiFactory.DefaultPassword));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("account_locked", await CodeOf(response));
@@ -76,7 +76,7 @@ public class AuthTests(ApiFactory factory)
             await db.SaveChangesAsync();
         }
 
-        var response = await factory.CreateHttpsClient().PostAsJsonAsync(Login, new LoginRequest(email, ApiFactory.DefaultPassword));
+        var response = await factory.CreateHttpsClient().PostJsonAsync(Login, new LoginRequest(email, ApiFactory.DefaultPassword));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("user_inactive", await CodeOf(response));
@@ -89,9 +89,9 @@ public class AuthTests(ApiFactory factory)
         var client = limited.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
         var request = new LoginRequest(ApiFactory.AdminEmail, "Incorrecta123");
 
-        await client.PostAsJsonAsync(Login, request);
-        await client.PostAsJsonAsync(Login, request);
-        var third = await client.PostAsJsonAsync(Login, request);
+        await client.PostJsonAsync(Login, request);
+        await client.PostJsonAsync(Login, request);
+        var third = await client.PostJsonAsync(Login, request);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, third.StatusCode);
         Assert.Equal("too_many_requests", await CodeOf(third));
@@ -102,7 +102,7 @@ public class AuthTests(ApiFactory factory)
     {
         var client = await factory.LoginAsAdminAsync();
 
-        var me = await client.GetFromJsonAsync<MeDto>("/api/v1/me");
+        var me = await client.GetJsonAsync<MeDto>("/api/v1/me");
 
         Assert.Equal(ApiFactory.AdminEmail, me!.Email);
         Assert.True(me.AllLocations);
@@ -214,7 +214,7 @@ public class AuthTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/v1/test-probe/locations/{own}")).StatusCode);
         var response = await client.GetAsync($"/api/v1/test-probe/locations/{other}");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        Assert.Equal(LocationScope.OutOfScopeMessage, (await response.Content.ReadFromJsonAsync<ProblemDetails>())!.Detail);
+        Assert.Equal(LocationScope.OutOfScopeMessage, (await response.Content.ReadJsonAsync<ProblemDetails>())!.Detail);
     }
 
     private HttpClient RawClient() =>
@@ -222,9 +222,9 @@ public class AuthTests(ApiFactory factory)
 
     private async Task<(string Access, string Refresh)> LoginRawAsync(string email, string password)
     {
-        var response = await RawClient().PostAsJsonAsync(Login, new LoginRequest(email, password));
+        var response = await RawClient().PostJsonAsync(Login, new LoginRequest(email, password));
         response.EnsureSuccessStatusCode();
-        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        var token = await response.Content.ReadJsonAsync<TokenResponse>();
         return (token!.AccessToken, RefreshCookieOf(response));
     }
 

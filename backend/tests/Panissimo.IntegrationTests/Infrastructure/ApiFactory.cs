@@ -54,9 +54,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public async Task<HttpClient> LoginAsync(string email, string password = DefaultPassword)
     {
         var client = CreateHttpsClient();
-        var response = await client.PostAsJsonAsync("/api/v1/auth/login", new LoginRequest(email, password));
+        var response = await client.PostJsonAsync("/api/v1/auth/login", new LoginRequest(email, password));
         response.EnsureSuccessStatusCode();
-        var token = await response.Content.ReadFromJsonAsync<TokenResponse>();
+        var token = await response.Content.ReadJsonAsync<TokenResponse>();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token!.AccessToken);
         return client;
     }

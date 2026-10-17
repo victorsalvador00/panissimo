@@ -26,7 +26,7 @@ public class HostTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        var problem = await response.Content.ReadJsonAsync<ProblemDetails>();
         Assert.Equal("https://panissimo/errors/not_found", problem!.Type);
         Assert.Equal("No encontrado", problem.Title);
         Assert.True(problem.Extensions.ContainsKey("traceId"));

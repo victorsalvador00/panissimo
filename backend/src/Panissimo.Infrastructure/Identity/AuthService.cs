@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Panissimo.Application.Common;
 using Panissimo.Application.Security;
 using Panissimo.Domain.Common;
+using Panissimo.Domain.Organization;
 using Panissimo.Domain.Security;
 using Panissimo.Infrastructure.Persistence;
 
@@ -139,7 +140,7 @@ public sealed class AuthService(
 
         var locations = await db.Locations.AsNoTracking()
             .Where(l => access.LocationIds.Contains(l.Id))
-            .OrderBy(l => l.Type).ThenBy(l => l.Code)
+            .OrderBy(l => l.Type == LocationType.Plant ? 0 : 1).ThenBy(l => l.Code)
             .Select(l => new MeLocationDto(l.Id, l.Code, l.Name, l.Type.ToString(), l.IsActive))
             .ToListAsync(ct);
 

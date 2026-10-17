@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Panissimo.Application.Common;
+using Panissimo.Application.Organization;
 using Panissimo.Application.Security;
 using Panissimo.Infrastructure.Identity;
 using Panissimo.Infrastructure.Persistence;
@@ -68,6 +69,12 @@ public static class DependencyInjection
         services.AddScoped<ILocationScope, LocationScope>();
         services.AddScoped<TokenService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<PrivilegeGuard>();
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IRoleService, RoleService>();
+        services.AddScoped<IAuditLogQueries, AuditLogQueries>();
+        services.AddScoped<ILocationService, LocationService>();
+        services.AddScoped<ISettingsService, SettingsService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

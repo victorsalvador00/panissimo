@@ -270,7 +270,7 @@ public sealed class ProductionOrderImportService(
         _ => "Noche",
     };
 
-    private sealed record ImportItem(Guid Id, string Sku, string Name, ItemType Type, bool IsActive, Guid? AreaId, string Uom);
+    private sealed record ImportItem(Guid Id, string Sku, string? MatrixCode, string Name, ItemType Type, bool IsActive, Guid? AreaId, string Uom);
 
     private sealed record Catalogs(
         IReadOnlyDictionary<string, ImportItem> ItemsBySku,
@@ -288,8 +288,8 @@ public sealed class ProductionOrderImportService(
         var skus = sheet.Rows.Select(r => r.Get(Columns.Sku)?.Text).OfType<string>().Select(ItemRules.NormalizeSku).Distinct().ToList();
         var items = await (from i in db.Items.AsNoTracking()
                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
-                           where skus.Contains(i.Sku)
-                           select new ImportItem(i.Id, i.Sku, i.Name, i.Type, i.IsActive, i.ProductionAreaId, u.Code)).ToListAsync(ct);
+                           where skus.Contains(i.Sku) || skus.Contains(i.MatrixCode!)
+                           select new ImportItem(i.Id, i.Sku, i.MatrixCode, i.Name, i.Type, i.IsActive, i.ProductionAreaId, u.Code)).ToListAsync(ct);
         var itemIds = items.Select(i => i.Id).ToList();
         var recipes = await db.Recipes.AsNoTracking().Where(r => itemIds.Contains(r.OutputItemId) && r.IsActive)
             .ToDictionaryAsync(r => r.OutputItemId, r => r.VersionNumber, ct);
@@ -306,7 +306,12 @@ public sealed class ProductionOrderImportService(
         var plants = await db.Locations.AsNoTracking().Where(l => l.Type == LocationType.Plant).ToListAsync(ct);
         var defaultPlant = plants.Where(p => p.IsActive && allowed.Contains(p.Id)).OrderBy(p => p.Code != Location.PlantCode).FirstOrDefault();
 
-        return new Catalogs(items.ToDictionary(i => i.Sku), items.ToDictionary(i => i.Id), recipes, areasByKey,
+        // D-07: the sku column takes the system SKU or the Matriz code; a SKU wins over another item's Matriz code.
+        var bySku = items.ToDictionary(i => i.Sku);
+        foreach (var item in items.Where(i => i.MatrixCode is not null))
+            bySku.TryAdd(item.MatrixCode!, item);
+
+        return new Catalogs(bySku, items.ToDictionary(i => i.Id), recipes, areasByKey,
             areas.ToDictionary(a => a.Id, a => a.Name), plants.ToDictionary(p => p.Code), plants.ToDictionary(p => p.Id, p => p.Code), defaultPlant);
     }
 

@@ -23,13 +23,15 @@ public class PurchaseRequisitionTests
     }
 
     [Fact]
-    public void Lines_need_positive_quantities_and_no_repeated_items()
+    public void Lines_need_positive_quantities_and_repeated_items_need_a_note()
     {
         var item = Guid.NewGuid();
         Assert.Equal("invalid_quantity", Code(() => Requisition(lines: new RequisitionLineInput(item, 0, null))));
         Assert.Equal("invalid_quantity", Code(() => Requisition(lines: new RequisitionLineInput(item, 1.00001m, null))));
-        Assert.Equal("requisition_line_duplicated",
+        Assert.Equal("requisition_repeat_note_required",
             Code(() => Requisition(lines: [new RequisitionLineInput(item, 1, null), new RequisitionLineInput(item, 2, null)])));
+        var repeated = Requisition(lines: [new RequisitionLineInput(item, 1, null), new RequisitionLineInput(item, 2, null, " Segundo proveedor ")]);
+        Assert.Equal([null, "Segundo proveedor"], repeated.Lines.Select(l => l.Notes));
     }
 
     [Fact]

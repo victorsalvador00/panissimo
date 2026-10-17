@@ -5,6 +5,7 @@ using System.Text.Json;
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Production;
 using Panissimo.Domain.Catalog;
@@ -237,5 +238,37 @@ public class ProductionOrderImportTests(ApiFactory factory)
         await using var scope = factory.CreateScope();
         var result = await response.Content.ReadJsonAsync<ImportResultDto>();
         Assert.Equal(preview.OrderCount, await scope.ServiceProvider.GetRequiredService<AppDbContext>().ProductionOrders.CountAsync(o => o.ImportId == result!.ImportId));
+    }
+
+    [Fact]
+    public async Task The_sku_column_also_takes_the_item_code_of_the_matriz_maestra()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var (bread, roll, _, _) = await ProductsAsync(admin);
+        var matrixCode = $"SKU{Random.Shared.Next(100_000, 999_999)}";
+
+        var dto = (await admin.GetJsonAsync<ItemDto>($"/api/v1/items/{bread.Id}"))!;
+        var update = await admin.PutJsonAsync($"/api/v1/items/{bread.Id}", new UpdateItemRequest(dto.Version, dto.Sku, dto.Name, dto.Type,
+            dto.CategoryId, dto.BaseUomId, dto.PurchaseUomId, dto.PurchaseUomId is null ? null : dto.PurchaseToBaseFactor, dto.TracksLots,
+            dto.ShelfLifeDays, dto.StorageCondition, dto.TaxRate, dto.Presentation, dto.BulkItemId, dto.UnitsPerPackage, dto.ProductionAreaId,
+            dto.ProductionMultiple, dto.UnitWeightGrams, true, matrixCode.ToLowerInvariant()));
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(matrixCode, (await update.Content.ReadJsonAsync<ItemDto>())!.MatrixCode);
+
+        // The same code on another item, or as another item's SKU, is rejected.
+        var rollDto = (await admin.GetJsonAsync<ItemDto>($"/api/v1/items/{roll.Id}"))!;
+        var taken = await admin.PutJsonAsync($"/api/v1/items/{roll.Id}", new UpdateItemRequest(rollDto.Version, rollDto.Sku, rollDto.Name,
+            rollDto.Type, rollDto.CategoryId, rollDto.BaseUomId, null, null, rollDto.TracksLots, rollDto.ShelfLifeDays, rollDto.StorageCondition,
+            rollDto.TaxRate, rollDto.Presentation, null, null, rollDto.ProductionAreaId, rollDto.ProductionMultiple, rollDto.UnitWeightGrams, true,
+            matrixCode));
+        Assert.Equal(HttpStatusCode.BadRequest, taken.StatusCode);
+        Assert.Contains("matrixCode", await taken.Content.ReadAsStringAsync());
+
+        var file = Xlsx([[Today.AddDays(1), matrixCode, 120, null, "Día", null, null], [Today.AddDays(1), roll.Sku, 60, null, "Día", null, null]]);
+        var response = await admin.PostAsync("/api/v1/production-order-imports", Form(file));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var result = (await response.Content.ReadJsonAsync<ImportResultDto>())!;
+        var orders = await admin.GetJsonAsync<PagedResult<ProductionOrderListItemDto>>($"/api/v1/production-orders?importId={result.ImportId}");
+        Assert.Equal([bread.Id, roll.Id], orders!.Items.Select(o => o.OutputItemId).OrderBy(id => id == roll.Id));
     }
 }

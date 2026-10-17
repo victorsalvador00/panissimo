@@ -154,7 +154,7 @@ public static class OpenApiSetup
               "phone": "477 765 4321", "email": "compras@cafebajio.mx", "notes": null }
             """,
         [typeof(UpdateCustomerRequest)] = """
-            { "version": 1234, "name": "Cafeterías del Bajío S.A. de C.V.", "taxId": null, "contactName": "Marta Ruiz",
+            { "version": 1234, "code": "CLI-001", "name": "Cafeterías del Bajío S.A. de C.V.", "taxId": null, "contactName": "Marta Ruiz",
               "phone": "477 765 4321", "email": "compras@cafebajio.mx", "notes": "Recibe de 7 a 10", "isActive": true }
             """,
         [typeof(CreateDeliveryPointRequest)] = """{ "name": "Sucursal Centro", "address": "Madero 120, León, Gto." }""",
@@ -228,6 +228,7 @@ public static class OpenApiSetup
                            "quantity": 45, "unitPrice": 598 } ] }
             """,
         [typeof(RejectPurchaseOrderRequest)] = """{ "version": 1234, "reason": "Precio arriba de lo cotizado" }""",
+        [typeof(ClosePurchaseOrderRequest)] = """{ "version": 1234, "reason": "El proveedor no surtirá el saldo" }""",
         [typeof(CreateGoodsReceiptRequest)] = """
             { "purchaseOrderId": "0199a1b2-0000-7000-8000-0000000000b9", "poVersion": 1234, "supplierInvoiceNumber": "A-15873", "notes": null,
               "lines": [ { "poLineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 30, "lotNumber": "L2610-A", "expirationDate": "2027-04-30" },

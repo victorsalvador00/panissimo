@@ -28,7 +28,9 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(i => i.StorageCondition).HasMaxLength(20);
         builder.Property(i => i.TaxRate).HasPrecision(5, 4);
         builder.Property(i => i.UnitWeightGrams).HasPrecision(10, 2);
+        builder.Property(i => i.MatrixCode).HasMaxLength(ItemRules.SkuMaxLength);
         builder.HasIndex(i => i.Sku).IsUnique();
+        builder.HasIndex(i => i.MatrixCode).IsUnique().HasFilter("matrix_code IS NOT NULL");
         builder.HasIndex(i => i.Name);
         builder.HasIndex(i => i.CategoryId);
         builder.HasIndex(i => new { i.Type, i.Presentation });

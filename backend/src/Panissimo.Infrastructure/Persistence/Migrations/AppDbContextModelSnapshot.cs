@@ -208,6 +208,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<string>("MatrixCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("matrix_code");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -302,6 +307,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_item_category_id");
+
+                    b.HasIndex("MatrixCode")
+                        .IsUnique()
+                        .HasDatabaseName("ix_item_matrix_code")
+                        .HasFilter("matrix_code IS NOT NULL");
 
                     b.HasIndex("Name")
                         .HasDatabaseName("ix_item_name");
@@ -669,6 +679,16 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("unit_cost");
+
+                    b.Property<decimal?>("WasteQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("waste_qty");
+
+                    b.Property<string>("WasteReason")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("waste_reason");
 
                     b.HasKey("Id")
                         .HasName("pk_adjustment_line");
@@ -1542,6 +1562,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<bool>("ExceedsTolerance")
+                        .HasColumnType("boolean")
+                        .HasColumnName("exceeds_tolerance");
+
                     b.Property<string>("Folio")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -2250,6 +2274,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("approved_by");
 
+                    b.Property<string>("CloseReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("close_reason");
+
                     b.Property<DateTimeOffset?>("ClosedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("closed_at");
@@ -2547,6 +2576,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.Property<int>("LineNumber")
                         .HasColumnType("integer")
                         .HasColumnName("line_number");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
 
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)

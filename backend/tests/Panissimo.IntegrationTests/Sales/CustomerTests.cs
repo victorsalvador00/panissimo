@@ -73,13 +73,13 @@ public class CustomerTests(ApiFactory factory)
         Assert.Equal([customer.Id], lookup!.Select(c => c.Id));
 
         var deactivated = await admin.PutJsonAsync($"/api/v1/customers/{customer.Id}",
-            new UpdateCustomerRequest(customer.Version, customer.Name, null, null, null, null, null, IsActive: false));
+            new UpdateCustomerRequest(customer.Version, customer.Code, customer.Name, null, null, null, null, null, IsActive: false));
         Assert.Equal(HttpStatusCode.OK, deactivated.StatusCode);
         Assert.Empty((await admin.GetJsonAsync<PagedResult<CustomerListItemDto>>($"/api/v1/customers?q={customer.Code}"))!.Items);
     }
 
     [Fact]
-    public async Task Delivery_points_and_items_belong_to_the_customer_and_items_are_packaged()
+    public async Task Delivery_points_and_items_belong_to_the_customer_and_items_are_finished_goods()
     {
         var admin = await factory.LoginAsAdminAsync();
         var customer = await CreateCustomerAsync(admin);
@@ -96,18 +96,21 @@ public class CustomerTests(ApiFactory factory)
             new UpdateDeliveryPointRequest(point.Version, "X", null, true))).StatusCode);
 
         var bulkItem = await admin.PostJsonAsync($"/api/v1/customers/{customer.Id}/items", new CreateCustomerItemRequest(bulk.Id, null, 10));
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, bulkItem.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, bulkItem.StatusCode); // D-05
+        var supply = await factory.CreateItemAsync("BOLSA", ItemType.Supply);
+        var supplyItem = await admin.PostJsonAsync($"/api/v1/customers/{customer.Id}/items", new CreateCustomerItemRequest(supply.Id, null, 1));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, supplyItem.StatusCode);
         var row = await admin.PostJsonAsync($"/api/v1/customers/{customer.Id}/items", new CreateCustomerItemRequest(packaged.Id, "PAN-6", 42.5m));
         Assert.Equal(HttpStatusCode.Created, row.StatusCode);
         var twice = await admin.PostJsonAsync($"/api/v1/customers/{customer.Id}/items", new CreateCustomerItemRequest(packaged.Id, null, null));
         Assert.Equal(HttpStatusCode.BadRequest, twice.StatusCode);
 
         var items = await admin.GetJsonAsync<IReadOnlyList<CustomerItemDto>>($"/api/v1/customers/{customer.Id}/items");
-        Assert.Equal(("PAN-6", 42.5m), (items!.Single().CustomerSku, items!.Single().Price!.Value));
+        Assert.Equal(("PAN-6", 42.5m), (items!.Single(i => i.ItemId == packaged.Id).CustomerSku, items!.Single(i => i.ItemId == packaged.Id).Price!.Value));
     }
 
     [Fact]
-    public async Task Orders_take_packaged_goods_only_and_a_confirmed_order_is_not_edited()
+    public async Task Orders_take_finished_goods_only_and_a_confirmed_order_is_not_edited()
     {
         var admin = await factory.LoginAsAdminAsync();
         var customer = await CreateCustomerAsync(admin);
@@ -117,7 +120,11 @@ public class CustomerTests(ApiFactory factory)
 
         var withBulk = await admin.PostJsonAsync("/api/v1/customer-orders",
             new CreateCustomerOrderRequest(customer.Id, null, InTwoDays, null, null, [new CustomerOrderLineRequest(bulk.Id, 10, null)]));
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, withBulk.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, withBulk.StatusCode); // D-05
+        var dough = await factory.CreateItemAsync("MASA", ItemType.SemiFinished);
+        var withDough = await admin.PostJsonAsync("/api/v1/customer-orders",
+            new CreateCustomerOrderRequest(customer.Id, null, InTwoDays, null, null, [new CustomerOrderLineRequest(dough.Id, 10, null)]));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, withDough.StatusCode);
 
         var otherPoint = (await (await admin.PostJsonAsync($"/api/v1/customers/{(await CreateCustomerAsync(admin)).Id}/delivery-points",
             new CreateDeliveryPointRequest("Ajeno", null))).Content.ReadJsonAsync<DeliveryPointDto>())!;
@@ -134,7 +141,8 @@ public class CustomerTests(ApiFactory factory)
         Assert.Equal((CustomerOrderStatus.Draft, 42.5m, 5100m, "PAN-6"),
             (order.Status, order.Lines.Single().UnitPrice!.Value, order.EstimatedSubtotal, order.Lines.Single().CustomerSku));
         var drafts = await admin.GetJsonAsync<PagedResult<CustomerOrderListItemDto>>($"/api/v1/customer-orders?tab=Drafts&customerId={customer.Id}");
-        Assert.Equal([order.Id], drafts!.Items.Select(o => o.Id));
+        Assert.Contains(order.Id, drafts!.Items.Select(o => o.Id));
+        Assert.All(drafts.Items, o => Assert.Equal(CustomerOrderStatus.Draft, o.Status));
 
         var edited = await admin.PutJsonAsync($"/api/v1/customer-orders/{order.Id}", new UpdateCustomerOrderRequest(order.Version, null,
             InTwoDays, "OC-7782", "Andén 2", [new CustomerOrderLineRequest(packaged.Id, 150, 40m)]));
@@ -167,7 +175,7 @@ public class CustomerTests(ApiFactory factory)
         Assert.Null(order.Lines.Single().UnitPrice);
 
         await admin.PutJsonAsync($"/api/v1/customers/{customer.Id}",
-            new UpdateCustomerRequest(customer.Version, customer.Name, null, null, null, null, null, IsActive: false));
+            new UpdateCustomerRequest(customer.Version, customer.Code, customer.Name, null, null, null, null, null, IsActive: false));
         await ActAsync(admin, order, "confirm", HttpStatusCode.UnprocessableEntity);
         var create = await admin.PostJsonAsync("/api/v1/customer-orders",
             new CreateCustomerOrderRequest(customer.Id, null, InTwoDays, null, null, [new CustomerOrderLineRequest(packaged.Id, 6, null)]));
@@ -198,5 +206,24 @@ public class CustomerTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, (await warehouse.PostJsonAsync("/api/v1/customers",
             new CreateCustomerRequest(NewCode(), "X", null, null, null, null, null))).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await branch.GetAsync("/api/v1/customer-orders")).StatusCode);
+    }
+
+    [Fact]
+    public async Task The_customer_code_can_change_while_it_stays_unique()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var customer = await CreateCustomerAsync(admin);
+        var other = await CreateCustomerAsync(admin);
+
+        var taken = await admin.PutJsonAsync($"/api/v1/customers/{customer.Id}",
+            new UpdateCustomerRequest(customer.Version, other.Code, customer.Name, null, null, null, null, null, true));
+        Assert.Equal(HttpStatusCode.BadRequest, taken.StatusCode);
+        Assert.Contains("code", await taken.Content.ReadAsStringAsync());
+
+        var newCode = NewCode().ToLowerInvariant();
+        var renamed = await admin.PutJsonAsync($"/api/v1/customers/{customer.Id}",
+            new UpdateCustomerRequest(customer.Version, newCode, customer.Name, null, null, null, null, null, true));
+        Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+        Assert.Equal(newCode.ToUpperInvariant(), (await renamed.Content.ReadJsonAsync<CustomerDto>())!.Code);
     }
 }

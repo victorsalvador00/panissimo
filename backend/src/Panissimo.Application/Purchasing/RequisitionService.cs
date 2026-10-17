@@ -252,7 +252,7 @@ public sealed class RequisitionService(
             {
                 supplierId = activeOffers.FirstOrDefault(o => o.ItemId == line.ItemId && o.IsPreferred)?.SupplierId;
             }
-            resolved.Add(new RequisitionLineInput(line.ItemId, line.Quantity, supplierId));
+            resolved.Add(new RequisitionLineInput(line.ItemId, line.Quantity, supplierId, line.Notes));
         }
 
         if (errors.Count > 0)
@@ -324,7 +324,7 @@ public sealed class RequisitionService(
             var item = items[l.ItemId];
             var order = orders.GetValueOrDefault(l.Id);
             decimal? price = l.SuggestedSupplierId is { } s && prices.TryGetValue((s, l.ItemId), out var p) ? p : null;
-            return new RequisitionLineDto(l.Id, l.LineNumber, l.ItemId, item.Sku, item.Name, item.Code, l.Quantity,
+            return new RequisitionLineDto(l.Id, l.LineNumber, l.ItemId, item.Sku, item.Name, item.Code, l.Quantity, l.Notes,
                 l.SuggestedSupplierId, l.SuggestedSupplierId is { } sid ? suppliers.GetValueOrDefault(sid) : null,
                 price, EstimatedAmount(l, prices), order?.Id, order?.Folio);
         }).ToList();

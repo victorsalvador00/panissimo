@@ -131,14 +131,18 @@ public class ProductionOrder : AuditableEntity, IVersioned
     /// <summary>RN-62: lot of the close <paramref name="sequence"/>, e.g. <c>OP-000123-01</c>.</summary>
     public string LotNumberFor(int sequence) => $"{Folio}-{sequence:D2}";
 
-    /// <summary>RN-63: total produced may not exceed PlannedQty × (1 + tolerance).</summary>
+    /// <summary>RN-63 (D-03): PlannedQty × (1 + tolerance); informative, producing more is allowed and flagged.</summary>
     public decimal MaxAllowedQty(decimal overrunTolerancePct) => InventoryMath.Round(PlannedQty * (1 + overrunTolerancePct / 100m));
 
+    /// <summary>RN-63 (D-03): the total produced is above the planned quantity plus the tolerance.</summary>
+    public bool ExceedsTolerance(decimal overrunTolerancePct) => ProducedQty > MaxAllowedQty(overrunTolerancePct);
+
     /// <summary>
-    /// RN-61 and RN-63 checks before anything is posted: status, quantity per kind, overrun tolerance (also on partial
-    /// closes) and, on a final close below plan, the shortfall reason (with notes for Other).
+    /// RN-61 and RN-63 checks before anything is posted: status, quantity per kind and, on a final close below plan, the
+    /// shortfall reason (with notes for Other). Returns whether the close takes the total above the tolerance (D-03:
+    /// informative, it does not block).
     /// </summary>
-    public void EnsureCanClose(ProductionCloseKind kind, decimal producedQty, decimal overrunTolerancePct,
+    public bool EnsureCanClose(ProductionCloseKind kind, decimal producedQty, decimal overrunTolerancePct,
         ShortfallReason? shortfallReason, string? shortfallNotes)
     {
         if (Status is not (ProductionOrderStatus.Released or ProductionOrderStatus.InProgress))
@@ -153,11 +157,6 @@ public class ProductionOrder : AuditableEntity, IVersioned
                 "La orden no tiene cierres: un cierre final debe registrar producción. Si no se produjo nada, cancélala.");
 
         var total = ProducedQty + producedQty;
-        var max = MaxAllowedQty(overrunTolerancePct);
-        if (total > max)
-            throw new BusinessRuleException("production_overrun",
-                $"El total producido ({total:0.####}) supera lo planeado más la tolerancia. Máximo permitido: {max:0.####}.");
-
         if (kind == ProductionCloseKind.Final && total < PlannedQty)
         {
             if (shortfallReason is null)
@@ -166,6 +165,7 @@ public class ProductionOrder : AuditableEntity, IVersioned
             if (shortfallReason == Production.ShortfallReason.Other && string.IsNullOrWhiteSpace(shortfallNotes))
                 throw new BusinessRuleException("production_shortfall_notes_required", "Describe el motivo del faltante en las notas.");
         }
+        return total > MaxAllowedQty(overrunTolerancePct);
     }
 
     /// <summary>RN-61/RN-63/RN-64: adds the close to the accumulated quantities and cost and moves the status.</summary>

@@ -30,12 +30,12 @@ public class CustomerTests
     }
 
     [Theory]
-    [InlineData(ItemType.FinishedGood, ItemPresentation.Packaged, true)]
-    [InlineData(ItemType.FinishedGood, ItemPresentation.Bulk, false)]
-    [InlineData(ItemType.SemiFinished, null, false)]
-    [InlineData(ItemType.Supply, null, false)]
-    public void Customers_buy_packaged_finished_goods_only(ItemType type, ItemPresentation? presentation, bool expected) =>
-        Assert.Equal(expected, CustomerRules.IsSellable(type, presentation));
+    [InlineData(ItemType.FinishedGood, true)]   // bulk or packaged (D-05)
+    [InlineData(ItemType.SemiFinished, false)]
+    [InlineData(ItemType.Supply, false)]
+    [InlineData(ItemType.RawMaterial, false)]
+    public void Customers_buy_finished_goods_only(ItemType type, bool expected) =>
+        Assert.Equal(expected, CustomerRules.IsSellable(type));
 
     [Fact]
     public void Customer_item_price_is_optional_but_not_negative()

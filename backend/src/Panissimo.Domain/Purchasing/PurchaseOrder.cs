@@ -82,6 +82,7 @@ public class PurchaseOrder : AuditableEntity, IVersioned
     public string? RejectionReason { get; private set; }
     public DateTimeOffset? ClosedAt { get; private set; }
     public Guid? ClosedBy { get; private set; }
+    public string? CloseReason { get; private set; }
     public string? Notes { get; private set; }
     public uint Version { get; private set; }
     public IReadOnlyList<PurchaseOrderLine> Lines => _lines;
@@ -148,10 +149,13 @@ public class PurchaseOrder : AuditableEntity, IVersioned
         Status = PurchaseOrderStatus.Cancelled;
     }
 
-    /// <summary>RN-32: an order with a pending balance is closed by hand, only from PartiallyReceived.</summary>
-    public void Close(DateTimeOffset now, Guid? userId)
+    /// <summary>RN-32: an order with a pending balance is closed by hand, only from PartiallyReceived, with a reason.</summary>
+    public void Close(string reason, DateTimeOffset now, Guid? userId)
     {
         EnsureStatus("Solo se cierra con saldo una orden de compra parcialmente recibida.", PurchaseOrderStatus.PartiallyReceived);
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new BusinessRuleException("close_reason_required", "Indica el motivo del cierre con saldo.");
+        CloseReason = reason.Trim();
         Status = PurchaseOrderStatus.Closed;
         ClosedAt = now;
         ClosedBy = userId;

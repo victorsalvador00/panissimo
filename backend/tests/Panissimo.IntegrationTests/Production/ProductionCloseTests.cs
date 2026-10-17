@@ -134,7 +134,7 @@ public class ProductionCloseTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Order_with_closes_cannot_be_cancelled_and_overrun_is_blocked()
+    public async Task Order_with_closes_cannot_be_cancelled_and_overrun_is_allowed_but_flagged()
     {
         var admin = await factory.LoginAsAdminAsync();
         var s = await ReleasedOrderAsync(admin);
@@ -145,9 +145,15 @@ public class ProductionCloseTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.UnprocessableEntity, cancel.StatusCode);
         Assert.Contains("production_order_in_progress", await cancel.Content.ReadAsStringAsync());
 
-        var overrun = await admin.PostJsonAsync($"/api/v1/production-orders/{s.Order.Id}/closes", new CreateProductionCloseRequest(
+        // D-03: the tolerance (1100) is informative.
+        var preview = await admin.GetJsonAsync<ClosePreviewDto>($"/api/v1/production-orders/{s.Order.Id}/close-preview?qty=1001");
+        Assert.Equal((1100m, true), (preview!.MaxAllowedQty, preview.ExceedsTolerance));
+        var (response, overrun) = await CloseAsync(admin, s.Order.Id, new CreateProductionCloseRequest(
             c1.Order.Version, ProductionCloseKind.Final, 1001, null, null, null, null, null));
-        Assert.Contains("Máximo permitido: 1100", await overrun.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.True(overrun!.Close.ExceedsTolerance);
+        Assert.True(overrun.Order.ExceedsTolerance);
+        Assert.Equal((ProductionOrderStatus.Completed, 1101m), (overrun.Order.Status, overrun.Order.ProducedQty));
     }
 
     [Fact]

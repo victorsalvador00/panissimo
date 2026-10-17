@@ -22,7 +22,7 @@ public interface IPurchaseOrderService
     Task<PurchaseOrderDto> ApproveAsync(Guid id, uint version, CancellationToken ct = default);
     Task<PurchaseOrderDto> RejectAsync(Guid id, RejectPurchaseOrderRequest request, CancellationToken ct = default);
     Task<PurchaseOrderDto> CancelAsync(Guid id, uint version, CancellationToken ct = default);
-    Task<PurchaseOrderDto> CloseAsync(Guid id, uint version, CancellationToken ct = default);
+    Task<PurchaseOrderDto> CloseAsync(Guid id, ClosePurchaseOrderRequest request, CancellationToken ct = default);
 }
 
 public sealed class PurchaseOrderService(
@@ -137,8 +137,8 @@ public sealed class PurchaseOrderService(
     public async Task<PurchaseOrderDto> CancelAsync(Guid id, uint version, CancellationToken ct = default) =>
         await ChangeAsync(await FindAsync(id, ct), version, o => o.Cancel(), ct);
 
-    public async Task<PurchaseOrderDto> CloseAsync(Guid id, uint version, CancellationToken ct = default) =>
-        await ChangeAsync(await FindAsync(id, ct), version, o => o.Close(clock.UtcNow, currentUser.UserId), ct);
+    public async Task<PurchaseOrderDto> CloseAsync(Guid id, ClosePurchaseOrderRequest request, CancellationToken ct = default) =>
+        await ChangeAsync(await FindAsync(id, ct), request.Version, o => o.Close(request.Reason, clock.UtcNow, currentUser.UserId), ct);
 
     private async Task<PurchaseOrderDto> ChangeAsync(PurchaseOrder order, uint version, Action<PurchaseOrder> change, CancellationToken ct)
     {
@@ -261,6 +261,6 @@ public sealed class PurchaseOrderService(
             o.DeliveryLocationId, location.Code, location.Name, o.ExpectedDate, o.Status, o.Notes, lines, o.Subtotal, o.TaxTotal, o.Total,
             tolerance, o.SubmittedAt, names.Of(o.SubmittedBy), o.ApprovedAt, names.Of(o.ApprovedBy),
             o.ApprovedAt is not null && o.ApprovedBy is null, o.RejectedAt, names.Of(o.RejectedBy), o.RejectionReason,
-            o.ClosedAt, names.Of(o.ClosedBy), receipts, o.CreatedAt, names.Of(o.CreatedBy), o.UpdatedAt, names.Of(o.UpdatedBy), o.Version);
+            o.ClosedAt, names.Of(o.ClosedBy), o.CloseReason, receipts, o.CreatedAt, names.Of(o.CreatedBy), o.UpdatedAt, names.Of(o.UpdatedBy), o.Version);
     }
 }

@@ -107,7 +107,7 @@ public sealed class ClosedXmlOrderReader : IExcelOrderReader
         [
             ["Columna", "Obligatoria", "Qué capturar"],
             ["fecha", "Sí", "Fecha programada (celda de fecha o texto dd/mm/aaaa). No puede ser pasada."],
-            ["sku", "Sí", "SKU del sistema de un semiterminado o producto terminado activo con receta activa."],
+            ["sku", "Sí", "SKU del sistema o código de la Matriz Maestra de un semiterminado o producto terminado activo con receta activa."],
             ["cantidad", "Sí", "Mayor que cero, hasta 4 decimales; entera si el producto se maneja en piezas."],
             ["area", "No", "Código o nombre de un área activa. Vacío = el área del artículo."],
             ["turno", "No", "Día, Tarde o Noche. Vacío = sin turno."],

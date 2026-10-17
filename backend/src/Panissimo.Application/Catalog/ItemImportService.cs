@@ -43,13 +43,14 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         public const string Area = "area";
         public const string Multiple = "multiplo_op";
         public const string Weight = "gramaje_g";
+        public const string MatrixCode = "codigo_matriz";
 
         public static readonly IReadOnlyList<string> Required = [Sku, Name, Type, Category, BaseUom];
 
         public static readonly IReadOnlyList<string> All =
         [
             .. Required, PurchaseUom, Factor, TracksLots, ShelfLife, Storage, Tax, Presentation, BulkSku, UnitsPerPackage,
-            Area, Multiple, Weight,
+            Area, Multiple, Weight, MatrixCode,
         ];
     }
 
@@ -88,6 +89,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         ["productionAreaId"] = Columns.Area,
         ["productionMultiple"] = Columns.Multiple,
         ["unitWeightGrams"] = Columns.Weight,
+        ["matrixCode"] = Columns.MatrixCode,
     };
 
     private sealed record ParsedRow(int Line, ItemDefinition Definition, string? BulkSku)
@@ -144,6 +146,14 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         errors.AddRange(ValidateBulkLinks(parsed, bySku, existing));
         errors.AddRange(await ValidateFixedOnceMovedAsync(parsed, existing, ct));
         errors.AddRange(await ValidateBulkWithPackagedAsync(parsed, existing, ct));
+
+        var hasMatrixColumn = document.Headers.Contains(Columns.MatrixCode);
+        if (!hasMatrixColumn)
+            parsed = parsed.Select(p => p with
+            {
+                Definition = p.Definition with { MatrixCode = existing.GetValueOrDefault(p.Sku)?.MatrixCode },
+            }).ToList();
+        errors.AddRange(await ValidateMatrixCodesAsync(parsed, ct));
 
         if (errors.Count > 0)
             throw new ImportValidationException([.. errors.OrderBy(e => e.Row)]);
@@ -257,6 +267,31 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
             areasByKey);
     }
 
+    /// <summary>D-07: a Matriz code is unique in the file and in the catalog, and never another item's SKU.</summary>
+    private async Task<IEnumerable<ImportError>> ValidateMatrixCodesAsync(IReadOnlyList<ParsedRow> parsed, CancellationToken ct)
+    {
+        var errors = new List<ImportError>();
+        var rows = parsed.Where(p => p.Definition.MatrixCode is not null).ToList();
+        if (rows.Count == 0)
+            return errors;
+
+        foreach (var duplicate in rows.GroupBy(r => r.Definition.MatrixCode!).Where(g => g.Count() > 1))
+            errors.AddRange(duplicate.Skip(1).Select(r => new ImportError(r.Line, Columns.MatrixCode,
+                $"El código de la Matriz '{duplicate.Key}' está repetido (ya aparece en la fila {duplicate.First().Line}).")));
+
+        var codes = rows.Select(r => r.Definition.MatrixCode!).Distinct().ToList();
+        var fileSkus = parsed.Select(p => p.Sku).ToHashSet();
+        var taken = await db.Items.AsNoTracking().Where(i => codes.Contains(i.MatrixCode!) || codes.Contains(i.Sku))
+            .Select(i => new { i.Sku, i.MatrixCode }).ToListAsync(ct);
+        foreach (var row in rows)
+        {
+            var code = row.Definition.MatrixCode!;
+            if (fileSkus.Contains(code) || taken.Any(t => t.Sku != row.Sku && (t.MatrixCode == code || t.Sku == code)))
+                errors.Add(new ImportError(row.Line, Columns.MatrixCode, $"El código de la Matriz '{code}' ya lo usa otro artículo."));
+        }
+        return errors;
+    }
+
     private static void ValidateLayout(CsvDocument document)
     {
         var errors = new List<ImportError>();
@@ -363,7 +398,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
             ? null
             : new ParsedRow(row.Line, new ItemDefinition(row.Get(Columns.Sku), row.Get(Columns.Name), type, categoryId, baseUomId,
                 purchaseUomId, factor, tracksLots, shelfLife, storage, taxRate, presentation, null, unitsPerPackage, areaId,
-                multiple, weight), bulkSku);
+                multiple, weight, ItemRules.NormalizeMatrixCode(row.Get(Columns.MatrixCode))), bulkSku);
 
         Guid? ResolveUom(string column, string label)
         {

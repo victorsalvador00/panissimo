@@ -64,6 +64,7 @@ internal sealed class PurchaseRequisitionLineConfiguration : IEntityTypeConfigur
     public void Configure(EntityTypeBuilder<PurchaseRequisitionLine> builder)
     {
         builder.ToTable("purchase_requisition_line", "purchasing");
+        builder.Property(l => l.Notes).HasMaxLength(500);
         builder.HasIndex(l => l.ItemId);
         builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Supplier>().WithMany().HasForeignKey(l => l.SuggestedSupplierId).OnDelete(DeleteBehavior.Restrict);
@@ -79,6 +80,7 @@ internal sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purc
         builder.Property(o => o.Status).HasMaxLength(20);
         builder.Property(o => o.Notes).HasMaxLength(PurchaseOrder.NotesMaxLength);
         builder.Property(o => o.RejectionReason).HasMaxLength(500);
+        builder.Property(o => o.CloseReason).HasMaxLength(500);
         builder.Property(o => o.Subtotal).HasPrecision(18, 2);
         builder.Property(o => o.TaxTotal).HasPrecision(18, 2);
         builder.Property(o => o.Total).HasPrecision(18, 2);

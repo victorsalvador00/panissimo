@@ -91,4 +91,17 @@ public class ItemRulesTests
         Assert.Throws<BusinessRuleException>(() => new ItemLocationSetting(Guid.NewGuid(), Guid.NewGuid(), 10, 5));
         Assert.Equal(5, new ItemLocationSetting(Guid.NewGuid(), Guid.NewGuid(), 5, 5).MaxQty);
     }
+
+    [Fact]
+    public void The_matriz_code_is_optional_upper_case_and_shaped_like_a_sku()
+    {
+        Assert.Empty(ItemRules.Check(Definition() with { MatrixCode = " " }));
+        Assert.Equal("SKU0001", ItemRules.NormalizeMatrixCode(" sku0001 "));
+        Assert.Null(ItemRules.NormalizeMatrixCode(""));
+        Assert.Contains("matrixCode", Fields(Definition() with { MatrixCode = "SKU 0001" }));
+        Assert.Contains("matrixCode", Fields(Definition() with { MatrixCode = new string('A', ItemRules.SkuMaxLength + 1) }));
+
+        var item = new Item(Definition() with { MatrixCode = "sku0001" });
+        Assert.Equal("SKU0001", item.MatrixCode);
+    }
 }

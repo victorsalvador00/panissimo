@@ -23,13 +23,12 @@ public class BranchOrderTests
     private static string Code(Action action) => Assert.Throws<BusinessRuleException>(action).Code;
 
     [Theory]
-    [InlineData(ItemType.FinishedGood, ItemPresentation.Bulk, true)]
-    [InlineData(ItemType.Supply, null, true)]
-    [InlineData(ItemType.FinishedGood, ItemPresentation.Packaged, false)]
-    [InlineData(ItemType.SemiFinished, null, false)]
-    [InlineData(ItemType.RawMaterial, null, false)]
-    public void Branches_order_bulk_goods_and_supplies(ItemType type, ItemPresentation? presentation, bool expected) =>
-        Assert.Equal(expected, BranchOrderRules.IsOrderable(type, presentation));
+    [InlineData(ItemType.FinishedGood, true)]   // bulk or packaged (D-05)
+    [InlineData(ItemType.Supply, true)]
+    [InlineData(ItemType.SemiFinished, false)]
+    [InlineData(ItemType.RawMaterial, false)]
+    public void Branches_order_finished_goods_and_supplies(ItemType type, bool expected) =>
+        Assert.Equal(expected, BranchOrderRules.IsOrderable(type));
 
     [Theory]
     [InlineData(10, 50, 7, false, 43)]

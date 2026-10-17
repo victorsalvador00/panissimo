@@ -220,4 +220,29 @@ public class RequisitionTests(ApiFactory factory)
         var convert = await buyer.PostJsonAsync("/api/v1/requisitions/convert", new ConvertRequisitionsRequest([requisition.Id]));
         Assert.Equal(HttpStatusCode.OK, convert.StatusCode);
     }
+
+    [Fact]
+    public async Task An_item_may_repeat_with_a_note_and_each_line_becomes_its_own_order_line()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var flour = await factory.CreateItemAsync("HAR");
+        var mill = await SupplierAsync(admin, "Molino");
+        var other = await SupplierAsync(admin, "Harinera");
+        await SellsAsync(admin, mill, flour.Id, 600m, preferred: true);
+        await SellsAsync(admin, other, flour.Id, 590m, preferred: false);
+        var plant = await factory.LocationIdAsync("PLANTA");
+
+        var withoutNote = await admin.PostJsonAsync("/api/v1/requisitions", new CreateRequisitionRequest(plant, InAWeek, null,
+            [new RequisitionLineRequest(flour.Id, 10, null), new RequisitionLineRequest(flour.Id, 5, other.Id)]));
+        Assert.Equal(HttpStatusCode.BadRequest, withoutNote.StatusCode);
+
+        var requisition = await CreateAsync(admin, new RequisitionLineRequest(flour.Id, 10, null),
+            new RequisitionLineRequest(flour.Id, 5, other.Id, "Segundo proveedor por volumen"));
+        Assert.Equal([null, "Segundo proveedor por volumen"], requisition.Lines.Select(l => l.Notes));
+
+        requisition = await ApprovedAsync(admin, requisition);
+        var result = (await (await admin.PostJsonAsync("/api/v1/requisitions/convert", new ConvertRequisitionsRequest([requisition.Id])))
+            .Content.ReadJsonAsync<ConvertRequisitionsResult>())!;
+        Assert.Equal([mill.Id, other.Id], result.PurchaseOrders.Select(o => o.SupplierId).OrderBy(id => id == other.Id));
+    }
 }

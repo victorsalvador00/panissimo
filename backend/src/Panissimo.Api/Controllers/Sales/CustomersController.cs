@@ -42,7 +42,7 @@ public sealed class CustomersController(ICustomerService customers) : Controller
         return CreatedAtAction(nameof(Get), new { id = customer.Id }, customer);
     }
 
-    /// <summary>Edita datos y estado. El código no cambia.</summary>
+    /// <summary>Edita código, datos y estado. El código debe seguir siendo único.</summary>
     [HttpPut("{id:guid}")]
     [RequirePermission(Permissions.SalesCustomersManage)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -75,14 +75,14 @@ public sealed class CustomersController(ICustomerService customers) : Controller
     public Task<DeliveryPointDto> UpdateDeliveryPoint(Guid id, Guid pointId, UpdateDeliveryPointRequest request, CancellationToken ct) =>
         customers.UpdateDeliveryPointAsync(id, pointId, request, ct);
 
-    /// <summary>Empaquetados que compra el cliente, con su clave y precio informativo.</summary>
+    /// <summary>Productos terminados que compra el cliente, con su clave y precio informativo.</summary>
     [HttpGet("{id:guid}/items")]
     [RequirePermission(Permissions.SalesView)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public Task<IReadOnlyList<CustomerItemDto>> ListItems(Guid id, [FromQuery] CustomerItemListQuery query, CancellationToken ct) =>
         customers.ListItemsAsync(id, query, ct);
 
-    /// <summary>Agrega un producto terminado empaquetado activo; otros tipos responden 422 (D-05).</summary>
+    /// <summary>Agrega un producto terminado activo (granel o empaquetado); otros tipos responden 422 (D-05).</summary>
     [HttpPost("{id:guid}/items")]
     [RequirePermission(Permissions.SalesCustomersManage)]
     [ProducesResponseType<CustomerItemDto>(StatusCodes.Status201Created)]
@@ -123,7 +123,7 @@ public sealed class CustomerOrdersController(ICustomerOrderService orders) : Con
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public Task<CustomerOrderDto> Get(Guid id, CancellationToken ct) => orders.GetAsync(id, ct);
 
-    /// <summary>Crea un pedido en borrador: solo productos terminados empaquetados; otros tipos responden 422 (D-05).</summary>
+    /// <summary>Crea un pedido en borrador: solo productos terminados (granel o empaquetado); otros tipos responden 422 (D-05).</summary>
     [HttpPost]
     [RequirePermission(Permissions.SalesOrdersManage)]
     [ProducesResponseType<CustomerOrderDto>(StatusCodes.Status201Created)]

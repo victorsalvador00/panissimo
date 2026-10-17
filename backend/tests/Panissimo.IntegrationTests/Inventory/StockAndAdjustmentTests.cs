@@ -3,11 +3,14 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Inventory;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
+using Panissimo.Infrastructure.Persistence;
 using Panissimo.IntegrationTests.Infrastructure;
 
 namespace Panissimo.IntegrationTests.Inventory;
@@ -183,5 +186,34 @@ public class StockAndAdjustmentTests(ApiFactory factory)
         var file = new ByteArrayContent(Encoding.UTF8.GetBytes(csv));
         file.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
         return client.PostAsync("/api/v1/imports/initial-stock", new MultipartFormDataContent { { file, "file", "existencias.csv" } });
+    }
+
+    [Fact]
+    public async Task A_customer_return_enters_and_its_waste_part_leaves_with_its_reason()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var plant = await factory.LocationIdAsync("PLANTA");
+        var bread = await factory.CreateItemAsync("CONCHA", ItemType.FinishedGood, "pza", tracksLots: true, shelfLifeDays: 3);
+        await factory.AddStockAsync(plant, bread.Id, 10, 4m, "L-1", DateOnly.FromDateTime(DateTime.UtcNow).AddDays(2));
+
+        var response = await admin.PostJsonAsync("/api/v1/adjustments", new CreateAdjustmentRequest(plant, AdjustmentReason.CustomerReturn,
+            "Rechazo de Cafeterías", [new AdjustmentLineRequest(bread.Id, null, "L-1", null, 12, null, "Remisión RM-000010", 5, AdjustmentReason.Damaged)]));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var adjustment = (await response.Content.ReadJsonAsync<AdjustmentDto>())!;
+        Assert.Equal((5m, AdjustmentReason.Damaged), (adjustment.Lines.Single().WasteQty!.Value, adjustment.Lines.Single().WasteReason!.Value));
+        Assert.Equal([12m, -5m], adjustment.Movements.Select(m => m.Quantity));
+        Assert.Equal(17m, await factory.StockAsync(plant, bread.Id));
+
+        await using var scope = factory.CreateScope();
+        var types = await scope.ServiceProvider.GetRequiredService<AppDbContext>().InventoryMovements
+            .Where(m => m.SourceDocId == adjustment.Id).OrderBy(m => m.Sequence).Select(m => m.Type).ToListAsync();
+        Assert.Equal([MovementType.Adjustment, MovementType.Waste], types);
+
+        var tooMuchWaste = await admin.PostJsonAsync("/api/v1/adjustments", new CreateAdjustmentRequest(plant, AdjustmentReason.CustomerReturn,
+            null, [new AdjustmentLineRequest(bread.Id, null, "L-1", null, 2, null, null, 3, AdjustmentReason.Waste)]));
+        Assert.Equal(HttpStatusCode.BadRequest, tooMuchWaste.StatusCode);
+        var wasteOnCorrection = await admin.PostJsonAsync("/api/v1/adjustments", new CreateAdjustmentRequest(plant, AdjustmentReason.Correction,
+            null, [new AdjustmentLineRequest(bread.Id, null, "L-1", null, 2, null, null, 1, AdjustmentReason.Waste)]));
+        Assert.Equal(HttpStatusCode.BadRequest, wasteOnCorrection.StatusCode);
     }
 }

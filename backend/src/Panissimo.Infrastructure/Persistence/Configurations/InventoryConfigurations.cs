@@ -94,6 +94,7 @@ internal sealed class InventoryAdjustmentLineConfiguration : IEntityTypeConfigur
     {
         builder.ToTable("adjustment_line", "inventory");
         builder.Property(l => l.Notes).HasMaxLength(500);
+        builder.Property(l => l.WasteReason).HasMaxLength(20);
         builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Lot>().WithMany().HasForeignKey(l => l.LotId).OnDelete(DeleteBehavior.Restrict);
     }

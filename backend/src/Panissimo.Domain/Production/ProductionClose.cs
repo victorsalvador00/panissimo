@@ -30,7 +30,7 @@ public class ProductionClose : AuditableEntity
 
     public ProductionClose(Guid id, string folio, ProductionOrder order, ProductionCloseKind kind, DateOnly businessDate, Shift? shift,
         decimal producedQty, Guid? outputLotId, IReadOnlyList<CloseConsumption> consumption, DateTimeOffset closedAt, Guid? closedBy,
-        string? notes)
+        string? notes, bool exceedsTolerance = false)
     {
         Id = id;
         Folio = folio;
@@ -44,6 +44,7 @@ public class ProductionClose : AuditableEntity
         ClosedAt = closedAt;
         ClosedBy = closedBy;
         Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        ExceedsTolerance = exceedsTolerance;
         _lines.AddRange(consumption.Select(c => new ProductionCloseLine(Id, c)));
 
         // RN-64: the close costs what its real consumption cost at the plant's average.
@@ -58,6 +59,9 @@ public class ProductionClose : AuditableEntity
     public int Sequence { get; private set; }
 
     public ProductionCloseKind Kind { get; private set; }
+
+    /// <summary>D-03: this close took the order's total above the planned quantity plus the tolerance (informative).</summary>
+    public bool ExceedsTolerance { get; private set; }
     public DateOnly BusinessDate { get; private set; }
     public Shift? Shift { get; private set; }
     public decimal ProducedQty { get; private set; }

@@ -50,9 +50,9 @@ public sealed record CreateCustomerRequest(string Code, string Name, string? Tax
     public CustomerDefinition ToDefinition() => new(Name, TaxId, ContactName, Phone, Email, Notes);
 }
 
-/// <summary>The code is fixed once created.</summary>
+/// <summary>The code may change while it stays unique.</summary>
 public sealed record UpdateCustomerRequest(
-    uint Version, string Name, string? TaxId, string? ContactName, string? Phone, string? Email, string? Notes, bool IsActive) : ICustomerFields
+    uint Version, string Code, string Name, string? TaxId, string? ContactName, string? Phone, string? Email, string? Notes, bool IsActive) : ICustomerFields
 {
     public CustomerDefinition ToDefinition() => new(Name, TaxId, ContactName, Phone, Email, Notes);
 }
@@ -116,7 +116,13 @@ public sealed class CreateCustomerRequestValidator : AbstractValidator<CreateCus
 
 public sealed class UpdateCustomerRequestValidator : AbstractValidator<UpdateCustomerRequest>
 {
-    public UpdateCustomerRequestValidator() => Include(new CustomerFieldsValidator());
+    public UpdateCustomerRequestValidator()
+    {
+        RuleFor(x => x.Code).Cascade(CascadeMode.Stop).NotEmpty().WithName("Código")
+            .Must(c => CustomerRules.IsValidCode(CustomerRules.NormalizeCode(c)))
+            .WithMessage($"El código solo admite letras, números y guion, máximo {CustomerRules.CodeMaxLength} caracteres (ej. CLI-001).");
+        Include(new CustomerFieldsValidator());
+    }
 }
 
 public sealed class CreateDeliveryPointRequestValidator : AbstractValidator<CreateDeliveryPointRequest>
@@ -173,7 +179,7 @@ public interface ICustomerService
     Task<CustomerItemDto> UpdateItemAsync(Guid customerId, Guid customerItemId, UpdateCustomerItemRequest request, CancellationToken ct = default);
 }
 
-/// <summary>Customers, their delivery points and the packaged items they buy. A global catalog: no location scope.</summary>
+/// <summary>Customers, their delivery points and the finished goods they buy. A global catalog: no location scope.</summary>
 public sealed class CustomerService(IAppDbContext db, IUserDirectory userDirectory) : ICustomerService
 {
     private static readonly Dictionary<string, Expression<Func<Customer, object?>>> SortColumns = new()
@@ -238,9 +244,16 @@ public sealed class CustomerService(IAppDbContext db, IUserDirectory userDirecto
     {
         var customer = await FindAsync(id, ct);
         db.EnsureVersion(customer, request.Version);
+        var code = CustomerRules.NormalizeCode(request.Code);
+        var errors = new Dictionary<string, string[]>();
+        if (await db.Customers.AnyAsync(c => c.Code == code && c.Id != id, ct))
+            errors["code"] = [$"El código '{code}' ya existe."];
         if (await TaxIdTakenAsync(request.TaxId, id, ct) is { } taken)
-            throw new RequestValidationException(new Dictionary<string, string[]> { ["taxId"] = [taken] });
+            errors["taxId"] = [taken];
+        if (errors.Count > 0)
+            throw new RequestValidationException(errors);
 
+        customer.ChangeCode(code);
         customer.Update(request.ToDefinition());
         if (request.IsActive) customer.Activate(); else customer.Deactivate();
         await db.SaveChangesAsync(ct);
@@ -293,9 +306,9 @@ public sealed class CustomerService(IAppDbContext db, IUserDirectory userDirecto
         var item = await db.Items.AsNoTracking().SingleOrDefaultAsync(i => i.Id == request.ItemId, ct);
         if (item is null || !item.IsActive)
             throw new RequestValidationException(new Dictionary<string, string[]> { ["itemId"] = ["El artículo no existe o está inactivo."] });
-        if (!CustomerRules.IsSellable(item.Type, item.Presentation))
-            throw new BusinessRuleException("customer_item_not_packaged",
-                $"{item.Sku} no se vende a clientes: solo los productos terminados empaquetados (D-05).");
+        if (!CustomerRules.IsSellable(item.Type))
+            throw new BusinessRuleException("customer_item_not_sellable",
+                $"{item.Sku} no se vende a clientes: solo los productos terminados (D-05).");
         if (await db.CustomerItems.AnyAsync(r => r.CustomerId == customerId && r.ItemId == item.Id, ct))
             throw new RequestValidationException(new Dictionary<string, string[]>
                 { ["itemId"] = [$"{customer.Name} ya tiene {item.Sku} en sus artículos; edítalo o reactívalo."] });

@@ -129,7 +129,8 @@ public class PurchaseOrderTests(ApiFactory factory)
 
         order = (await ReloadAsync(admin, order))!;
         Assert.Equal(2, order.Receipts.Count);
-        await ActAsync(admin, order, "close", HttpStatusCode.UnprocessableEntity);
+        var closeReceived = await admin.PostJsonAsync($"/api/v1/purchase-orders/{order.Id}/close", new ClosePurchaseOrderRequest(order.Version, "X"));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, closeReceived.StatusCode);
         var history = await admin.GetJsonAsync<PagedResult<GoodsReceiptListItemDto>>($"/api/v1/goods-receipts?purchaseOrderId={order.Id}");
         Assert.Equal(2, history!.Total);
         Assert.Equal((first.Folio, "A-100"), (history.Items.Single(r => r.Id == first.Id).Folio, history.Items[0].SupplierInvoiceNumber));
@@ -248,8 +249,11 @@ public class PurchaseOrderTests(ApiFactory factory)
         order = (await ReloadAsync(admin, order))!;
         Assert.Equal(PurchaseOrderStatus.PartiallyReceived, order.Status);
         await ActAsync(admin, order, "cancel", HttpStatusCode.UnprocessableEntity);
-        var closed = await ActAsync(admin, order, "close");
-        Assert.Equal(PurchaseOrderStatus.Closed, closed.Status);
+        var noReason = await admin.PostJsonAsync($"/api/v1/purchase-orders/{order.Id}/close", new ClosePurchaseOrderRequest(order.Version, ""));
+        Assert.Equal(HttpStatusCode.BadRequest, noReason.StatusCode);
+        var closed = (await (await admin.PostJsonAsync($"/api/v1/purchase-orders/{order.Id}/close",
+            new ClosePurchaseOrderRequest(order.Version, "El proveedor no surte la levadura"))).Content.ReadJsonAsync<PurchaseOrderDto>())!;
+        Assert.Equal((PurchaseOrderStatus.Closed, "El proveedor no surte la levadura"), (closed.Status, closed.CloseReason));
         Assert.Equal(HttpStatusCode.UnprocessableEntity,
             (await ReceiveAsync(admin, closed, new GoodsReceiptLineRequest(yeastLine.Id, 5, "L1", null))).StatusCode);
 

@@ -280,7 +280,7 @@ public sealed class BranchOrderService(
                               where s.LocationId == locationId && i.IsActive
                               select new { s.ItemId, s.MinQty, s.MaxQty, i.Sku, i.Name, i.Type, i.Presentation, Uom = u.Code })
             .ToListAsync(ct);
-        settings = settings.Where(s => BranchOrderRules.IsOrderable(s.Type, s.Presentation)).ToList();
+        settings = settings.Where(s => BranchOrderRules.IsOrderable(s.Type)).ToList();
         var itemIds = settings.Select(s => s.ItemId).ToList();
 
         var stock = await db.StockBalances.Where(b => b.LocationId == locationId && itemIds.Contains(b.ItemId))
@@ -324,7 +324,7 @@ public sealed class BranchOrderService(
         return await ToDtoAsync(order, ct);
     }
 
-    /// <summary>RN-20: active bulk finished goods and supplies; whole quantities in pieces (RN-03b).</summary>
+    /// <summary>RN-20 (D-05): active finished goods (bulk or packaged) and supplies; whole quantities in pieces (RN-03b).</summary>
     private async Task<List<BranchOrderLineInput>> ValidateLinesAsync(IReadOnlyList<BranchOrderLineRequest> lines, CancellationToken ct)
     {
         var itemIds = lines.Select(l => l.ItemId).Distinct().ToList();
@@ -334,11 +334,11 @@ public sealed class BranchOrderService(
                            select new { Item = i, Pieces = u.Code == UnitOfMeasure.PieceCode })
             .ToDictionaryAsync(x => x.Item.Id, ct);
 
-        var notOrderable = items.Values.Where(x => !BranchOrderRules.IsOrderable(x.Item.Type, x.Item.Presentation))
+        var notOrderable = items.Values.Where(x => !BranchOrderRules.IsOrderable(x.Item.Type))
             .Select(x => x.Item.Sku).Order().ToList();
         if (notOrderable.Count > 0)
             throw new BusinessRuleException("branch_order_item_not_allowed",
-                $"Las sucursales piden productos a granel e insumos; no empaquetados ni semiterminados: {string.Join(", ", notOrderable)} (RN-20).");
+                $"Las sucursales piden productos terminados (granel o empaquetado) e insumos; no semiterminados ni materias primas: {string.Join(", ", notOrderable)} (RN-20).");
 
         var errors = new List<string>();
         foreach (var line in lines)

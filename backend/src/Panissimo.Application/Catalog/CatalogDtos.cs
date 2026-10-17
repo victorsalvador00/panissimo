@@ -69,6 +69,7 @@ public sealed record ItemLookupDto(
 public sealed record ItemListItemDto(
     Guid Id,
     string Sku,
+    string? MatrixCode,
     string Name,
     ItemType Type,
     ItemPresentation? Presentation,
@@ -84,6 +85,7 @@ public sealed record ItemListItemDto(
 public sealed record ItemDto(
     Guid Id,
     string Sku,
+    string? MatrixCode,
     string Name,
     ItemType Type,
     Guid CategoryId,
@@ -127,11 +129,12 @@ public sealed record CreateItemRequest(
     int? UnitsPerPackage,
     Guid? ProductionAreaId,
     decimal? ProductionMultiple,
-    decimal? UnitWeightGrams)
+    decimal? UnitWeightGrams,
+    string? MatrixCode = null)
 {
     public ItemDefinition ToDefinition() => new(Sku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
         PurchaseToBaseFactor, TracksLots, ShelfLifeDays, StorageCondition, TaxRate, Presentation, BulkItemId,
-        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams);
+        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams, MatrixCode);
 }
 
 public sealed record UpdateItemRequest(
@@ -153,11 +156,12 @@ public sealed record UpdateItemRequest(
     Guid? ProductionAreaId,
     decimal? ProductionMultiple,
     decimal? UnitWeightGrams,
-    bool IsActive)
+    bool IsActive,
+    string? MatrixCode = null)
 {
     public ItemDefinition ToDefinition() => new(Sku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
         PurchaseToBaseFactor, TracksLots, ShelfLifeDays, StorageCondition, TaxRate, Presentation, BulkItemId,
-        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams);
+        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams, MatrixCode);
 }
 
 // Min/max per location

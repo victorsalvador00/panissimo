@@ -7,7 +7,8 @@ namespace Panissimo.Application.Purchasing;
 
 /// <param name="Quantity">In purchase unit (or base unit when the item has none).</param>
 /// <param name="SuggestedSupplierId">Empty takes the item's preferred supplier (RN-34).</param>
-public sealed record RequisitionLineRequest(Guid ItemId, decimal Quantity, Guid? SuggestedSupplierId);
+/// <param name="Notes">Required on a line that repeats an item already in the requisition.</param>
+public sealed record RequisitionLineRequest(Guid ItemId, decimal Quantity, Guid? SuggestedSupplierId, string? Notes = null);
 
 public sealed record CreateRequisitionRequest(Guid LocationId, DateOnly NeededBy, string? Notes, IReadOnlyList<RequisitionLineRequest> Lines);
 
@@ -55,6 +56,7 @@ public sealed record RequisitionLineDto(
     string ItemName,
     string UomCode,
     decimal Quantity,
+    string? Notes,
     Guid? SuggestedSupplierId,
     string? SuggestedSupplierName,
     decimal? EstimatedUnitPrice,
@@ -111,7 +113,17 @@ public sealed class RequisitionLineRequestValidator : AbstractValidator<Requisit
         RuleFor(l => l.ItemId).NotEmpty().WithName("Artículo");
         RuleFor(l => l.Quantity).GreaterThan(0).WithName("Cantidad")
             .Must(q => InventoryMath.Round(q) == q).WithMessage("La cantidad admite máximo 4 decimales.");
+        RuleFor(l => l.Notes).MaximumLength(500).WithName("Nota");
     }
+}
+
+internal static class RequisitionLineRules
+{
+    public const string RepeatNoteMessage = "Un artículo repetido necesita una nota en el renglón repetido que explique por qué.";
+
+    /// <summary>RN-34: every occurrence of an item after the first carries a note.</summary>
+    public static bool RepeatsHaveNotes(IReadOnlyList<RequisitionLineRequest> lines) =>
+        lines.GroupBy(l => l.ItemId).All(g => g.Skip(1).All(l => !string.IsNullOrWhiteSpace(l.Notes)));
 }
 
 public sealed class CreateRequisitionRequestValidator : AbstractValidator<CreateRequisitionRequest>
@@ -121,7 +133,7 @@ public sealed class CreateRequisitionRequestValidator : AbstractValidator<Create
         RuleFor(x => x.LocationId).NotEmpty().WithName("Ubicación");
         RuleFor(x => x.Notes).MaximumLength(PurchaseRequisition.NotesMaxLength).WithName("Notas");
         RuleFor(x => x.Lines).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Agrega al menos una línea.")
-            .Must(l => l.Select(x => x.ItemId).Distinct().Count() == l.Count).WithMessage("Hay artículos repetidos en la requisición.");
+            .Must(RequisitionLineRules.RepeatsHaveNotes).WithMessage(RequisitionLineRules.RepeatNoteMessage);
         RuleForEach(x => x.Lines).SetValidator(new RequisitionLineRequestValidator());
     }
 }
@@ -132,7 +144,7 @@ public sealed class UpdateRequisitionRequestValidator : AbstractValidator<Update
     {
         RuleFor(x => x.Notes).MaximumLength(PurchaseRequisition.NotesMaxLength).WithName("Notas");
         RuleFor(x => x.Lines).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Agrega al menos una línea.")
-            .Must(l => l.Select(x => x.ItemId).Distinct().Count() == l.Count).WithMessage("Hay artículos repetidos en la requisición.");
+            .Must(RequisitionLineRules.RepeatsHaveNotes).WithMessage(RequisitionLineRules.RepeatNoteMessage);
         RuleForEach(x => x.Lines).SetValidator(new RequisitionLineRequestValidator());
     }
 }

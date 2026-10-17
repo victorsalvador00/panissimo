@@ -36,7 +36,7 @@ public sealed class BranchOrdersController(IBranchOrderService orders) : Control
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public Task<BranchOrderDto> Get(Guid id, CancellationToken ct) => orders.GetAsync(id, ct);
 
-    /// <summary>Crea un pedido en borrador de una sucursal a la Planta: productos a granel e insumos, en unidad base.</summary>
+    /// <summary>Crea un pedido en borrador de una sucursal a la Planta: productos terminados (granel o empaquetado) e insumos, en unidad base.</summary>
     [HttpPost]
     [RequirePermission(Permissions.LogisticsOrdersCreate)]
     [ProducesResponseType<BranchOrderDto>(StatusCodes.Status201Created)]

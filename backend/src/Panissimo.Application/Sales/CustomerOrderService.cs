@@ -236,7 +236,7 @@ public sealed class CustomerOrderService(
     }
 
     /// <summary>
-    /// RN-80: delivery point of the same customer and active; active packaged finished goods only (D-05, 422 otherwise);
+    /// RN-80: delivery point of the same customer and active; active finished goods only, bulk or packaged (D-05, 422 otherwise);
     /// whole quantities in pieces (RN-03b); an empty price takes the customer's item price.
     /// </summary>
     private async Task<CustomerOrderPlan> ResolvePlanAsync(Guid customerId, Guid? deliveryPointId, DateOnly requiredDate,
@@ -254,10 +254,10 @@ public sealed class CustomerOrderService(
                            select new { Item = i, Pieces = u.Code == UnitOfMeasure.PieceCode })
             .ToDictionaryAsync(x => x.Item.Id, ct);
 
-        var notSellable = items.Values.Where(x => !CustomerRules.IsSellable(x.Item.Type, x.Item.Presentation)).Select(x => x.Item.Sku).Order().ToList();
+        var notSellable = items.Values.Where(x => !CustomerRules.IsSellable(x.Item.Type)).Select(x => x.Item.Sku).Order().ToList();
         if (notSellable.Count > 0)
             throw new BusinessRuleException("customer_order_item_not_allowed",
-                $"A los clientes se les venden solo productos terminados empaquetados: {string.Join(", ", notSellable)} (D-05).");
+                $"A los clientes se les venden solo productos terminados (granel o empaquetado): {string.Join(", ", notSellable)} (D-05).");
 
         var prices = await db.CustomerItems.AsNoTracking()
             .Where(r => r.CustomerId == customerId && itemIds.Contains(r.ItemId) && r.IsActive && r.Price != null)

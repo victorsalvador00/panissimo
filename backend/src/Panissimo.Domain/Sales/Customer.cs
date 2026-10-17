@@ -4,7 +4,7 @@ using Panissimo.Domain.Common;
 
 namespace Panissimo.Domain.Sales;
 
-/// <summary>Editable data of a customer (dominio §4.6). The code is fixed once created.</summary>
+/// <summary>Editable data of a customer (dominio §4.6). The code changes on its own (unique).</summary>
 public sealed record CustomerDefinition(
     string Name,
     string? TaxId,
@@ -32,9 +32,8 @@ public static partial class CustomerRules
 
     public static bool IsValidCode(string normalized) => normalized.Length <= CodeMaxLength && CodePattern().IsMatch(normalized);
 
-    /// <summary>D-05: third-party customers buy packaged finished goods only.</summary>
-    public static bool IsSellable(ItemType type, ItemPresentation? presentation) =>
-        type == ItemType.FinishedGood && presentation == ItemPresentation.Packaged;
+    /// <summary>D-05: third-party customers buy finished goods, bulk or packaged.</summary>
+    public static bool IsSellable(ItemType type) => type == ItemType.FinishedGood;
 
     /// <summary>Null when blank; otherwise the upper-case RFC (RN-35 rules apply when present).</summary>
     public static string? NormalizeTaxId(string? taxId) => string.IsNullOrWhiteSpace(taxId) ? null : TaxIdRules.Normalize(taxId);
@@ -49,10 +48,7 @@ public class Customer : AuditableEntity, IVersioned
 
     public Customer(string code, CustomerDefinition definition)
     {
-        var normalized = CustomerRules.NormalizeCode(code);
-        if (!CustomerRules.IsValidCode(normalized))
-            throw new BusinessRuleException("invalid_customer_code", "El código solo admite letras, números y guion (ej. CLI-001).");
-        Code = normalized;
+        ChangeCode(code);
         Apply(definition);
         IsActive = true;
     }
@@ -71,6 +67,15 @@ public class Customer : AuditableEntity, IVersioned
     public uint Version { get; private set; }
 
     public void Update(CustomerDefinition definition) => Apply(definition);
+
+    /// <summary>The code may change while it stays unique (checked by the service); documents keep the customer id.</summary>
+    public void ChangeCode(string code)
+    {
+        var normalized = CustomerRules.NormalizeCode(code);
+        if (!CustomerRules.IsValidCode(normalized))
+            throw new BusinessRuleException("invalid_customer_code", "El código solo admite letras, números y guion (ej. CLI-001).");
+        Code = normalized;
+    }
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
 

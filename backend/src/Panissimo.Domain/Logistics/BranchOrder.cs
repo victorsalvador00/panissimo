@@ -22,9 +22,8 @@ public sealed record BranchOrderApproval(Guid LineId, decimal ApprovedQty);
 
 public static class BranchOrderRules
 {
-    /// <summary>RN-20 (D-05): branches order bulk finished goods and supplies; never packaged or semi-finished goods.</summary>
-    public static bool IsOrderable(ItemType type, ItemPresentation? presentation) =>
-        type == ItemType.Supply || (type == ItemType.FinishedGood && presentation == ItemPresentation.Bulk);
+    /// <summary>RN-20 (D-05): branches order finished goods, bulk or packaged, and supplies; never semi-finished goods or raw materials.</summary>
+    public static bool IsOrderable(ItemType type) => type is ItemType.FinishedGood or ItemType.Supply;
 
     /// <summary>
     /// RN-20 suggestion: projected = stock + in transit + submitted or approved not yet dispatched; at or below the

@@ -28,7 +28,7 @@ public sealed record ClosePreviewLineDto(
 /// <summary>What a close of <paramref name="Quantity"/> would consume and cost, and the lot it would create (RN-62).</summary>
 public sealed record ClosePreviewDto(
     Guid ProductionOrderId, decimal Quantity, decimal PlannedQty, decimal ProducedQty, decimal PendingQty, decimal MaxAllowedQty,
-    int NextSequence, string? NextLotNumber, DateOnly? NextLotExpiration, Shift? Shift,
+    bool ExceedsTolerance, int NextSequence, string? NextLotNumber, DateOnly? NextLotExpiration, Shift? Shift,
     IReadOnlyList<ClosePreviewLineDto> Lines, decimal EstimatedTotalCost, decimal EstimatedUnitCost);
 
 public sealed record ProductionCloseLotDto(Guid LotId, string LotNumber, DateOnly? ExpirationDate, decimal Quantity);
@@ -40,7 +40,7 @@ public sealed record ProductionCloseLineDto(
 public sealed record ProductionCloseDto(
     Guid Id, string Folio, Guid ProductionOrderId, string OrderFolio, int Sequence, ProductionCloseKind Kind, DateOnly BusinessDate,
     Shift? Shift, Guid OutputItemId, string Sku, string ItemName, string BaseUomCode, Guid? ProductionAreaId, string? ProductionAreaName,
-    decimal ProducedQty, Guid? OutputLotId, string? OutputLotNumber, DateOnly? OutputLotExpiration, decimal TotalCost, decimal UnitCost,
+    decimal ProducedQty, bool ExceedsTolerance, Guid? OutputLotId, string? OutputLotNumber, DateOnly? OutputLotExpiration, decimal TotalCost, decimal UnitCost,
     decimal WasteQty, decimal WasteCost, DateTimeOffset ClosedAt, Guid? ClosedBy, string? ClosedByName, string? Notes,
     IReadOnlyList<ProductionCloseLineDto> Lines);
 
@@ -60,7 +60,8 @@ public sealed record ProductionCloseListQuery : PageQuery
 public sealed record ProductionCloseListItemDto(
     Guid Id, string Folio, DateOnly BusinessDate, DateTimeOffset ClosedAt, Guid ProductionOrderId, string OrderFolio, Guid OutputItemId,
     string Sku, string ItemName, string BaseUomCode, Guid? ProductionAreaId, string? ProductionAreaName, Shift? Shift, ProductionCloseKind Kind,
-    int Sequence, decimal ProducedQty, string? OutputLotNumber, decimal TotalCost, decimal UnitCost, decimal WasteCost, string? ClosedByName);
+    int Sequence, decimal ProducedQty, bool ExceedsTolerance, string? OutputLotNumber, decimal TotalCost, decimal UnitCost, decimal WasteCost,
+    string? ClosedByName);
 
 public sealed class CreateProductionCloseRequestValidator : AbstractValidator<CreateProductionCloseRequest>
 {
@@ -147,7 +148,7 @@ public sealed class ProductionCloseService(
         var total = lines.Sum(l => l.EstimatedCost);
         var sequence = order.CloseCount + 1;
         return new ClosePreviewDto(order.Id, quantity, order.PlannedQty, order.ProducedQty, order.PendingQty, order.MaxAllowedQty(tolerance),
-            sequence, output.TracksLots ? order.LotNumberFor(sequence) : null,
+            order.ProducedQty + quantity > order.MaxAllowedQty(tolerance), sequence, output.TracksLots ? order.LotNumberFor(sequence) : null,
             output.TracksLots && output.ShelfLifeDays is { } days ? today.AddDays(days) : null, order.Shift,
             lines, total, quantity > 0 ? InventoryMath.Round(total / quantity) : 0);
     }
@@ -157,7 +158,7 @@ public sealed class ProductionCloseService(
         var order = await FindAsync(orderId, tracked: true, ct);
         db.EnsureVersion(order, request.Version);
         var tolerance = await db.GetSettingAsync(AppSettingKeys.OverrunTolerancePct, ct);
-        order.EnsureCanClose(request.Kind, request.ProducedQty, tolerance, request.ShortfallReason, request.ShortfallNotes);
+        var exceedsTolerance = order.EnsureCanClose(request.Kind, request.ProducedQty, tolerance, request.ShortfallReason, request.ShortfallNotes);
 
         var output = await (from i in db.Items join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                             where i.Id == order.OutputItemId select new { i.Sku, i.TracksLots, Uom = u.Code }).SingleAsync(ct);
@@ -202,7 +203,7 @@ public sealed class ProductionCloseService(
                 ProductionClose.DocType, closeId, ct)).Id;
 
         var close = new ProductionClose(closeId, folio, order, request.Kind, clock.BusinessDate(), request.Shift ?? order.Shift,
-            request.ProducedQty, outputLotId, closeLines, clock.UtcNow, currentUser.UserId, request.Notes);
+            request.ProducedQty, outputLotId, closeLines, clock.UtcNow, currentUser.UserId, request.Notes, exceedsTolerance);
 
         if (request.ProducedQty > 0)
             await posting.PostAsync([new MovementRequest(order.LocationId, order.OutputItemId, outputLotId, MovementType.ProductionOutput,
@@ -313,7 +314,7 @@ public sealed class ProductionCloseService(
             return new ProductionCloseListItemDto(x.Close.Id, x.Close.Folio, x.Close.BusinessDate, x.Close.ClosedAt, x.Order.Id, x.Order.Folio,
                 x.Order.OutputItemId, item.Sku, item.Name, item.Uom, x.Order.ProductionAreaId,
                 x.Order.ProductionAreaId is { } a ? names.Areas.GetValueOrDefault(a) : null, x.Close.Shift, x.Close.Kind, x.Close.Sequence,
-                x.Close.ProducedQty, x.Close.OutputLotId is { } lot ? names.Lots[lot].LotNumber : null, x.Close.TotalCost, x.Close.UnitCost,
+                x.Close.ProducedQty, x.Close.ExceedsTolerance, x.Close.OutputLotId is { } lot ? names.Lots[lot].LotNumber : null, x.Close.TotalCost, x.Close.UnitCost,
                 wasteCost.GetValueOrDefault(x.Close.Id), users.Of(x.Close.ClosedBy));
         }).ToList(), page.Page, page.PageSize, page.Total);
     }
@@ -344,7 +345,7 @@ public sealed class ProductionCloseService(
         var outputLot = close.OutputLotId is { } lotId ? names.Lots[lotId] : null;
         return new ProductionCloseDto(close.Id, close.Folio, order.Id, order.Folio, close.Sequence, close.Kind, close.BusinessDate, close.Shift,
             order.OutputItemId, item.Sku, item.Name, item.Uom, order.ProductionAreaId,
-            order.ProductionAreaId is { } a ? names.Areas.GetValueOrDefault(a) : null, close.ProducedQty, close.OutputLotId,
+            order.ProductionAreaId is { } a ? names.Areas.GetValueOrDefault(a) : null, close.ProducedQty, close.ExceedsTolerance, close.OutputLotId,
             outputLot?.LotNumber, outputLot?.ExpirationDate, close.TotalCost, close.UnitCost, close.WasteQty, close.WasteCost,
             close.ClosedAt, close.ClosedBy, users.Of(close.ClosedBy), close.Notes, lines);
     }

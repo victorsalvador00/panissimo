@@ -92,15 +92,16 @@ public class PurchaseOrderTests
     [Fact]
     public void Cancel_only_without_receipts_and_close_only_with_a_balance()
     {
-        Assert.Equal("invalid_purchase_order_status", Code(() => Approved().Close(Now, User)));
+        Assert.Equal("invalid_purchase_order_status", Code(() => Approved().Close("Sin saldo", Now, User)));
 
         var order = Approved(new PurchaseOrderLineInput(Guid.NewGuid(), 10, 1, 0, null), new PurchaseOrderLineInput(Guid.NewGuid(), 5, 1, 0, null));
         order.RegisterReceipt([new PurchaseReceiptQuantity(order.Lines[0].Id, 10)], 0);
         Assert.Equal(PurchaseOrderStatus.PartiallyReceived, order.Status);
         Assert.Equal("invalid_purchase_order_status", Code(order.Cancel));
 
-        order.Close(Now, User);
-        Assert.Equal((PurchaseOrderStatus.Closed, User), (order.Status, order.ClosedBy));
+        Assert.Equal("close_reason_required", Code(() => order.Close(" ", Now, User)));
+        order.Close("El proveedor no surte el saldo", Now, User);
+        Assert.Equal((PurchaseOrderStatus.Closed, User, "El proveedor no surte el saldo"), (order.Status, order.ClosedBy, order.CloseReason));
 
         var fresh = Approved();
         fresh.Cancel();

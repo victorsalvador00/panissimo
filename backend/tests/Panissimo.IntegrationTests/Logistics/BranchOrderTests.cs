@@ -140,7 +140,7 @@ public class BranchOrderTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Branches_order_bulk_goods_and_supplies_only_and_approvals_need_something()
+    public async Task Branches_order_finished_goods_and_supplies_only_and_approvals_need_something()
     {
         var admin = await factory.LoginAsAdminAsync();
         var packaged = await factory.CreateItemAsync("CONCHA-EMB", ItemType.FinishedGood, "pza", presentation: ItemPresentation.Packaged);
@@ -148,7 +148,10 @@ public class BranchOrderTests(ApiFactory factory)
         var bread = await factory.CreateItemAsync("BOLILLO", ItemType.FinishedGood, "pza");
         var branchId = await factory.LocationIdAsync("SUC-01");
 
-        foreach (var item in new[] { packaged, dough })
+        // D-05: packaged goods are orderable too.
+        Assert.Equal(HttpStatusCode.Created, (await admin.PostJsonAsync("/api/v1/branch-orders",
+            new CreateBranchOrderRequest(branchId, Tomorrow, null, [new BranchOrderLineRequest(packaged.Id, 10)]))).StatusCode);
+        foreach (var item in new[] { dough, await factory.CreateItemAsync("HAR") })
         {
             var response = await admin.PostJsonAsync("/api/v1/branch-orders",
                 new CreateBranchOrderRequest(branchId, Tomorrow, null, [new BranchOrderLineRequest(item.Id, 10)]));

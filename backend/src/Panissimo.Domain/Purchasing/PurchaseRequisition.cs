@@ -15,7 +15,8 @@ public enum RequisitionStatus
 
 /// <param name="Quantity">In purchase unit (RN-34).</param>
 /// <param name="SuggestedSupplierId">Resolved by the service: the preferred supplier when the user gives none.</param>
-public sealed record RequisitionLineInput(Guid ItemId, decimal Quantity, Guid? SuggestedSupplierId);
+/// <param name="Notes">Required on every line that repeats an item already in the requisition (RN-34).</param>
+public sealed record RequisitionLineInput(Guid ItemId, decimal Quantity, Guid? SuggestedSupplierId, string? Notes = null);
 
 /// <summary>
 /// Purchase requisition of the plant (dominio §4.7, RN-34): Draft → Submitted → Approved → Converted;
@@ -118,13 +119,15 @@ public class PurchaseRequisition : AuditableEntity, IVersioned
             throw new BusinessRuleException("requisition_without_lines", "La requisición debe tener al menos una línea.");
         if (lines.Any(l => l.Quantity <= 0 || InventoryMath.Round(l.Quantity) != l.Quantity))
             throw new BusinessRuleException("invalid_quantity", "Las cantidades deben ser mayores que cero, con máximo 4 decimales.");
-        if (lines.GroupBy(l => l.ItemId).Any(g => g.Count() > 1))
-            throw new BusinessRuleException("requisition_line_duplicated", "Hay artículos repetidos en la requisición.");
+        // RN-34: an item may repeat (e.g. with another supplier); each repetition explains why.
+        if (lines.GroupBy(l => l.ItemId).Any(g => g.Skip(1).Any(l => string.IsNullOrWhiteSpace(l.Notes))))
+            throw new BusinessRuleException("requisition_repeat_note_required",
+                "Un artículo repetido en la requisición necesita una nota en el renglón repetido que explique por qué (RN-34).");
 
         NeededBy = neededBy;
         Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
         _lines.Clear();
-        _lines.AddRange(lines.Select((l, i) => new PurchaseRequisitionLine(Id, i + 1, l.ItemId, l.Quantity, l.SuggestedSupplierId)));
+        _lines.AddRange(lines.Select((l, i) => new PurchaseRequisitionLine(Id, i + 1, l.ItemId, l.Quantity, l.SuggestedSupplierId, l.Notes)));
     }
 
     private static void EnsureNotPast(DateOnly neededBy, DateOnly today)
@@ -144,13 +147,14 @@ public class PurchaseRequisitionLine : Entity
 {
     private PurchaseRequisitionLine() { }
 
-    internal PurchaseRequisitionLine(Guid requisitionId, int lineNumber, Guid itemId, decimal quantity, Guid? suggestedSupplierId)
+    internal PurchaseRequisitionLine(Guid requisitionId, int lineNumber, Guid itemId, decimal quantity, Guid? suggestedSupplierId, string? notes)
     {
         RequisitionId = requisitionId;
         LineNumber = lineNumber;
         ItemId = itemId;
         Quantity = quantity;
         SuggestedSupplierId = suggestedSupplierId;
+        Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
     }
 
     public Guid RequisitionId { get; private set; }
@@ -164,4 +168,7 @@ public class PurchaseRequisitionLine : Entity
     public decimal Quantity { get; private set; }
 
     public Guid? SuggestedSupplierId { get; private set; }
+
+    /// <summary>Why the item repeats in the requisition (RN-34); optional otherwise.</summary>
+    public string? Notes { get; private set; }
 }

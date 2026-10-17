@@ -7,13 +7,13 @@
 
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
-- Pruebas en verde: 214 unitarias y 128 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddProductionOrderDemand` (B-20).
+- Pruebas en verde: 219 unitarias y 132 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `ApplyClientDecisions` (B-27).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente tarea: B-27** (retrabajo chico por decisiones), luego **B-26** (subalmacenes, grande) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
+**B-27 terminada.** **Siguiente tarea: B-26** (subalmacenes, grande) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
 
 **Después**
 - Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
@@ -24,7 +24,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-27 en `docs/specs/backend.md` §13 y las decisiones en `docs/specs/dominio.md` §8.
+4. Leer B-26 en `docs/specs/backend.md` §13 y D-01 en `docs/specs/dominio.md` §8.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -54,7 +54,7 @@
 | 4 | B-18 Clientes y pedidos de cliente | ✅ | (ver `git log`) |
 | 4 | B-19 Remisiones | ✅ | (ver `git log`) |
 | 4 | B-20 Plan de producción | ✅ | (ver `git log`) |
-| 4 | B-27 Retrabajo por decisiones | ⏳ | |
+| 4 | B-27 Retrabajo por decisiones | ✅ | (ver `git log`) |
 | 4 | B-26 Subalmacenes de la planta | ⏳ | |
 | 4 | B-21 Requerimiento de materia prima | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
@@ -261,6 +261,19 @@
 - `POST /production-plan/generate` (`production.orders.manage`, RN-71): una OP `Draft` por (producto, fecha, área, turno) con `Source = Plan` vía `CreateManyInTransactionAsync`; liga `ProductionOrderDemand` (`production.production_order_demand`, migración `AddProductionOrderDemand`) a las líneas de pedido indicadas o, si no se indican, a las pendientes del producto hasta esa fecha, repartiendo la cantidad por `RequiredDate`. Las OP padre nunca se ligan. Todo o nada (sin receta activa → 422; línea ajena → 400). RN-72: las ligas no reservan; el detalle de la OP muestra los pedidos que atiende (`demands`).
 - Sin paquetes nuevos.
 - Pruebas: 214 unitarias (+10 del calculador: cobertura acumulada, múltiplo, OP posterior no cubre días anteriores, demanda vencida, fuera de rango, piezas, reposición a stock, OP padre) y 128 de integración (+5: pedidos de sucursal y cliente + mín/máx → plan → generar → OP ligadas y plan cubierto; demanda de semiterminado por OP padre; todo o nada; alcance y permisos; rendimiento 300 productos, 7 días, 500 líneas y 300 OP < 1 s con `Category=Performance`).
+
+### B-27 (2026-10-17)
+
+- **D-03:** la tolerancia de sobreproducción ya no bloquea; `EnsureCanClose` devuelve si el cierre la excede y queda en `ProductionClose.ExceedsTolerance`; la vista previa, el cierre, la lista de cierres y la OP exponen `exceedsTolerance`.
+- **D-05:** `BranchOrderRules.IsOrderable` = `FinishedGood` (granel o empaquetado) o `Supply`; `CustomerRules.IsSellable` = `FinishedGood`. Semiterminados y materias primas siguen dando 422.
+- **D-07:** `Item.MatrixCode` opcional (mayúsculas, forma de SKU, único con índice parcial y nunca igual a otro SKU); en API, búsqueda y CSV de artículos (columna `codigo_matriz`; un archivo sin la columna conserva los códigos). La importación de OP acepta en `sku` el SKU o el código de la Matriz (el SKU gana si chocan); la plantilla lo indica.
+- **D-08:** `AdjustmentReason.CustomerReturn`: solo entradas; por línea `wasteQty` (≤ devuelto) y `wasteReason` (`Waste`, `Expired`, `Damaged`); la merma se registra después de la entrada, del mismo lote, como movimiento `Waste`.
+- **RN-32:** cerrar con saldo una OC exige motivo (`POST /purchase-orders/{id}/close` con `{ version, reason }`; `CloseReason` en el detalle).
+- **Cliente:** `PUT /customers/{id}` recibe `code` y lo cambia si sigue siendo único.
+- **RN-34:** la requisición acepta artículos repetidos; cada renglón repetido (después del primero) exige `notes`; la conversión hace una línea de OC por renglón.
+- Migración `ApplyClientDecisions` (columnas `exceeds_tolerance`, `matrix_code` + índice, `waste_qty`, `waste_reason`, `close_reason`, `notes` de línea de requisición). `dominio.md` §4 y §5 actualizados (RN-20, RN-32, RN-34, RN-63, RN-80, RN-90, ajustes, cliente, artículo).
+- Sin paquetes nuevos.
+- Pruebas: 219 unitarias (+5 netas: tolerancia marcada, artículos permitidos, devolución con merma, código de la Matriz) y 132 de integración (+4: importación por código de la Matriz, devolución con merma en kardex, código de cliente editable, requisición con artículo repetido y nota; ajustadas las que esperaban el bloqueo de tolerancia y las restricciones de presentación).
 
 ## Pendientes y decisiones abiertas
 

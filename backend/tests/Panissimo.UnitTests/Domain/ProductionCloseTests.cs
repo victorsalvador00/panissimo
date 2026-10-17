@@ -31,18 +31,10 @@ public class ProductionCloseTests
         Assert.Equal(["OP-000123-01", "OP-000123-12"], new[] { 1, 12 }.Select(Released().LotNumberFor));
 
     [Theory]
-    [InlineData(1100, true)]   // exactly planned + 10 %
-    [InlineData(1100.0001, false)]
-    public void Overrun_tolerance_is_checked_at_the_limit_and_one_above(decimal total, bool allowed)
-    {
-        var order = Released();
-        var check = () => order.EnsureCanClose(ProductionCloseKind.Partial, total, 10, null, null);
-
-        if (allowed)
-            check();
-        else
-            Assert.Equal("production_overrun", Assert.Throws<BusinessRuleException>(check).Code);
-    }
+    [InlineData(1100, false)]   // exactly planned + 10 %
+    [InlineData(1100.0001, true)]
+    public void Overrun_beyond_the_tolerance_is_allowed_and_flagged(decimal total, bool exceeds) =>
+        Assert.Equal(exceeds, Released().EnsureCanClose(ProductionCloseKind.Partial, total, 10, null, null));
 
     [Fact]
     public void Overrun_counts_previous_closes()
@@ -50,9 +42,9 @@ public class ProductionCloseTests
         var order = Released();
         order.RegisterClose(Close(order, ProductionCloseKind.Partial, 800, 40), null, null);
 
-        Assert.Equal("production_overrun", Assert.Throws<BusinessRuleException>(() =>
-            order.EnsureCanClose(ProductionCloseKind.Final, 301, 10, null, null)).Code);
-        order.EnsureCanClose(ProductionCloseKind.Final, 300, 10, null, null);
+        Assert.True(order.EnsureCanClose(ProductionCloseKind.Final, 301, 10, null, null));
+        Assert.False(order.EnsureCanClose(ProductionCloseKind.Final, 300, 10, null, null));
+        Assert.False(order.ExceedsTolerance(10));
     }
 
     [Fact]

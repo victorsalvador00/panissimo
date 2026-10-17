@@ -46,4 +46,36 @@ public class InventoryAdjustmentTests
         Assert.Equal([3m, -2m], requests.Select(r => r.Quantity));
         Assert.Equal(AdjustmentStatus.Posted, adjustment.Status);
     }
+
+    [Fact]
+    public void A_customer_return_only_enters_and_its_waste_part_leaves_afterwards()
+    {
+        var item = Guid.NewGuid();
+        var lot = Guid.NewGuid();
+        var adjustment = Create(AdjustmentReason.CustomerReturn,
+            new AdjustmentLineInput(item, lot, 12, null, "RM-000010", 5, AdjustmentReason.Damaged), Line(3));
+
+        var entries = adjustment.ToMovementRequests().ToList();
+        Assert.Equal([12m, 3m], entries.Select(m => m.Quantity));
+        Assert.All(entries, m => Assert.Equal(MovementType.Adjustment, m.Type));
+
+        var waste = adjustment.WasteMovementRequests().Single();
+        Assert.Equal((MovementType.Waste, -5m, lot, item), (waste.Type, waste.Quantity, waste.LotId, waste.ItemId));
+        Assert.Contains("dañado", waste.Notes);
+
+        Assert.Equal("adjustment_sign", Assert.Throws<BusinessRuleException>(() => Create(AdjustmentReason.CustomerReturn, Line(-1))).Code);
+    }
+
+    [Theory]
+    [InlineData(0, AdjustmentReason.Waste, "invalid_waste_quantity")]
+    [InlineData(13, AdjustmentReason.Waste, "invalid_waste_quantity")]   // more than returned
+    [InlineData(2, AdjustmentReason.Correction, "waste_reason_required")]
+    public void The_waste_part_is_within_the_return_and_has_a_waste_reason(decimal waste, AdjustmentReason reason, string code) =>
+        Assert.Equal(code, Assert.Throws<BusinessRuleException>(() => Create(AdjustmentReason.CustomerReturn,
+            new AdjustmentLineInput(Guid.NewGuid(), null, 12, null, null, waste, reason))).Code);
+
+    [Fact]
+    public void Only_a_customer_return_has_a_waste_part() =>
+        Assert.Equal("adjustment_waste_not_allowed", Assert.Throws<BusinessRuleException>(() => Create(AdjustmentReason.Correction,
+            new AdjustmentLineInput(Guid.NewGuid(), null, 12, null, null, 2, AdjustmentReason.Waste))).Code);
 }

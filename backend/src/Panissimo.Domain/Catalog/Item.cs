@@ -43,7 +43,8 @@ public sealed record ItemDefinition(
     int? UnitsPerPackage = null,
     Guid? ProductionAreaId = null,
     decimal? ProductionMultiple = null,
-    decimal? UnitWeightGrams = null);
+    decimal? UnitWeightGrams = null,
+    string? MatrixCode = null);
 
 /// <summary>Field-level rules of an item (dominio §4.2). Referential checks live in the service.</summary>
 public static partial class ItemRules
@@ -56,6 +57,9 @@ public static partial class ItemRules
     private static partial Regex SkuPattern();
 
     public static string NormalizeSku(string sku) => sku.Trim().ToUpperInvariant();
+
+    /// <summary>D-07: blank is no code; otherwise upper case like a SKU.</summary>
+    public static string? NormalizeMatrixCode(string? code) => string.IsNullOrWhiteSpace(code) ? null : NormalizeSku(code);
 
     /// <summary>Produced with a production order and may have a default area.</summary>
     public static bool IsProduced(ItemType type) => type is ItemType.SemiFinished or ItemType.FinishedGood;
@@ -72,6 +76,14 @@ public static partial class ItemRules
             errors.Add(("sku", $"El SKU admite máximo {SkuMaxLength} caracteres."));
         else if (!SkuPattern().IsMatch(sku))
             errors.Add(("sku", "El SKU solo admite letras, números, punto, guion y guion bajo, sin espacios."));
+
+        if (NormalizeMatrixCode(item.MatrixCode) is { } matrixCode)
+        {
+            if (matrixCode.Length > SkuMaxLength)
+                errors.Add(("matrixCode", $"El código de la Matriz admite máximo {SkuMaxLength} caracteres."));
+            else if (!SkuPattern().IsMatch(matrixCode))
+                errors.Add(("matrixCode", "El código de la Matriz solo admite letras, números, punto, guion y guion bajo, sin espacios."));
+        }
 
         var name = item.Name?.Trim() ?? "";
         if (name.Length == 0)
@@ -140,6 +152,10 @@ public class Item : AuditableEntity, IVersioned
     }
 
     public string Sku { get; private set; } = null!;
+
+    /// <summary>D-07: the item's code in the client's Matriz Maestra (e.g. SKU0001); the OP import accepts it as SKU.</summary>
+    public string? MatrixCode { get; private set; }
+
     public string Name { get; private set; } = null!;
     public ItemType Type { get; private set; }
     public Guid CategoryId { get; private set; }
@@ -187,6 +203,7 @@ public class Item : AuditableEntity, IVersioned
             throw new BusinessRuleException("invalid_item", errors[0].Message);
 
         Sku = ItemRules.NormalizeSku(d.Sku);
+        MatrixCode = ItemRules.NormalizeMatrixCode(d.MatrixCode);
         Name = d.Name.Trim();
         Type = d.Type;
         CategoryId = d.CategoryId;

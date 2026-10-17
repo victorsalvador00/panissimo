@@ -67,13 +67,14 @@ public sealed class PurchaseOrdersController(IPurchaseOrderService orders) : Con
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public Task<PurchaseOrderDto> Cancel(Guid id, VersionRequest request, CancellationToken ct) => orders.CancelAsync(id, request.Version, ct);
 
-    /// <summary>Cierra con saldo una OC parcialmente recibida.</summary>
+    /// <summary>Cierra con saldo una OC parcialmente recibida. El motivo es obligatorio.</summary>
     [HttpPost("{id:guid}/close")]
     [RequirePermission(Permissions.PurchasingPoManage)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
-    public Task<PurchaseOrderDto> Close(Guid id, VersionRequest request, CancellationToken ct) => orders.CloseAsync(id, request.Version, ct);
+    public Task<PurchaseOrderDto> Close(Guid id, ClosePurchaseOrderRequest request, CancellationToken ct) => orders.CloseAsync(id, request, ct);
 
     [HttpPost("{id:guid}/approve")]
     [RequirePermission(Permissions.PurchasingPoApprove)]

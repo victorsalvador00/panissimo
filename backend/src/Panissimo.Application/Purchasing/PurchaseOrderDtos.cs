@@ -19,6 +19,8 @@ public sealed record UpdatePurchaseOrderRequest(
 
 public sealed record RejectPurchaseOrderRequest(uint Version, string Reason);
 
+public sealed record ClosePurchaseOrderRequest(uint Version, string Reason);
+
 /// <summary>Tabs of the purchase orders screen (frontend: Todas, Por aprobar, Por recibir).</summary>
 public enum PurchaseOrderTab
 {
@@ -114,6 +116,7 @@ public sealed record PurchaseOrderDto(
     string? RejectionReason,
     DateTimeOffset? ClosedAt,
     string? ClosedByName,
+    string? CloseReason,
     IReadOnlyList<PurchaseOrderReceiptSummaryDto> Receipts,
     DateTimeOffset CreatedAt,
     string? CreatedByName,
@@ -158,6 +161,11 @@ public sealed class UpdatePurchaseOrderRequestValidator : AbstractValidator<Upda
             .WithMessage("Hay líneas repetidas.");
         RuleForEach(x => x.Lines).SetValidator(new PurchaseOrderLineRequestValidator());
     }
+}
+
+public sealed class ClosePurchaseOrderRequestValidator : AbstractValidator<ClosePurchaseOrderRequest>
+{
+    public ClosePurchaseOrderRequestValidator() => RuleFor(x => x.Reason).NotEmpty().MaximumLength(500).WithName("Motivo");
 }
 
 public sealed class RejectPurchaseOrderRequestValidator : AbstractValidator<RejectPurchaseOrderRequest>

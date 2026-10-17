@@ -12,8 +12,11 @@ namespace Panissimo.Application.Inventory;
 /// For lot items: an existing <paramref name="LotId"/>, or <paramref name="LotNumber"/> (+ optional expiration) —
 /// created on entries, looked up on exits. Without either, exits follow FEFO.
 /// </summary>
+/// <param name="WasteQty">D-08, customer returns only: part of the returned quantity that goes straight to waste.</param>
+/// <param name="WasteReason">Waste, Expired or Damaged; required with <paramref name="WasteQty"/>.</param>
 public sealed record AdjustmentLineRequest(
-    Guid ItemId, Guid? LotId, string? LotNumber, DateOnly? ExpirationDate, decimal Quantity, decimal? UnitCost, string? Notes);
+    Guid ItemId, Guid? LotId, string? LotNumber, DateOnly? ExpirationDate, decimal Quantity, decimal? UnitCost, string? Notes,
+    decimal? WasteQty = null, AdjustmentReason? WasteReason = null);
 
 public sealed record CreateAdjustmentRequest(Guid LocationId, AdjustmentReason Reason, string? Notes, IReadOnlyList<AdjustmentLineRequest> Lines);
 
@@ -30,7 +33,7 @@ public sealed record AdjustmentListItemDto(
     int LineCount, decimal TotalCost, DateTimeOffset CreatedAt, Guid? CreatedBy, string? CreatedByName);
 
 public sealed record AdjustmentLineDto(Guid Id, Guid ItemId, string Sku, string ItemName, Guid? LotId, string? LotNumber, decimal Quantity,
-    decimal? UnitCost, string? Notes);
+    decimal? UnitCost, string? Notes, decimal? WasteQty, AdjustmentReason? WasteReason);
 
 /// <summary>What was actually posted: a lot exit without lot is split by FEFO across several lots.</summary>
 public sealed record PostedMovementDto(Guid ItemId, string Sku, Guid? LotId, string? LotNumber, DateOnly? ExpirationDate,
@@ -59,7 +62,15 @@ public sealed class CreateAdjustmentRequestValidator : AbstractValidator<CreateA
             line.RuleFor(l => l.LotId).Null().When(l => !string.IsNullOrWhiteSpace(l.LotNumber))
                 .WithMessage("Indica el lote por identificador o por número, no ambos.");
             line.RuleFor(l => l.Notes).MaximumLength(500).WithName("Notas");
+            line.RuleFor(l => l.WasteQty).GreaterThan(0).LessThanOrEqualTo(l => l.Quantity).When(l => l.WasteQty is not null)
+                .WithName("Merma");
+            line.RuleFor(l => l.WasteReason).NotNull().Must(r => r!.Value.IsWaste()).When(l => l.WasteQty is not null)
+                .WithMessage("Indica el motivo de la merma: merma, caducado o dañado.");
         });
+        RuleFor(x => x).Must(x => x.Reason == AdjustmentReason.CustomerReturn || x.Lines?.All(l => l.WasteQty is null) != false)
+            .WithName("lines").WithMessage("Solo una devolución de cliente separa una parte como merma.");
+        RuleFor(x => x).Must(x => !x.Reason.OnlyEntries() || x.Lines?.All(l => l.Quantity > 0) != false)
+            .WithName("lines").WithMessage("Una devolución de cliente solo registra entradas.");
         RuleFor(x => x).Must(x => x.Reason.AllowsEntries() || x.Lines?.All(l => l.Quantity < 0) != false)
             .WithName("lines").WithMessage("Solo los ajustes por corrección admiten cantidades positivas.");
     }
@@ -168,7 +179,7 @@ public sealed class AdjustmentService(
                                 .Select(l => (Guid?)l.Id).SingleOrDefaultAsync(ct)
                             ?? throw new BusinessRuleException("lot_not_found", $"El lote {line.LotNumber.Trim()} no existe para ese artículo.");
             }
-            lines.Add(new AdjustmentLineInput(line.ItemId, lotId, line.Quantity, line.UnitCost, line.Notes));
+            lines.Add(new AdjustmentLineInput(line.ItemId, lotId, line.Quantity, line.UnitCost, line.Notes, line.WasteQty, line.WasteReason));
         }
 
         var folio = await folios.NextAsync(DocType.Adjustment, ct);
@@ -176,6 +187,9 @@ public sealed class AdjustmentService(
         db.InventoryAdjustments.Add(adjustment);
 
         await posting.PostAsync(adjustment.ToMovementRequests(), ct);
+        // D-08: the waste part leaves after the return entered, so it can take from the same lot.
+        if (adjustment.WasteMovementRequests() is { Count: > 0 } waste)
+            await posting.PostAsync(waste, ct);
         return adjustment;
     }
 
@@ -197,7 +211,7 @@ public sealed class AdjustmentService(
 
         return new AdjustmentDto(a.Id, a.Folio, a.LocationId, location, a.Reason, a.Status, a.Notes,
             a.Lines.Select(l => new AdjustmentLineDto(l.Id, l.ItemId, items[l.ItemId].Sku, items[l.ItemId].Name, l.LotId, LotNumber(l.LotId),
-                l.Quantity, l.UnitCost, l.Notes)).ToList(),
+                l.Quantity, l.UnitCost, l.Notes, l.WasteQty, l.WasteReason)).ToList(),
             movements.Select(m => new PostedMovementDto(m.ItemId, items[m.ItemId].Sku, m.LotId, LotNumber(m.LotId), Expiration(m.LotId),
                 m.Quantity, m.UnitCost, m.TotalCost)).ToList(),
             movements.Sum(m => m.TotalCost), a.CreatedAt, a.CreatedBy, users.Of(a.CreatedBy), a.Version);

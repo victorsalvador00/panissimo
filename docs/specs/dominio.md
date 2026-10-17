@@ -128,7 +128,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 **ItemCategory**: `Name` (único), `IsActive`.
 
 **Item**
-- `Sku` (único, se guarda en mayúsculas), `Name`, `Type` (`RawMaterial | Supply | SemiFinished | FinishedGood`), `CategoryId`.
+- `Sku` (único, se guarda en mayúsculas), `MatrixCode` (opcional: código del artículo en la Matriz Maestra, ej. `SKU0001`; único y distinto de cualquier SKU, D-07), `Name`, `Type` (`RawMaterial | Supply | SemiFinished | FinishedGood`), `CategoryId`.
 - `BaseUomId`: unidad en la que se lleva el inventario.
 - `PurchaseUomId` (opcional) + `PurchaseToBaseFactor` (> 0; ej. bulto → 44 kg). Si no hay unidad de compra, el factor es 1.
 - `TracksLots` (bool), `ShelfLifeDays` (opcional, ≥ 0), `StorageCondition` (`Ambient | Refrigerated | Frozen`).
@@ -168,7 +168,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 **InventoryAdjustment**
 - Encabezado: `Folio`, `LocationId`, `Reason`, `Status` (`Posted`), `Notes`.
-- `Reason`: `Correction` (entrada o salida, movimiento `Adjustment`), `Waste`, `Expired` y `Damaged` (solo salidas, movimiento `Waste`), `InternalUse` (solo salida, movimiento `Adjustment`).
+- `Reason`: `Correction` (entrada o salida, movimiento `Adjustment`), `Waste`, `Expired` y `Damaged` (solo salidas, movimiento `Waste`), `InternalUse` (solo salida, movimiento `Adjustment`), `CustomerReturn` (devolución o rechazo de cliente: solo entradas, movimiento `Adjustment`; por línea, `WasteQty` opcional ≤ lo devuelto con `WasteReason` `Waste | Expired | Damaged`, que sale enseguida del mismo lote como `Waste`, D-08).
 - Líneas: `ItemId`, `LotId`, `Quantity` (con signo), `UnitCost` (solo en entradas de corrección), `LotNumber` y `ExpirationDate` (solo en entradas de artículos con lotes), `Notes`.
 - Un ajuste no se cancela; se corrige con otro ajuste.
 
@@ -215,11 +215,11 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 ### 4.6 Ventas a terceros
 
-**Customer**: `Code` (único, ej. `CLI-001`), `Name`, `TaxId` (RFC, opcional; mismas reglas que el proveedor), `ContactName`, `Phone`, `Email`, `Notes`, `IsActive`.
+**Customer**: `Code` (único, ej. `CLI-001`; editable mientras siga siendo único), `Name`, `TaxId` (RFC, opcional; mismas reglas que el proveedor), `ContactName`, `Phone`, `Email`, `Notes`, `IsActive`.
 
 **CustomerDeliveryPoint**: `CustomerId`, `Name`, `Address`, `IsActive`.
 
-**CustomerItem** (opcional, D-06): `CustomerId`, `ItemId` (`Packaged`), `CustomerSku`, `Price` (sin IVA, informativo), `IsActive`. Único por `(CustomerId, ItemId)`.
+**CustomerItem** (opcional, D-06): `CustomerId`, `ItemId` (`FinishedGood`, granel o empaquetado, D-05), `CustomerSku`, `Price` (sin IVA, informativo), `IsActive`. Único por `(CustomerId, ItemId)`.
 
 **CustomerOrder** (pedido de cliente)
 - Encabezado: `Folio` (`PC-…`), `CustomerId`, `DeliveryPointId` (opcional), `SupplyingLocationId` (Plant), `RequiredDate`, `CustomerReference` (orden de compra del cliente, opcional), `CloseReason`, `Notes`.
@@ -323,7 +323,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - **RN-63 (cierre final)**: solo en `Released` o `InProgress`. Captura lo producido en el último tramo (`ProducedQty ≥ 0`) con la misma transacción de RN-61, y además:
   - Si la OP no tiene cierres previos, `ProducedQty` debe ser > 0 (una OP sin producción se cancela, no se cierra).
   - Si el total producido es menor que `PlannedQty`, se requiere `ShortfallReason` (y `ShortfallNotes` si es `Other`).
-  - El total producido no puede superar `PlannedQty × (1 + production.overrun_tolerance_pct / 100)`. La misma validación aplica a cada cierre parcial (D-03).
+  - El total producido puede superar `PlannedQty × (1 + production.overrun_tolerance_pct / 100)`: la tolerancia es **informativa** (D-03). El cierre que deja el total arriba de ella se guarda con `ExceedsTolerance` y la OP lo muestra.
   - La OP pasa a `Completed`. Un cierre final con `ProducedQty = 0` no mueve inventario.
 - **RN-64 (costos del cierre)**: `TotalCost` = Σ (consumo real × costo promedio vigente del componente en la Planta, RN-04). `UnitCost` = `TotalCost / ProducedQty`. La entrada del producto se registra a ese costo. La OP acumula `TotalCost` y calcula su `UnitCost` promedio.
 - **RN-65 (sin reversa)**: un cierre registrado no se edita ni se cancela; se corrige con un ajuste de inventario.
@@ -353,7 +353,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   | Columna | Obligatoria | Regla |
   |---|---|---|
   | `fecha` | Sí | Fecha programada (celda de fecha o texto `dd/mm/aaaa`). No pasada |
-  | `sku` | Sí | Artículo activo `SemiFinished` o `FinishedGood` con receta activa |
+  | `sku` | Sí | SKU del sistema o `MatrixCode` (D-07) de un artículo activo `SemiFinished` o `FinishedGood` con receta activa |
   | `cantidad` | Sí | > 0, hasta 4 decimales (entero si es `pza`) |
   | `area` | No | Código o nombre de un área activa. Vacío = área del artículo |
   | `turno` | No | `Día`, `Tarde` o `Noche`. Vacío = sin turno |
@@ -371,7 +371,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 - **RN-20 (pedido de sucursal)**:
   - Solo sucursales piden, siempre a la Planta. Fecha requerida no pasada; cantidades en unidad base.
-  - Se piden `FinishedGood` a granel y `Supply`; no `Packaged` ni `SemiFinished` (D-05).
+  - Se piden `FinishedGood` (granel o empaquetado) y `Supply`; no `SemiFinished` ni `RawMaterial` (D-05).
   - La sucursal lo crea en `Draft` y lo envía (`Submitted`). La Planta lo aprueba ajustando `ApprovedQty` (0 a lo solicitado; todo en 0 no se permite: se rechaza con motivo).
   - Aprobar crea **un** traspaso en `Draft` ligado, con las líneas aprobadas (> 0). No se reserva existencia.
   - La Planta puede editar ese traspaso antes de despacharlo, sin cambiar el destino, sin artículos ajenos al pedido y sin pasar de lo aprobado. Cancelar ese traspaso **cancela el pedido**.
@@ -389,7 +389,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 - **RN-80 (pedido de cliente)**:
   - Se captura en `Draft` con cliente activo, punto de entrega opcional (del mismo cliente y activo), fecha requerida no pasada y al menos una línea.
-  - Solo `FinishedGood` activos con `Presentation = Packaged`, sin repetir (D-05).
+  - Solo `FinishedGood` activos (granel o empaquetado), sin repetir (D-05).
   - **Confirmar** (`Draft → Confirmed`) lo vuelve demanda del plan. Un pedido confirmado no se edita; si cambia, se cancela y se captura otro.
   - Cancelar: en `Draft` o `Confirmed` sin nada remisionado.
 - **RN-81 (remisión)**:
@@ -407,11 +407,11 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   - Se permite recepción parcial y una línea puede recibirse en varios lotes.
   - La sobre-recepción se permite hasta `purchasing.receipt_tolerance_pct`.
   - La OC pasa a `Received` cuando todas sus líneas están completas.
-  - Una OC con saldo se cierra manualmente (`Closed`, solo desde `PartiallyReceived`).
+  - Una OC con saldo se cierra manualmente con **motivo** (`Closed`, `CloseReason`, solo desde `PartiallyReceived`).
   - Una OC se cancela solo en `Draft`, `PendingApproval` o `Approved` sin nada recibido.
 - **RN-33**: la recepción registra `PurchaseReceipt` con costo base = `UnitPrice / PurchaseToBaseFactor` (sin IVA). Solo se reciben OC `Approved` o `PartiallyReceived`. Entrega solo en la Planta.
 - **RN-34 (requisiciones)**:
-  - Solo la Planta; `NeededBy` no pasada; cantidades en unidad de compra.
+  - Solo la Planta; `NeededBy` no pasada; cantidades en unidad de compra. Un artículo puede repetirse (ej. con otro proveedor); cada renglón repetido lleva una **nota** que explica por qué.
   - Una línea sin proveedor toma el **preferido**; un proveedor indicado debe estar activo y vender el artículo. Enviar exige proveedor en todas las líneas.
   - Aprobar y rechazar requieren `purchasing.po.approve`; rechazar pide motivo. Cancelar en `Draft`, `Submitted` o `Approved`.
   - **Conversión a OC**: las requisiciones aprobadas se agrupan por **proveedor + ubicación de entrega**; una línea de OC por línea de requisición (conserva `RequisitionLineId`); precio del catálogo; IVA del artículo; fecha esperada = la `NeededBy` más próxima; OC en `Draft`. Todo o nada.

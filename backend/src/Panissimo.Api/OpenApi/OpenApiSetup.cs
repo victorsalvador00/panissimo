@@ -183,6 +183,13 @@ public static class OpenApiSetup
                            "lots": [ { "lotId": "0199a1b2-0000-7000-8000-0000000000f1", "qty": 60 },
                                      { "lotId": "0199a1b2-0000-7000-8000-0000000000f2", "qty": 36 } ] } ] }
             """,
+        [typeof(GenerateProductionPlanRequest)] = """
+            { "locationId": "0199a1b2-0000-7000-8000-0000000000a1",
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "date": "2026-10-18", "areaId": null, "shift": "Night",
+                           "quantity": 1200, "demandLineIds": null },
+                         { "itemId": "0199a1b2-0000-7000-8000-0000000000d3", "date": "2026-10-18", "areaId": null, "shift": null,
+                           "quantity": 96, "demandLineIds": ["0199a1b2-0000-7000-8000-0000000000c7"] } ] }
+            """,
         [typeof(CreateSupplierRequest)] = """
             { "taxId": "HAM980312AB5", "name": "Harinera del Bajío S.A. de C.V.", "contactName": "Jorge Ríos",
               "phone": "477 123 4567", "email": "ventas@harinerabajio.mx", "paymentTermsDays": 30 }

@@ -129,3 +129,15 @@ internal sealed class ProductionCloseLineLotConfiguration : IEntityTypeConfigura
         builder.HasOne<Lot>().WithMany().HasForeignKey(x => x.LotId).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+internal sealed class ProductionOrderDemandConfiguration : IEntityTypeConfiguration<ProductionOrderDemand>
+{
+    public void Configure(EntityTypeBuilder<ProductionOrderDemand> builder)
+    {
+        builder.ToTable("production_order_demand", "production");
+        builder.Property(d => d.DemandType).HasMaxLength(30);
+        builder.HasIndex(d => d.ProductionOrderId);
+        builder.HasIndex(d => new { d.DemandType, d.DemandLineId });
+        builder.HasOne<ProductionOrder>().WithMany().HasForeignKey(d => d.ProductionOrderId).OnDelete(DeleteBehavior.Cascade);
+    }
+}

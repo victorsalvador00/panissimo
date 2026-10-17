@@ -107,6 +107,10 @@ public static class DependencyInjection
         services.AddScoped<IProductionCloseService, ProductionCloseService>();
         services.AddSingleton<IExcelOrderReader, ClosedXmlOrderReader>();
         services.AddScoped<IProductionOrderImportService, ProductionOrderImportService>();
+        services.AddScoped<IDemandSource, BranchOrderDemandSource>();
+        services.AddScoped<IDemandSource, CustomerOrderDemandSource>();
+        services.AddScoped<IDemandSource, ParentOrderDemandSource>();
+        services.AddScoped<IProductionPlanService, ProductionPlanService>();
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IRequisitionService, RequisitionService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();

@@ -6,15 +6,15 @@
 ## ▶ Retomar aquí (estado al 2026-10-17)
 
 **Dónde quedamos**
-- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-19 terminadas.
-- Pruebas en verde: 204 unitarias y 123 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddCustomerShipments` (B-19).
+- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
+- Pruebas en verde: 214 unitarias y 128 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddProductionOrderDemand` (B-20).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
-**Siguiente tarea: B-20** (fase 4): plan de producción (backend §6, RN-70, RN-71) con las tres fuentes de demanda (`IDemandSource`: pedidos de sucursal, pedidos de cliente, OP padre), generación de OP con `ProductionOrderService.CreateManyInTransactionAsync` y `ProductionOrderDemand`. Meta de rendimiento < 1 s.
+**Siguiente tarea: B-21** (cierra la fase 4): requerimiento de materia prima (RN-50) y `POST /requisitions/suggested` (pendiente de B-15). Reutilizar `IDemandSource` y `ProductionPlanCalculator` donde aplique; semiterminado "por producir" (D-04).
 
 **Después**
-- Fase 4: B-20 plan de producción (reutilizar `ProductionOrderService.CreateManyInTransactionAsync`), B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
+- Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
 - Frontend F-01..F-24: ya puede empezar (el backend va una fase adelante). Opción pendiente de elegir con el usuario: seguir con compras o arrancar F-01.
 
@@ -22,7 +22,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-20 en `docs/specs/backend.md` §13 y §6, y RN-70..RN-71 en `docs/specs/dominio.md`.
+4. Leer B-21 en `docs/specs/backend.md` §13 y RN-50 en `docs/specs/dominio.md`.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -51,7 +51,8 @@
 | 4 | B-17 Pedidos de sucursal | ✅ | (ver `git log`) |
 | 4 | B-18 Clientes y pedidos de cliente | ✅ | (ver `git log`) |
 | 4 | B-19 Remisiones | ✅ | (ver `git log`) |
-| 4 | B-20..B-21 Plan, requerimiento | ⏳ | |
+| 4 | B-20 Plan de producción | ✅ | (ver `git log`) |
+| 4 | B-21 Requerimiento de materia prima | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 
 ## Frontend
@@ -246,6 +247,16 @@
 - Endpoints `/customer-shipments` (pestaña `tab=ToDispatch`, status, customerId, customerOrderId, from/to, q), detalle con saldo, máximo, lotes, costo y quién recibe; `dispatch`, `cancel`. Permisos `sales.view` y `sales.shipments.dispatch`. RN-83: documento de entrega, sin factura ni cuenta por cobrar.
 - Sin paquetes nuevos.
 - Pruebas: 204 unitarias (+6: avance del pedido, tolerancia, borrador y líneas en cero, lotes elegidos, cancelación) y 123 de integración (+6: pedido → remisión parcial FEFO → lote vencido rechazado → final → `Shipped` con kardex y lotes; tolerancia; cierre con saldo; despachos simultáneos; sin existencia y cancelación; permisos de Almacén y Ventas).
+
+### B-20 (2026-10-17)
+
+- `ProductionPlanCalculator` (dominio, puro): neto acumulado por producto y día (RN-70). La existencia cubre primero los días más próximos; una OP abierta cubre desde su `ScheduledDate` (las anteriores al rango desde el primer día, las posteriores nunca); lo sugerido cuenta como cubierto para los días siguientes; redondeo hacia arriba al `ProductionMultiple` y a entero en `pza`. Demanda vencida (fecha anterior al rango) cuenta el primer día.
+- **Reposición a stock (interpretación):** si la existencia proyectada al final del rango (después de pedidos y sugeridos) queda debajo de `MinQty`, el primer día se reserva `MaxQty` como stock objetivo (`stockReplenishment = MaxQty`), de modo que el plan termina con el máximo en existencia. Ej.: existencia 30, pedido 25, mín 10, máx 50 → por producir 20 + 25 → termina con 50.
+- `IDemandSource` ×3 (backend §6): `BranchOrderDemandSource` (`Submitted` solicitado; `Approved` aprobado − despachado), `CustomerOrderDemandSource` (`Confirmed`/`PartiallyShipped` cantidad − remisionado), `ParentOrderDemandSource` (semiterminados: RN-11 sobre lo pendiente de OP abiertas, proporcional a `TheoreticalQty`). Consultas agregadas y cálculo en memoria; existencia utilizable sin vencidos.
+- `GET /production-plan?locationId&from&to&areaId&q` (`production.view`; solo la Planta; desde hoy, 1–31 días; por omisión hoy + `production.plan_default_days`): renglones por (producto, día) con demanda desglosada, existencia al inicio del día, OP pendientes, por producir, receta activa y líneas de pedido origen. Orden fecha, área, SKU.
+- `POST /production-plan/generate` (`production.orders.manage`, RN-71): una OP `Draft` por (producto, fecha, área, turno) con `Source = Plan` vía `CreateManyInTransactionAsync`; liga `ProductionOrderDemand` (`production.production_order_demand`, migración `AddProductionOrderDemand`) a las líneas de pedido indicadas o, si no se indican, a las pendientes del producto hasta esa fecha, repartiendo la cantidad por `RequiredDate`. Las OP padre nunca se ligan. Todo o nada (sin receta activa → 422; línea ajena → 400). RN-72: las ligas no reservan; el detalle de la OP muestra los pedidos que atiende (`demands`).
+- Sin paquetes nuevos.
+- Pruebas: 214 unitarias (+10 del calculador: cobertura acumulada, múltiplo, OP posterior no cubre días anteriores, demanda vencida, fuera de rango, piezas, reposición a stock, OP padre) y 128 de integración (+5: pedidos de sucursal y cliente + mín/máx → plan → generar → OP ligadas y plan cubierto; demanda de semiterminado por OP padre; todo o nada; alcance y permisos; rendimiento 300 productos, 7 días, 500 líneas y 300 OP < 1 s con `Category=Performance`).
 
 ## Pendientes y decisiones abiertas
 

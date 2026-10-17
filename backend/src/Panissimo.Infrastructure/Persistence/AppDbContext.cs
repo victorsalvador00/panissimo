@@ -38,6 +38,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ProductionOrder> ProductionOrders => Set<ProductionOrder>();
     public DbSet<ProductionOrderImport> ProductionOrderImports => Set<ProductionOrderImport>();
     public DbSet<ProductionClose> ProductionCloses => Set<ProductionClose>();
+    public DbSet<ProductionOrderDemand> ProductionOrderDemands => Set<ProductionOrderDemand>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<SupplierItem> SupplierItems => Set<SupplierItem>();
     public DbSet<PurchaseRequisition> PurchaseRequisitions => Set<PurchaseRequisition>();

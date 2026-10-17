@@ -53,6 +53,10 @@ public sealed record ProductionOrderLineDto(
     Guid Id, Guid ComponentItemId, string Sku, string Name, ItemType Type, string BaseUomCode, bool HasRecipe,
     decimal TheoreticalQty, decimal ActualQty, decimal? Available, decimal? Shortage);
 
+/// <summary>An order line the OP serves (RN-72, informative).</summary>
+public sealed record ProductionOrderDemandDto(DemandType DemandType, Guid DemandLineId, Guid DocumentId, string Folio, string PartyName,
+    DateOnly RequiredDate, decimal Quantity);
+
 public sealed record ProductionOrderDto(
     Guid Id, string Folio, Guid LocationId, string LocationCode, Guid RecipeId, int RecipeVersion, Guid OutputItemId, string Sku,
     string ItemName, string BaseUomCode, bool TracksLots, decimal PlannedQty, decimal ProducedQty, decimal PendingQty, decimal ProgressPct,
@@ -61,7 +65,8 @@ public sealed record ProductionOrderDto(
     decimal TotalCost, decimal UnitCost, int CloseCount,
     DateTimeOffset? ReleasedAt, string? ReleasedByName, DateTimeOffset? CompletedAt, string? CompletedByName,
     ShortfallReason? ShortfallReason, string? ShortfallNotes, DateTimeOffset? CancelledAt,
-    IReadOnlyList<ProductionOrderLineDto> Lines, DateTimeOffset CreatedAt, string? CreatedByName, uint Version);
+    IReadOnlyList<ProductionOrderLineDto> Lines, IReadOnlyList<ProductionOrderDemandDto> Demands, DateTimeOffset CreatedAt,
+    string? CreatedByName, uint Version);
 
 public sealed class CreateProductionOrderRequestValidator : AbstractValidator<CreateProductionOrderRequest>
 {
@@ -353,10 +358,34 @@ public sealed class ProductionOrderService(
         }).OrderBy(l => l.Sku).ToList();
 
         var users = await userDirectory.GetNamesAsync([o.CreatedBy, o.ReleasedBy, o.CompletedBy], ct);
+        var demands = await DemandsAsync(o.Id, ct);
         return new ProductionOrderDto(o.Id, o.Folio, o.LocationId, location, o.RecipeId, recipeVersion, o.OutputItemId, output.Sku, output.Name,
             output.Uom, output.TracksLots, o.PlannedQty, o.ProducedQty, o.PendingQty, ProgressPct(o), await MaxAllowedAsync(o, ct), o.ScheduledDate,
             o.ProductionAreaId, areaName, o.Shift, o.Source, o.ImportId, importFolio, o.Notes, o.Status, o.TotalCost, o.UnitCost, o.CloseCount,
             o.ReleasedAt, users.Of(o.ReleasedBy), o.CompletedAt, users.Of(o.CompletedBy), o.ShortfallReason, o.ShortfallNotes, o.CancelledAt,
-            lines, o.CreatedAt, users.Of(o.CreatedBy), o.Version);
+            lines, demands, o.CreatedAt, users.Of(o.CreatedBy), o.Version);
+    }
+
+    private async Task<List<ProductionOrderDemandDto>> DemandsAsync(Guid orderId, CancellationToken ct)
+    {
+        var links = await db.ProductionOrderDemands.AsNoTracking().Where(d => d.ProductionOrderId == orderId).ToListAsync(ct);
+        if (links.Count == 0)
+            return [];
+        var lineIds = links.Select(l => l.DemandLineId).ToList();
+        var branch = await (from o in db.BranchOrders.AsNoTracking()
+                            from l in o.Lines
+                            join b in db.Locations on o.RequestingLocationId equals b.Id
+                            where lineIds.Contains(l.Id)
+                            select new { l.Id, OrderId = o.Id, o.Folio, b.Name, o.RequiredDate }).ToDictionaryAsync(x => x.Id, ct);
+        var customer = await (from o in db.CustomerOrders.AsNoTracking()
+                              from l in o.Lines
+                              join c in db.Customers on o.CustomerId equals c.Id
+                              where lineIds.Contains(l.Id)
+                              select new { l.Id, OrderId = o.Id, o.Folio, c.Name, o.RequiredDate }).ToDictionaryAsync(x => x.Id, ct);
+        return links.Select(l =>
+        {
+            var doc = l.DemandType == DemandType.BranchOrderLine ? branch[l.DemandLineId] : customer[l.DemandLineId];
+            return new ProductionOrderDemandDto(l.DemandType, l.DemandLineId, doc.OrderId, doc.Folio, doc.Name, doc.RequiredDate, l.Quantity);
+        }).OrderBy(d => d.RequiredDate).ThenBy(d => d.Folio).ToList();
     }
 }

@@ -38,6 +38,7 @@ public interface IAppDbContext
     DbSet<ProductionOrder> ProductionOrders { get; }
     DbSet<ProductionOrderImport> ProductionOrderImports { get; }
     DbSet<ProductionClose> ProductionCloses { get; }
+    DbSet<ProductionOrderDemand> ProductionOrderDemands { get; }
     DbSet<Supplier> Suppliers { get; }
     DbSet<SupplierItem> SupplierItems { get; }
     DbSet<PurchaseRequisition> PurchaseRequisitions { get; }

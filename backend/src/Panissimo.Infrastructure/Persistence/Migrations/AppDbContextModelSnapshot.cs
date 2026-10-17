@@ -1858,6 +1858,43 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("production_order", "production");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrderDemand", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("DemandLineId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("demand_line_id");
+
+                    b.Property<string>("DemandType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("demand_type");
+
+                    b.Property<Guid>("ProductionOrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("production_order_id");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.HasKey("Id")
+                        .HasName("pk_production_order_demand");
+
+                    b.HasIndex("ProductionOrderId")
+                        .HasDatabaseName("ix_production_order_demand_production_order_id");
+
+                    b.HasIndex("DemandType", "DemandLineId")
+                        .HasDatabaseName("ix_production_order_demand_demand_type_demand_line_id");
+
+                    b.ToTable("production_order_demand", "production");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrderImport", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4026,6 +4063,16 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_production_order_recipes_recipe_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrderDemand", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Production.ProductionOrder", null)
+                        .WithMany()
+                        .HasForeignKey("ProductionOrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_production_order_demand_production_order_production_order_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Production.ProductionOrderLine", b =>

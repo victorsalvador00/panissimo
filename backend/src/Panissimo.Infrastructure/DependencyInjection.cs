@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Panissimo.Application.Common;
+using Panissimo.Application.Security;
 using Panissimo.Infrastructure.Identity;
 using Panissimo.Infrastructure.Persistence;
 using Panissimo.Infrastructure.Persistence.Interceptors;
@@ -53,7 +54,20 @@ public static class DependencyInjection
                 options.Lockout.AllowedForNewUsers = true;
             })
             .AddRoles<AppRole>()
+            .AddErrorDescriber<SpanishIdentityErrorDescriber>()
             .AddEntityFrameworkStores<AppDbContext>();
+
+        services.AddOptions<JwtOptions>()
+            .Bind(configuration.GetSection(JwtOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddMemoryCache();
+        services.AddSingleton<UserAccessCacheSignal>();
+        services.AddScoped<IUserAccessService, UserAccessService>();
+        services.AddScoped<UserAccessContext>();
+        services.AddScoped<ILocationScope, LocationScope>();
+        services.AddScoped<TokenService>();
+        services.AddScoped<IAuthService, AuthService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

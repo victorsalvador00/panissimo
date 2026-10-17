@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Panissimo.Application.Common;
 
-namespace Panissimo.Api;
+namespace Panissimo.Api.Auth;
 
 /// <summary>The user of the current request; anonymous outside a request (seed, background work).</summary>
 public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUser

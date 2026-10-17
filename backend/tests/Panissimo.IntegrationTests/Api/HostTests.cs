@@ -21,7 +21,8 @@ public class HostTests(ApiFactory factory)
     [Fact]
     public async Task Unknown_route_returns_spanish_problem_details()
     {
-        var response = await factory.CreateClient().GetAsync("/api/v1/no-existe");
+        var client = await factory.LoginAsAdminAsync();
+        var response = await client.GetAsync("/api/v1/no-existe");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);

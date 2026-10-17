@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Panissimo.Api;
+using Panissimo.Api.Auth;
 using Panissimo.Api.Middleware;
 using Panissimo.Api.OpenApi;
 using Panissimo.Api.Validation;
@@ -77,6 +78,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddPanissimoAuth(builder.Configuration);
 
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
@@ -105,14 +107,19 @@ app.UseSerilogRequestLogging(options =>
         diagnostics.Set("TraceId", http.TraceIdentifier);
     });
 
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseMiddleware<UserAccessMiddleware>();
+app.UseAuthorization();
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
 }
 
-app.MapHealthChecks("/health/live", new() { Predicate = check => check.Tags.Contains("live") });
-app.MapHealthChecks("/health/ready", new() { Predicate = check => check.Tags.Contains("ready") });
+app.MapHealthChecks("/health/live", new() { Predicate = check => check.Tags.Contains("live") }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new() { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 
 app.MapControllers();
 

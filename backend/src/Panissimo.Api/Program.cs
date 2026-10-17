@@ -4,13 +4,16 @@ using System.Text.Json.Serialization;
 using FluentValidation;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Panissimo.Api;
 using Panissimo.Api.Middleware;
 using Panissimo.Api.OpenApi;
 using Panissimo.Api.Validation;
 using Panissimo.Application;
+using Panissimo.Application.Common;
 using Panissimo.Infrastructure;
 using Panissimo.Infrastructure.Health;
+using Panissimo.Infrastructure.Persistence;
 using Scalar.AspNetCore;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -72,6 +75,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddHealthChecks()
@@ -79,6 +83,16 @@ builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
 var app = builder.Build();
+
+// `dotnet Panissimo.Api.dll --seed`: run the idempotent seed and exit (production, after the migration bundle).
+if (args.Contains("--seed"))
+{
+    await DatabaseInitializer.InitializeAsync(app.Services, migrate: false, seed: true);
+    return;
+}
+
+var databaseOptions = app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value;
+await DatabaseInitializer.InitializeAsync(app.Services, databaseOptions.MigrateOnStartup, databaseOptions.SeedOnStartup);
 
 app.UseForwardedHeaders();
 app.UseExceptionHandler();

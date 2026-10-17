@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-12).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-13, fase 2 del backend completa).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -19,7 +19,7 @@
 | 2 | B-10 Recetas versionadas y explosión | ✅ | (ver `git log`) |
 | 2 | B-11 Órdenes de producción | ✅ | (ver `git log`) |
 | 2 | B-12 Cierres parciales y final | ✅ | (ver `git log`) |
-| 2 | B-13 Importación de OP desde Excel | ⏳ | |
+| 2 | B-13 Importación de OP desde Excel | ✅ | (ver `git log`) |
 | 3 | B-14..B-16 Proveedores, requisiciones, OC y recepciones | ⏳ | |
 | 4 | B-17..B-21 Pedidos de sucursal, clientes, remisiones, plan, requerimiento | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
@@ -144,6 +144,17 @@
 - §5.1 en una transacción: reclamo de la fila de la OP con `version` (RN-66: cierres simultáneos 201/409); RN-61 consumo real por componente (por omisión el teórico de lo producido en el cierre; lotes elegidos que deben sumar o FEFO; vencidos rechazados); RN-62 lote `{folio}-{nn}` con caducidad = fecha de negocio + vida útil (sin lote si el artículo no maneja lotes); RN-64 costo del cierre = Σ consumo real × costo promedio, entrada al costo unitario del cierre y acumulado en la OP; RN-13 merma por línea (real − teórico) y su costo; RN-63 tolerancia (`production.overrun_tolerance_pct`, también en parciales), motivo de faltante en el cierre final (notas con `Other`), cierre final en 0 solo con cierres previos y sin consumos; RN-65 los cierres son inmutables; turno por omisión el de la OP.
 - Migración `AddProductionCloses` (índice único `(production_order_id, sequence)`).
 - Pruebas: 119 unitarias y 83 de integración (+6: 2 parciales + final con kardex, tres lotes y caducidad, costos por cierre y acumulado, merma; faltante 409 sin movimientos; cierres concurrentes 201/409; cancelar con cierres 422 y tolerancia; cierre final en 0 y suma de lotes; supervisor cierra).
+
+### B-13 (2026-10-16)
+
+- `/production-order-imports/template` (.xlsx con hoja OP: encabezados, formato de fecha y lista Día/Tarde/Noche en turno; hoja Instrucciones), `POST /validate` (vista previa: `fileSha256`, filas, órdenes, `errors` por fila y columna, `warnings`, órdenes a crear), `POST /production-order-imports` (multipart `file`, `confirmWarnings`, `releaseOnImport`; 400 con `rowErrors`, 422 `import_warnings_not_confirmed`, liberar exige `production.orders.manage`), lista e historial con sus OP. Límite de 5 MB por endpoint.
+- `ClosedXmlOrderReader`: hoja `OP` o la primera; encabezados sin mayúsculas, acentos ni espacios; celdas de fecha, número, texto o valor en caché de fórmula (si un archivo no trae caché, se evalúa); filas vacías ignoradas.
+- RN-90..RN-95: fecha (celda, serial de Excel o `dd/mm/aaaa`, no pasada), SKU semiterminado/terminado activo con receta activa, cantidad > 0 con 4 decimales y entera en `pza`, área por código o nombre, turno, ubicación = Planta del alcance, notas ≤ 500; columnas desconocidas como aviso; máximo 3,000 filas; agrupación por (fecha, sku, área, turno, ubicación) con notas unidas; avisos de archivo repetido (SHA-256) y de OP existente; todo o nada en una transacción.
+- Alta de OP por lote (`CreateManyInTransactionAsync`): catálogos en pocas consultas y folios con `NextManyAsync` (una sola consulta con `generate_series`). La usará también el plan (B-20).
+- Paquete nuevo (licencia): ClosedXML 0.105.1 (MIT, verificado en el nuspec). `SixLabors.Fonts` solo como dependencia transitiva; ninguna referencia directa a `SixLabors.*`.
+- Pruebas: 123 unitarias (+4 del lector y la plantilla) y 89 de integración (+6: errores por fila sin crear nada, agrupación y liga a `IMP`, avisos de duplicado y OP existente con confirmación, liberar al importar y permiso, plantilla, rendimiento 3,000 filas: validación < 5 s e importación < 10 s con `Category=Performance`). Las reglas RN-90..RN-93 se prueban de punta a punta contra la API en lugar de unitarias aisladas.
+
+**Fase 2 del backend completa (B-10..B-13).**
 
 ## Pendientes y decisiones abiertas
 

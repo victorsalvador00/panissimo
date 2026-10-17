@@ -98,6 +98,10 @@ public interface IProductionOrderService
     Task<ProductionOrder> CreateInTransactionAsync(CreateProductionOrderRequest request, ProductionOrderSource source, Guid? importId,
         CancellationToken ct = default);
 
+    /// <summary>Same as <see cref="CreateInTransactionAsync"/> for many orders, loading products, recipes and areas once (import, plan).</summary>
+    Task<IReadOnlyList<ProductionOrder>> CreateManyInTransactionAsync(IReadOnlyList<CreateProductionOrderRequest> requests,
+        ProductionOrderSource source, Guid? importId, CancellationToken ct = default);
+
     Task<ProductionOrderDto> UpdateAsync(Guid id, UpdateProductionOrderRequest request, CancellationToken ct = default);
     Task<ProductionOrderDto> ReleaseAsync(Guid id, uint version, CancellationToken ct = default);
     Task<ProductionOrderDto> CancelAsync(Guid id, uint version, CancellationToken ct = default);
@@ -185,17 +189,29 @@ public sealed class ProductionOrderService(
     }
 
     public async Task<ProductionOrder> CreateInTransactionAsync(CreateProductionOrderRequest request, ProductionOrderSource source,
-        Guid? importId, CancellationToken ct = default)
-    {
-        await EnsurePlantAsync(request.LocationId, ct);
-        var plan = await BuildPlanAsync(request.OutputItemId, request.PlannedQty, request.ScheduledDate, request.ProductionAreaId,
-            request.Shift, request.Notes, ct);
+        Guid? importId, CancellationToken ct = default) =>
+        (await CreateManyInTransactionAsync([request], source, importId, ct))[0];
 
-        var order = new ProductionOrder(await folios.NextAsync(DocType.ProductionOrder, ct), request.LocationId, plan, source, importId,
-            clock.BusinessDate());
-        plan.Recipe.MarkUsed();
-        db.ProductionOrders.Add(order);
-        return order;
+    public async Task<IReadOnlyList<ProductionOrder>> CreateManyInTransactionAsync(IReadOnlyList<CreateProductionOrderRequest> requests,
+        ProductionOrderSource source, Guid? importId, CancellationToken ct = default)
+    {
+        foreach (var locationId in requests.Select(r => r.LocationId).Distinct())
+            await EnsurePlantAsync(locationId, ct);
+
+        var catalogs = await LoadPlanCatalogsAsync(requests.Select(r => r.OutputItemId), ct);
+        var numbers = await folios.NextManyAsync(DocType.ProductionOrder, requests.Count, ct);
+        var today = clock.BusinessDate();
+        var created = new List<ProductionOrder>(requests.Count);
+        for (var i = 0; i < requests.Count; i++)
+        {
+            var r = requests[i];
+            var plan = BuildPlan(catalogs, r.OutputItemId, r.PlannedQty, r.ScheduledDate, r.ProductionAreaId, r.Shift, r.Notes);
+            var order = new ProductionOrder(numbers[i], r.LocationId, plan, source, importId, today);
+            plan.Recipe.MarkUsed();
+            db.ProductionOrders.Add(order);
+            created.Add(order);
+        }
+        return created;
     }
 
     public async Task<ProductionOrderDto> UpdateAsync(Guid id, UpdateProductionOrderRequest request, CancellationToken ct = default)
@@ -243,13 +259,34 @@ public sealed class ProductionOrderService(
             throw new BusinessRuleException("location_inactive", $"La ubicación {location.Code} está inactiva.");
     }
 
-    private async Task<ProductionOrderPlan> BuildPlanAsync(Guid outputItemId, decimal plannedQty, DateOnly scheduledDate, Guid? areaId,
-        Shift? shift, string? notes, CancellationToken ct)
+    private sealed record PlanItem(string Sku, ItemType Type, bool IsActive, Guid? ProductionAreaId, string Uom);
+
+    private sealed record PlanCatalogs(
+        IReadOnlyDictionary<Guid, PlanItem> Items, IReadOnlyDictionary<Guid, Recipe> ActiveRecipes, IReadOnlySet<Guid> ActiveAreas);
+
+    private async Task<PlanCatalogs> LoadPlanCatalogsAsync(IEnumerable<Guid> outputItemIds, CancellationToken ct)
     {
-        var item = await (from i in db.Items
-                          join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
-                          where i.Id == outputItemId
-                          select new { i.Sku, i.Type, i.IsActive, i.ProductionAreaId, Uom = u.Code }).SingleOrDefaultAsync(ct)
+        var ids = outputItemIds.Distinct().ToList();
+        var items = await (from i in db.Items
+                           join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
+                           where ids.Contains(i.Id)
+                           select new { i.Id, Item = new PlanItem(i.Sku, i.Type, i.IsActive, i.ProductionAreaId, u.Code) })
+            .ToDictionaryAsync(x => x.Id, x => x.Item, ct);
+        var recipes = await db.Recipes.Include(r => r.Lines).Where(r => ids.Contains(r.OutputItemId) && r.IsActive)
+            .ToDictionaryAsync(r => r.OutputItemId, ct);
+        var areas = (await db.ProductionAreas.Where(a => a.IsActive).Select(a => a.Id).ToListAsync(ct)).ToHashSet();
+        return new PlanCatalogs(items, recipes, areas);
+    }
+
+    private async Task<ProductionOrderPlan> BuildPlanAsync(Guid outputItemId, decimal plannedQty, DateOnly scheduledDate, Guid? areaId,
+        Shift? shift, string? notes, CancellationToken ct) =>
+        BuildPlan(await LoadPlanCatalogsAsync([outputItemId], ct), outputItemId, plannedQty, scheduledDate, areaId, shift, notes);
+
+    /// <summary>Product active and produced (RN-14), RN-03b, active recipe (RN-10) and an active area (default: the item's).</summary>
+    private static ProductionOrderPlan BuildPlan(PlanCatalogs catalogs, Guid outputItemId, decimal plannedQty, DateOnly scheduledDate,
+        Guid? areaId, Shift? shift, string? notes)
+    {
+        var item = catalogs.Items.GetValueOrDefault(outputItemId)
                    ?? throw new RequestValidationException(new Dictionary<string, string[]> { ["outputItemId"] = ["El artículo no existe."] });
         if (!item.IsActive)
             throw new BusinessRuleException("item_inactive", $"El artículo {item.Sku} está inactivo.");
@@ -258,11 +295,11 @@ public sealed class ProductionOrderService(
         if (item.Uom == UnitOfMeasure.PieceCode && !InventoryMath.IsWhole(plannedQty))
             throw new BusinessRuleException("whole_quantity_required", $"{item.Sku} se maneja en piezas: la cantidad debe ser entera.");
 
-        var recipe = await db.Recipes.Include(r => r.Lines).SingleOrDefaultAsync(r => r.OutputItemId == outputItemId && r.IsActive, ct)
+        var recipe = catalogs.ActiveRecipes.GetValueOrDefault(outputItemId)
                      ?? throw new BusinessRuleException("recipe_not_active", $"{item.Sku} no tiene receta activa: créala antes de programar la orden.");
 
         var area = areaId ?? item.ProductionAreaId;
-        if (area is { } id && !await db.ProductionAreas.AnyAsync(a => a.Id == id && a.IsActive, ct))
+        if (area is { } id && !catalogs.ActiveAreas.Contains(id))
             throw new RequestValidationException(new Dictionary<string, string[]> { ["productionAreaId"] = ["El área de producción no existe o está inactiva."] });
 
         return new ProductionOrderPlan(recipe, plannedQty, scheduledDate, area, shift, notes);

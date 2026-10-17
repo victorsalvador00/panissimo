@@ -37,6 +37,9 @@ public interface IFolioGenerator
     /// Backed by a Postgres sequence: numbers are unique but a rolled-back transaction leaves a gap.
     /// </summary>
     Task<string> NextAsync(DocType docType, CancellationToken ct = default);
+
+    /// <summary><paramref name="count"/> folios in one round trip, in increasing order (imports, plan).</summary>
+    Task<IReadOnlyList<string>> NextManyAsync(DocType docType, int count, CancellationToken ct = default);
 }
 
 /// <summary>

@@ -14,6 +14,16 @@ public sealed class FolioGenerator(AppDbContext db) : IFolioGenerator
         var number = await db.Database.SqlQueryRaw<long>(sql).SingleAsync(ct);
         return Folio.Format(docType, number);
     }
+
+    public async Task<IReadOnlyList<string>> NextManyAsync(DocType docType, int count, CancellationToken ct = default)
+    {
+        if (count <= 0)
+            return [];
+        var definition = Folio.Definitions[docType];
+        var sql = $"SELECT nextval('\"{definition.Schema}\".\"{definition.SequenceName}\"') AS \"Value\" FROM generate_series(1, {count})";
+        var numbers = await db.Database.SqlQueryRaw<long>(sql).ToListAsync(ct);
+        return numbers.Order().Select(n => Folio.Format(docType, n)).ToList();
+    }
 }
 
 /// <summary>

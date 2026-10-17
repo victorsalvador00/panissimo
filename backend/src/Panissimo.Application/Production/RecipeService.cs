@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Panissimo.Application.Common;
+using Panissimo.Application.Inventory;
 using Panissimo.Application.Security;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
@@ -249,16 +250,22 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
             total is null ? null : InventoryMath.Round(total.Value / quantity));
     }
 
-    /// <summary>Usable stock per item at a location: expired lots cannot be used in production (RN-05, RN-12).</summary>
+    /// <summary>
+    /// Usable stock per item at a location and its sub-warehouses (RN-46): expired lots cannot be used in production
+    /// (RN-05, RN-12).
+    /// </summary>
     public static async Task<Dictionary<Guid, decimal>> UsableStockAsync(
-        IAppDbContext db, Guid locationId, IReadOnlyCollection<Guid> itemIds, DateOnly today, CancellationToken ct) =>
-        await (from b in db.StockBalances.AsNoTracking()
-               where b.LocationId == locationId && itemIds.Contains(b.ItemId) && b.Quantity > 0
+        IAppDbContext db, Guid locationId, IReadOnlyCollection<Guid> itemIds, DateOnly today, CancellationToken ct)
+    {
+        var locationIds = await InventoryLocations.WithWarehousesAsync(db, locationId, ct);
+        return await (from b in db.StockBalances.AsNoTracking()
+               where locationIds.Contains(b.LocationId) && itemIds.Contains(b.ItemId) && b.Quantity > 0
                join l in db.Lots on b.LotId equals l.Id into lots
                from l in lots.DefaultIfEmpty()
                where l == null || l.ExpirationDate == null || l.ExpirationDate >= today
                group b by b.ItemId into g
                select new { g.Key, Qty = g.Sum(b => b.Quantity) }).ToDictionaryAsync(x => x.Key, x => x.Qty, ct);
+    }
 
     /// <summary>Components exist, are active and of an allowed type; the recipe must not create a cycle among active recipes.</summary>
     private async Task ValidateComponentsAsync(Guid outputItemId, IReadOnlyList<RecipeLineInput> lines, Guid? excludingRecipeId, CancellationToken ct)

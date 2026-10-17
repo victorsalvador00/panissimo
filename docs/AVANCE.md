@@ -7,13 +7,13 @@
 
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
-- Pruebas en verde: 222 unitarias y 144 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Pruebas en verde: 222 unitarias y 146 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**B-27 y B-26a..B-26c terminadas.** **Siguiente tarea: B-26d** (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
+**B-27 y B-26a..B-26d terminadas (subalmacenes completos).** **Siguiente tarea: B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4) (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
 
 **Después**
 - Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
@@ -24,7 +24,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-26d en `docs/specs/backend.md` §13 y RN-46 en `docs/specs/dominio.md` §4.1.
+4. Leer B-21 en `docs/specs/backend.md` §13 y RN-50 en `docs/specs/dominio.md` (usar `RecipeService.UsableStockAsync`, que ya suma subalmacenes).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -58,7 +58,7 @@
 | 4 | B-26a Subalmacenes: modelo y alcance | ✅ | (ver `git log`) |
 | 4 | B-26b Vale interno | ✅ | (ver `git log`) |
 | 4 | B-26c Procesos eligen subalmacén | ✅ | (ver `git log`) |
-| 4 | B-26d Totales por ubicación | ⏳ | |
+| 4 | B-26d Totales por ubicación | ✅ | (ver `git log`) |
 | 4 | B-21 Requerimiento de materia prima | ⏳ | |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
 
@@ -317,6 +317,16 @@
 - Semilla: opción `Seed:PlantWarehouses` (por omisión **activa**) crea los 4 subalmacenes de la Planta (`PLANTA-MP`, `PLANTA-INS`, `PLANTA-SEMI`, `PLANTA-PT`) solo si no tiene subalmacenes ni existencia. Las pruebas de integración la desactivan: la Planta compartida sigue sin subalmacenes (cubre ese caso) y las pruebas de RN-44..RN-47 crean su propia planta o sucursal. **Atención:** una BD de desarrollo con existencia en PLANTA no recibe los subalmacenes (RN-44); en una BD nueva sí, y entonces todo proceso de la Planta debe indicar subalmacén.
 - Sin paquetes nuevos.
 - Pruebas: 222 unitarias y 144 de integración (+4: recepción con MP e insumos y errores de subalmacén; cierre que consume de MP y semiterminados y deja en terminado; traspaso de PT a la vitrina de una sucursal; remisión desde PT). La siembra con la opción activa no tiene prueba automática (sembraría la Planta compartida).
+
+### B-26d (2026-10-17)
+
+- `InventoryLocations.WithWarehousesAsync`: la ubicación más sus subalmacenes (RN-46). La usan `RecipeService.UsableStockAsync` (plan de producción, disponibilidad de la OP, vista previa de cierre, explosión de receta y, en B-21, requerimiento de MP), el sugerido de pedidos de sucursal y la existencia en la Planta al aprobar un pedido.
+- Existencias: el renglón de una planta o sucursal (donde viven el mín/máx) suma su existencia y la de sus subalmacenes; costo promedio = valor / existencia y valor = Σ cantidad × costo de cada subalmacén; los renglones de cada subalmacén siguen apareciendo. Las alertas de mínimo suman los subalmacenes.
+- Conteo físico: en una ubicación con subalmacenes se hace por subalmacén (`location_has_warehouses`, 422 al crearlo).
+- Sin migración ni paquetes nuevos.
+- Pruebas: 222 unitarias y 146 de integración (+2: existencia, mínimo, alerta, plan y disponibilidad de OP con la existencia repartida en dos subalmacenes de una planta; conteo por subalmacén; sugerido de una sucursal con dos subalmacenes). Rendimiento del plan < 1 s sigue en verde.
+
+**B-26 (subalmacenes) completa.**
 
 ## Pendientes y decisiones abiertas
 

@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Panissimo.Application.Common;
+using Panissimo.Application.Inventory;
 using Panissimo.Application.Security;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
@@ -283,7 +284,8 @@ public sealed class BranchOrderService(
         settings = settings.Where(s => BranchOrderRules.IsOrderable(s.Type)).ToList();
         var itemIds = settings.Select(s => s.ItemId).ToList();
 
-        var stock = await db.StockBalances.Where(b => b.LocationId == locationId && itemIds.Contains(b.ItemId))
+        var branchLocations = await InventoryLocations.WithWarehousesAsync(db, locationId, ct);
+        var stock = await db.StockBalances.Where(b => branchLocations.Contains(b.LocationId) && itemIds.Contains(b.ItemId))
             .GroupBy(b => b.ItemId).Select(g => new { g.Key, Qty = g.Sum(b => b.Quantity) })
             .ToDictionaryAsync(x => x.Key, x => x.Qty, ct);
         var inTransit = await (from t in db.Transfers
@@ -391,7 +393,8 @@ public sealed class BranchOrderService(
                            where itemIds.Contains(i.Id)
                            select new { i.Id, i.Sku, i.Name, Uom = u.Code })
             .ToDictionaryAsync(x => x.Id, ct);
-        var stock = await db.StockBalances.Where(b => b.LocationId == o.SupplyingLocationId && itemIds.Contains(b.ItemId))
+        var plantLocations = await InventoryLocations.WithWarehousesAsync(db, o.SupplyingLocationId, ct);
+        var stock = await db.StockBalances.Where(b => plantLocations.Contains(b.LocationId) && itemIds.Contains(b.ItemId))
             .GroupBy(b => b.ItemId).Select(g => new { g.Key, Qty = g.Sum(b => b.Quantity) })
             .ToDictionaryAsync(x => x.Key, x => x.Qty, ct);
         var transfers = await db.Transfers.AsNoTracking().Where(t => t.BranchOrderId == o.Id).OrderBy(t => t.CreatedAt)

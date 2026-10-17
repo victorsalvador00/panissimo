@@ -143,6 +143,9 @@ public sealed class PhysicalCountService(
     {
         scope.EnsureStockAccess(request.LocationId);
         await EnsureActiveLocationAsync(request.LocationId, ct);
+        if (await db.Locations.AnyAsync(w => w.ParentLocationId == request.LocationId && w.IsActive, ct))
+            throw new BusinessRuleException("location_has_warehouses",
+                "La ubicación tiene subalmacenes: el conteo se hace por subalmacén (RN-44).");
         await EnsureCategoryAsync(request.CategoryId, ct);
 
         var count = new PhysicalCount(await folios.NextAsync(DocType.PhysicalCount, ct), request.LocationId, request.CategoryId, request.Notes);

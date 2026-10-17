@@ -28,6 +28,9 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
         public decimal? MinQty { get; init; }
         public decimal? MaxQty { get; init; }
         public decimal AverageCost { get; init; }
+
+        /// <summary>Σ quantity × average cost of each stock location (RN-46: a parent row adds its sub-warehouses).</summary>
+        public decimal Value { get; init; }
     }
 
     private sealed class KardexRow
@@ -92,7 +95,14 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
                        CategoryId = i.CategoryId,
                        BaseUomCode = u.Code,
                        TracksLots = i.TracksLots,
-                       OnHand = db.StockBalances.Where(b => b.LocationId == k.LocationId && b.ItemId == k.ItemId).Sum(b => b.Quantity),
+                       // RN-46: own stock plus that of its sub-warehouses (min/max live on the plant or branch).
+                       OnHand = db.StockBalances.Where(b => b.ItemId == k.ItemId && (b.LocationId == k.LocationId
+                               || db.Locations.Any(w => w.Id == b.LocationId && w.ParentLocationId == k.LocationId)))
+                           .Sum(b => b.Quantity),
+                       Value = db.StockBalances.Where(b => b.ItemId == k.ItemId && (b.LocationId == k.LocationId
+                               || db.Locations.Any(w => w.Id == b.LocationId && w.ParentLocationId == k.LocationId)))
+                           .Sum(b => b.Quantity * db.ItemLocationCosts.Where(c => c.LocationId == b.LocationId && c.ItemId == b.ItemId)
+                               .Select(c => c.AverageCost).FirstOrDefault()),
                        MinQty = db.ItemLocationSettings.Where(s => s.LocationId == k.LocationId && s.ItemId == k.ItemId).Select(s => (decimal?)s.MinQty).FirstOrDefault(),
                        MaxQty = db.ItemLocationSettings.Where(s => s.LocationId == k.LocationId && s.ItemId == k.ItemId).Select(s => (decimal?)s.MaxQty).FirstOrDefault(),
                        AverageCost = db.ItemLocationCosts.Where(c => c.LocationId == k.LocationId && c.ItemId == k.ItemId).Select(c => c.AverageCost).FirstOrDefault(),
@@ -109,7 +119,8 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
 
         return await rows.ApplySort(query.Sort, StockSort, "sku").ToPagedResultAsync(query, r => new StockLevelDto(
             r.LocationId, r.LocationCode, r.ItemId, r.Sku, r.ItemName, r.ItemType, r.CategoryId, r.BaseUomCode, r.TracksLots,
-            r.OnHand, r.MinQty, r.MaxQty, r.AverageCost, decimal.Round(r.OnHand * r.AverageCost, 2), r.MinQty is { } min && r.OnHand < min), ct);
+            r.OnHand, r.MinQty, r.MaxQty, r.OnHand != 0 ? decimal.Round(r.Value / r.OnHand, 4) : r.AverageCost, decimal.Round(r.Value, 2),
+            r.MinQty is { } min && r.OnHand < min), ct);
     }
 
     public async Task<IReadOnlyList<LotStockDto>> LotsAsync(Guid locationId, Guid itemId, CancellationToken ct = default)
@@ -220,7 +231,9 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
                               join l in db.Locations on s.LocationId equals l.Id
                               join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                               where i.IsActive && l.IsActive
-                              let onHand = db.StockBalances.Where(b => b.LocationId == s.LocationId && b.ItemId == s.ItemId).Sum(b => b.Quantity)
+                              let onHand = db.StockBalances.Where(b => b.ItemId == s.ItemId && (b.LocationId == s.LocationId
+                                      || db.Locations.Any(w => w.Id == b.LocationId && w.ParentLocationId == s.LocationId)))
+                                  .Sum(b => b.Quantity)
                               where onHand < s.MinQty
                               orderby l.Code, i.Sku
                               select new LowStockAlertDto(l.Id, l.Code, i.Id, i.Sku, i.Name, u.Code, onHand, s.MinQty, s.MaxQty))

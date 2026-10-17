@@ -48,12 +48,18 @@ public sealed class LotRegistry(AppDbContext db, IClock clock, ITransactionLocks
 
         if (lot is null)
         {
+            // RN-05: without a captured expiration, a new lot expires ShelfLifeDays after the business date.
+            if (expirationDate is null
+                && await db.Items.Where(i => i.Id == itemId).Select(i => i.ShelfLifeDays).SingleOrDefaultAsync(ct) is { } shelfLife)
+                expirationDate = clock.BusinessDate().AddDays(shelfLife);
+
             lot = new Lot(itemId, number, expirationDate, sourceDocType, sourceDocId, clock.UtcNow);
             db.Lots.Add(lot);
             return lot;
         }
 
-        if (lot.ExpirationDate != expirationDate)
+        // RN-05: without a captured expiration, an existing lot keeps its own.
+        if (expirationDate is not null && lot.ExpirationDate != expirationDate)
             throw new BusinessRuleException("lot_expiration_mismatch",
                 $"El lote {number} ya existe con caducidad {lot.ExpirationDate:dd/MM/yyyy}; no puede registrarse con otra fecha.");
         return lot;

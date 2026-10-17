@@ -459,6 +459,125 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("unit_of_measure", "catalog");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryAdjustment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Folio")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("folio");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("location_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_adjustment");
+
+                    b.HasIndex("Folio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_adjustment_folio");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_adjustment_status");
+
+                    b.HasIndex("LocationId", "CreatedAt")
+                        .HasDatabaseName("ix_adjustment_location_id_created_at");
+
+                    b.ToTable("adjustment", "inventory");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryAdjustmentLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AdjustmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("adjustment_id");
+
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<Guid?>("LotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lot_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal?>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost");
+
+                    b.HasKey("Id")
+                        .HasName("pk_adjustment_line");
+
+                    b.HasIndex("AdjustmentId")
+                        .HasDatabaseName("ix_adjustment_line_adjustment_id");
+
+                    b.HasIndex("ItemId")
+                        .HasDatabaseName("ix_adjustment_line_item_id");
+
+                    b.HasIndex("LotId")
+                        .HasDatabaseName("ix_adjustment_line_lot_id");
+
+                    b.ToTable("adjustment_line", "inventory");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryMovement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1277,6 +1396,39 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_item_location_setting_locations_location_id");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryAdjustment", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_adjustment_locations_location_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryAdjustmentLine", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Inventory.InventoryAdjustment", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("AdjustmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_adjustment_line_adjustment_adjustment_id");
+
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_adjustment_line_items_item_id");
+
+                    b.HasOne("Panissimo.Domain.Inventory.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_adjustment_line_lots_lot_id");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryMovement", b =>
                 {
                     b.HasOne("Panissimo.Domain.Catalog.Item", null)
@@ -1400,6 +1552,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DefaultLocationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_user_locations_default_location_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Inventory.InventoryAdjustment", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

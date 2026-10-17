@@ -29,8 +29,9 @@ public interface ILotRegistry
 {
     /// <summary>
     /// Returns the lot <paramref name="lotNumber"/> of the item, creating it (not saved yet) if new. Takes the
-    /// (item, lot) transaction lock, so it requires an open transaction. An existing lot with a different
-    /// expiration date is an error.
+    /// (item, lot) transaction lock, so it requires an open transaction. RN-05: a null expiration means "the existing
+    /// lot's" or, for a new lot, business date + ShelfLifeDays (none if the item has no shelf life). An existing lot
+    /// with a different captured expiration is an error.
     /// </summary>
     Task<Lot> GetOrCreateAsync(Guid itemId, string lotNumber, DateOnly? expirationDate,
         string sourceDocType, Guid sourceDocId, CancellationToken ct);

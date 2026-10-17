@@ -89,6 +89,9 @@ public static class DependencyInjection
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();
         services.AddScoped<ILotAllocator, LotAllocator>();
         services.AddScoped<ILotRegistry, LotRegistry>();
+        services.AddScoped<IStockQueries, StockQueries>();
+        services.AddScoped<IAdjustmentService, AdjustmentService>();
+        services.AddScoped<IInitialStockImportService, InitialStockImportService>();
 
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));

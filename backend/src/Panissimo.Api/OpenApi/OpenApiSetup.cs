@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
 using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
+using Panissimo.Application.Inventory;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
 using Panissimo.Application.Security;
@@ -62,6 +63,14 @@ public static class OpenApiSetup
             { "settings": [
                 { "locationId": "0199a1b2-0000-7000-8000-0000000000a9", "minQty": 200, "maxQty": 600 },
                 { "locationId": "0199a1b2-0000-7000-8000-0000000000a1", "minQty": null, "maxQty": null } ] }
+            """,
+        [typeof(CreateAdjustmentRequest)] = """
+            { "locationId": "0199a1b2-0000-7000-8000-0000000000a9", "reason": "Correction", "notes": "Diferencia en revisión",
+              "lines": [
+                { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "lotNumber": "L-2610", "expirationDate": "2027-03-31",
+                  "quantity": 5, "unitCost": 18.5, "notes": null },
+                { "itemId": "0199a1b2-0000-7000-8000-0000000000d2", "lotId": null, "lotNumber": null, "expirationDate": null,
+                  "quantity": -2, "unitCost": null, "notes": "Bolsa rota" } ] }
             """,
         [typeof(UpdateSettingsRequest)] = """
             { "settings": [ { "key": "production.overrun_tolerance_pct", "value": 8, "version": 1234 },

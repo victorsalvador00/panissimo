@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-06).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-16 (B-07).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## Backend
@@ -13,7 +13,7 @@
 | 1 | B-04 Usuarios, roles, bitácora, ubicaciones, settings | ✅ | (ver `git log`) |
 | 1 | B-05 Catálogos y CSV de artículos | ✅ | (ver `git log`) |
 | 1 | B-06 Motor de inventario | ✅ | (ver `git log`) |
-| 1 | B-07 Existencias, kardex, alertas, ajustes, existencias iniciales | ⏳ | |
+| 1 | B-07 Existencias, kardex, alertas, ajustes, existencias iniciales | ✅ | (ver `git log`) |
 | 1 | B-08 Conteo físico y consumo | ⏳ | |
 | 1 | B-09 Traspasos directos | ⏳ | |
 | 2 | B-10..B-13 Recetas, OP, cierres, importación de Excel | ⏳ | |
@@ -90,6 +90,15 @@
 - Nuevo tipo de movimiento `CustomerShipment` (remisiones, B-19).
 - Migración `AddInventory`.
 - Pruebas: 68 unitarias y 49 de integración (+8: transacción obligatoria, kardex y costo, faltante sin movimientos parciales, salidas concurrentes sin negativos, lote nuevo concurrente compartido, caducidad distinta, FEFO sin vencidos, candado de unidad/lotes con movimientos).
+
+### B-07 (2026-10-16)
+
+- `GET /stock` (filtros `locationId`, `itemId`, `categoryId`, `type`, `belowMin`, `q`; incluye artículos con mínimo sin existencia), `GET /stock/{locationId}/{itemId}/lots`, `GET /movements` (kardex del más reciente al más antiguo; saldo corrido con ubicación y artículo, calculado con el índice cubriente), `GET /alerts` (RN-07: bajo mínimo y lotes que vencen en ≤ `inventory.expiry_alert_days`).
+- `/adjustments` (lista, detalle con movimientos aplicados y lotes FEFO, alta): motivos `Correction` (entradas con costo, lote y caducidad; salidas), `Waste`, `Expired`, `Damaged` (movimiento `Waste`) e `InternalUse` (solo salidas). Estado único `Posted`: se corrige con otro ajuste.
+- `POST /imports/initial-stock` (RN-08): `ubicacion,sku,cantidad,costo_unitario,lote,caducidad`; un ajuste de corrección por ubicación; rechaza artículos con movimientos en esa ubicación; enteros en `pza`.
+- RN-05 completado en `LotRegistry`: sin caducidad capturada, un lote existente conserva la suya y uno nuevo toma fecha de negocio + `ShelfLifeDays`.
+- Migración `AddAdjustments`.
+- Pruebas: 79 unitarias y 56 de integración (+7: ajuste sin existencia → 409 con faltantes y sin movimientos, lote con caducidad por omisión y FEFO, costo y saldo corrido paginado, bajo mínimo y por caducar, alcance, piezas fraccionarias, CSV de existencias iniciales).
 
 ## Pendientes y decisiones abiertas
 

@@ -13,6 +13,13 @@ public enum TransferStatus
     Cancelled,
 }
 
+/// <summary>Standard: plant ⇄ branches (RN-25). Internal: voucher between sub-warehouses of one location (RN-47).</summary>
+public enum TransferKind
+{
+    Standard,
+    Internal,
+}
+
 public enum DiscrepancyReason
 {
     Missing,
@@ -45,14 +52,19 @@ public sealed record ReceiptInput(Guid LineId, decimal ReceivedQty, DiscrepancyR
 public class Transfer : AuditableEntity, IVersioned
 {
     public const string DocType = "Transfer";
+    public const string InternalDocType = "InternalTransfer";
 
     private readonly List<TransferLine> _lines = [];
 
     private Transfer() { }
 
-    public Transfer(string folio, Guid fromLocationId, Guid toLocationId, Guid? branchOrderId, string? notes, IReadOnlyList<TransferLineInput> lines)
+    public Transfer(string folio, Guid fromLocationId, Guid toLocationId, Guid? branchOrderId, string? notes, IReadOnlyList<TransferLineInput> lines,
+        TransferKind kind = TransferKind.Standard)
     {
+        if (kind == TransferKind.Internal && branchOrderId is not null)
+            throw new ArgumentException("An internal voucher never serves a branch order.", nameof(branchOrderId));
         Folio = folio;
+        Kind = kind;
         FromLocationId = fromLocationId;
         BranchOrderId = branchOrderId;
         Status = TransferStatus.Draft;
@@ -60,6 +72,13 @@ public class Transfer : AuditableEntity, IVersioned
     }
 
     public string Folio { get; private set; } = null!;
+    public TransferKind Kind { get; private set; }
+
+    /// <summary>Source document type of its movements in the kardex.</summary>
+    public string SourceDocType => Kind == TransferKind.Internal ? InternalDocType : DocType;
+
+    private string Label => Kind == TransferKind.Internal ? $"Vale {Folio}" : $"Traspaso {Folio}";
+
     public Guid FromLocationId { get; private set; }
     public Guid ToLocationId { get; private set; }
     public Guid? BranchOrderId { get; private set; }
@@ -114,14 +133,15 @@ public class Transfer : AuditableEntity, IVersioned
         return requests;
 
         MovementRequest Out(Guid itemId, Guid? lotId, decimal qty) =>
-            new(FromLocationId, itemId, lotId, MovementType.TransferOut, -qty, null, DocType, Id, Folio, $"Traspaso {Folio}");
+            new(FromLocationId, itemId, lotId, MovementType.TransferOut, -qty, null, SourceDocType, Id, Folio, Label);
     }
 
     /// <summary>Records the shipment: lines become one per lot actually taken, with the origin's cost.</summary>
     public void Dispatch(string vehicleDescription, string driverName, DateTimeOffset now, Guid? userId, IReadOnlyList<InventoryMovement> movementsOut)
     {
         EnsureDraft("Solo un traspaso en borrador puede despacharse.");
-        if (string.IsNullOrWhiteSpace(vehicleDescription) || string.IsNullOrWhiteSpace(driverName))
+        // A voucher moves inside one location: it has no vehicle or driver (RN-47).
+        if (Kind == TransferKind.Standard && (string.IsNullOrWhiteSpace(vehicleDescription) || string.IsNullOrWhiteSpace(driverName)))
             throw new BusinessRuleException("transfer_shipping_required", "Indica el vehículo y el chofer del despacho.");
         if (movementsOut.Count == 0 || movementsOut.Any(m => m.Type != MovementType.TransferOut || m.SourceDocId != Id))
             throw new ArgumentException("Dispatch needs the TransferOut movements of this transfer.", nameof(movementsOut));
@@ -130,8 +150,8 @@ public class Transfer : AuditableEntity, IVersioned
         foreach (var m in movementsOut)
             _lines.Add(TransferLine.Shipped(Id, m.ItemId, m.LotId, -m.Quantity, m.UnitCost));
 
-        VehicleDescription = vehicleDescription.Trim();
-        DriverName = driverName.Trim();
+        VehicleDescription = string.IsNullOrWhiteSpace(vehicleDescription) ? null : vehicleDescription.Trim();
+        DriverName = string.IsNullOrWhiteSpace(driverName) ? null : driverName.Trim();
         DispatchedAt = now;
         DispatchedBy = userId;
         Status = TransferStatus.Dispatched;
@@ -163,7 +183,7 @@ public class Transfer : AuditableEntity, IVersioned
 
         return _lines.Where(l => l.ReceivedQty > 0)
             .Select(l => new MovementRequest(ToLocationId, l.ItemId, l.LotId, MovementType.TransferIn, l.ReceivedQty!.Value,
-                l.UnitCost, DocType, Id, Folio, $"Traspaso {Folio}"))
+                l.UnitCost, SourceDocType, Id, Folio, Label))
             .ToList();
     }
 

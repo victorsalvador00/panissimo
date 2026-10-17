@@ -17,6 +17,12 @@ public sealed record TransferLineRequest(Guid ItemId, Guid? LotId, decimal Quant
 
 public sealed record CreateTransferRequest(Guid FromLocationId, Guid ToLocationId, string? Notes, IReadOnlyList<TransferLineRequest> Lines);
 
+/// <summary>RN-47: a voucher between two sub-warehouses of the same plant or branch.</summary>
+public sealed record CreateInternalTransferRequest(Guid FromWarehouseId, Guid ToWarehouseId, string? Notes, IReadOnlyList<TransferLineRequest> Lines);
+
+/// <summary>Sending a voucher: no vehicle or driver. <paramref name="Lines"/> as in a transfer dispatch.</summary>
+public sealed record DispatchInternalTransferRequest(uint Version, IReadOnlyList<DispatchLineRequest>? Lines);
+
 public sealed record UpdateTransferRequest(uint Version, Guid ToLocationId, string? Notes, IReadOnlyList<TransferLineRequest> Lines);
 
 public sealed record DispatchLineRequest(Guid LineId, IReadOnlyList<LotQuantity> Lots);
@@ -39,6 +45,9 @@ public enum TransferTab
 
 public sealed record TransferListQuery : PageQuery
 {
+    /// <summary>Set by the endpoint: transfers and internal vouchers are listed apart.</summary>
+    public TransferKind Kind { get; init; }
+
     public TransferTab? Tab { get; init; }
     public TransferStatus? Status { get; init; }
 
@@ -58,7 +67,7 @@ public sealed record TransferListQuery : PageQuery
 public sealed record TransferLocationDto(Guid Id, string Code, string Name, LocationType Type);
 
 public sealed record TransferListItemDto(
-    Guid Id, string Folio, TransferLocationDto From, TransferLocationDto To, TransferStatus Status, Guid? BranchOrderId,
+    Guid Id, string Folio, TransferKind Kind, TransferLocationDto From, TransferLocationDto To, TransferStatus Status, Guid? BranchOrderId,
     int LineCount, DateTimeOffset CreatedAt, DateTimeOffset? DispatchedAt, DateTimeOffset? ReceivedAt);
 
 /// <param name="ShortQty">Loss in transit (RN-22).</param>
@@ -68,7 +77,7 @@ public sealed record TransferLineDto(
     DiscrepancyReason? DiscrepancyReason, string? DiscrepancyNotes);
 
 public sealed record TransferDto(
-    Guid Id, string Folio, TransferLocationDto From, TransferLocationDto To, Guid? BranchOrderId,
+    Guid Id, string Folio, TransferKind Kind, TransferLocationDto From, TransferLocationDto To, Guid? BranchOrderId,
     TransferStatus Status, string? Notes,
     string? VehicleDescription, string? DriverName, DateTimeOffset? DispatchedAt, Guid? DispatchedBy, string? DispatchedByName,
     DateTimeOffset? ReceivedAt, Guid? ReceivedBy, string? ReceivedByName, IReadOnlyList<TransferLineDto> Lines,
@@ -86,6 +95,17 @@ public sealed class CreateTransferRequestValidator : AbstractValidator<CreateTra
     public CreateTransferRequestValidator()
     {
         RuleFor(x => x.ToLocationId).NotEqual(x => x.FromLocationId).WithMessage("El origen y el destino deben ser distintos.");
+        RuleFor(x => x.Notes).MaximumLength(500).WithName("Notas");
+        RuleFor(x => x.Lines).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Agrega al menos una línea.");
+        RuleForEach(x => x.Lines).SetValidator(new TransferLineRequestValidator());
+    }
+}
+
+public sealed class CreateInternalTransferRequestValidator : AbstractValidator<CreateInternalTransferRequest>
+{
+    public CreateInternalTransferRequestValidator()
+    {
+        RuleFor(x => x.ToWarehouseId).NotEqual(x => x.FromWarehouseId).WithMessage("El subalmacén origen y el destino deben ser distintos.");
         RuleFor(x => x.Notes).MaximumLength(500).WithName("Notas");
         RuleFor(x => x.Lines).Cascade(CascadeMode.Stop).NotEmpty().WithMessage("Agrega al menos una línea.");
         RuleForEach(x => x.Lines).SetValidator(new TransferLineRequestValidator());
@@ -124,19 +144,27 @@ public sealed class ReceiveTransferRequestValidator : AbstractValidator<ReceiveT
     }
 }
 
+/// <summary>
+/// Transfers between the plant and the branches and, with <see cref="TransferKind.Internal"/>, vouchers between
+/// sub-warehouses (RN-47). Each endpoint works on its own kind: a voucher is not found through the transfers endpoints.
+/// </summary>
 public interface ITransferService
 {
     Task<PagedResult<TransferListItemDto>> ListAsync(TransferListQuery query, CancellationToken ct = default);
-    Task<TransferDto> GetAsync(Guid id, CancellationToken ct = default);
+    Task<TransferDto> GetAsync(Guid id, TransferKind kind = TransferKind.Standard, CancellationToken ct = default);
     Task<TransferDto> CreateAsync(CreateTransferRequest request, CancellationToken ct = default);
-    Task<TransferDto> UpdateAsync(Guid id, UpdateTransferRequest request, CancellationToken ct = default);
-    Task<TransferDto> CancelAsync(Guid id, uint version, CancellationToken ct = default);
+
+    /// <summary>RN-47: a draft voucher between two sub-warehouses of the same location; requires the origin.</summary>
+    Task<TransferDto> CreateInternalAsync(CreateInternalTransferRequest request, CancellationToken ct = default);
+
+    Task<TransferDto> UpdateAsync(Guid id, UpdateTransferRequest request, TransferKind kind = TransferKind.Standard, CancellationToken ct = default);
+    Task<TransferDto> CancelAsync(Guid id, uint version, TransferKind kind = TransferKind.Standard, CancellationToken ct = default);
 
     /// <summary>RN-21: posts TransferOut at the origin. A concurrent dispatch of the same transfer gets 409.</summary>
-    Task<TransferDto> DispatchAsync(Guid id, DispatchTransferRequest request, CancellationToken ct = default);
+    Task<TransferDto> DispatchAsync(Guid id, DispatchTransferRequest request, TransferKind kind = TransferKind.Standard, CancellationToken ct = default);
 
     /// <summary>RN-22: posts TransferIn at the destination with the origin's lots and cost.</summary>
-    Task<TransferDto> ReceiveAsync(Guid id, ReceiveTransferRequest request, CancellationToken ct = default);
+    Task<TransferDto> ReceiveAsync(Guid id, ReceiveTransferRequest request, TransferKind kind = TransferKind.Standard, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -184,7 +212,7 @@ public sealed class TransferService(
 
     public async Task<PagedResult<TransferListItemDto>> ListAsync(TransferListQuery query, CancellationToken ct = default)
     {
-        var transfers = Visible();
+        var transfers = Visible().Where(t => t.Kind == query.Kind);
         transfers = query.Tab switch
         {
             TransferTab.ToDispatch => transfers.Where(t => t.Status == TransferStatus.Draft),
@@ -214,10 +242,10 @@ public sealed class TransferService(
         return new PagedResult<TransferListItemDto>(items, page.Page, page.PageSize, page.Total);
     }
 
-    public async Task<TransferDto> GetAsync(Guid id, CancellationToken ct = default)
+    public async Task<TransferDto> GetAsync(Guid id, TransferKind kind = TransferKind.Standard, CancellationToken ct = default)
     {
-        var transfer = await db.Transfers.AsNoTracking().Include(t => t.Lines).SingleOrDefaultAsync(t => t.Id == id, ct)
-                       ?? throw new NotFoundException("el traspaso", id);
+        var transfer = await db.Transfers.AsNoTracking().Include(t => t.Lines).SingleOrDefaultAsync(t => t.Id == id && t.Kind == kind, ct)
+                       ?? throw new NotFoundException(Noun(kind), id);
         if (!scope.AllowedLocationIds.Contains(transfer.FromLocationId) && !scope.AllowedLocationIds.Contains(transfer.ToLocationId))
             throw new ForbiddenException(LocationScope.OutOfScopeMessage);
         return await ToDtoAsync(transfer, ct);
@@ -235,11 +263,27 @@ public sealed class TransferService(
         return await ToDtoAsync(transfer, ct);
     }
 
-    public async Task<TransferDto> UpdateAsync(Guid id, UpdateTransferRequest request, CancellationToken ct = default)
+    public async Task<TransferDto> CreateInternalAsync(CreateInternalTransferRequest request, CancellationToken ct = default)
     {
-        var transfer = await FindForOriginAsync(id, ct);
+        scope.EnsureStockAccess(request.FromWarehouseId);
+        await ValidateInternalPlanAsync(request.FromWarehouseId, request.ToWarehouseId, request.Lines, ct);
+
+        var transfer = new Transfer(await folios.NextAsync(DocType.InternalTransfer, ct), request.FromWarehouseId, request.ToWarehouseId,
+            null, request.Notes, ToInputs(request.Lines), TransferKind.Internal);
+        db.Transfers.Add(transfer);
+        await db.SaveChangesAsync(ct);
+        return await ToDtoAsync(transfer, ct);
+    }
+
+    public async Task<TransferDto> UpdateAsync(Guid id, UpdateTransferRequest request, TransferKind kind = TransferKind.Standard,
+        CancellationToken ct = default)
+    {
+        var transfer = await FindForOriginAsync(id, kind, ct);
         db.EnsureVersion(transfer, request.Version);
-        await ValidatePlanAsync(transfer.FromLocationId, request.ToLocationId, request.Lines, ct);
+        if (kind == TransferKind.Internal)
+            await ValidateInternalPlanAsync(transfer.FromLocationId, request.ToLocationId, request.Lines, ct);
+        else
+            await ValidatePlanAsync(transfer.FromLocationId, request.ToLocationId, request.Lines, ct);
         await links.EnsureEditAllowedAsync(transfer, request.ToLocationId, request.Lines, ct);
 
         transfer.UpdateDraft(request.ToLocationId, request.Notes, ToInputs(request.Lines));
@@ -248,9 +292,9 @@ public sealed class TransferService(
         return await ToDtoAsync(transfer, ct);
     }
 
-    public async Task<TransferDto> CancelAsync(Guid id, uint version, CancellationToken ct = default)
+    public async Task<TransferDto> CancelAsync(Guid id, uint version, TransferKind kind = TransferKind.Standard, CancellationToken ct = default)
     {
-        var transfer = await FindForOriginAsync(id, ct);
+        var transfer = await FindForOriginAsync(id, kind, ct);
         db.EnsureVersion(transfer, version);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -261,9 +305,10 @@ public sealed class TransferService(
         return await ToDtoAsync(transfer, ct);
     }
 
-    public async Task<TransferDto> DispatchAsync(Guid id, DispatchTransferRequest request, CancellationToken ct = default)
+    public async Task<TransferDto> DispatchAsync(Guid id, DispatchTransferRequest request, TransferKind kind = TransferKind.Standard,
+        CancellationToken ct = default)
     {
-        var transfer = await FindForOriginAsync(id, ct);
+        var transfer = await FindForOriginAsync(id, kind, ct);
         db.EnsureVersion(transfer, request.Version);
         await EnsureActiveAsync(transfer.ToLocationId, ct);
 
@@ -280,11 +325,16 @@ public sealed class TransferService(
         return await ToDtoAsync(transfer, ct);
     }
 
-    public async Task<TransferDto> ReceiveAsync(Guid id, ReceiveTransferRequest request, CancellationToken ct = default)
+    public async Task<TransferDto> ReceiveAsync(Guid id, ReceiveTransferRequest request, TransferKind kind = TransferKind.Standard,
+        CancellationToken ct = default)
     {
-        var transfer = await db.Transfers.Include(t => t.Lines).SingleOrDefaultAsync(t => t.Id == id, ct)
-                       ?? throw new NotFoundException("el traspaso", id);
-        scope.EnsureAccess(transfer.ToLocationId); // receiving requires the destination
+        var transfer = await db.Transfers.Include(t => t.Lines).SingleOrDefaultAsync(t => t.Id == id && t.Kind == kind, ct)
+                       ?? throw new NotFoundException(Noun(kind), id);
+        // Receiving requires the destination; a voucher, the destination sub-warehouse (RN-47).
+        if (kind == TransferKind.Internal)
+            scope.EnsureStockAccess(transfer.ToLocationId);
+        else
+            scope.EnsureAccess(transfer.ToLocationId);
         db.EnsureVersion(transfer, request.Version);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -307,12 +357,34 @@ public sealed class TransferService(
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task<Transfer> FindForOriginAsync(Guid id, CancellationToken ct)
+    private async Task<Transfer> FindForOriginAsync(Guid id, TransferKind kind, CancellationToken ct)
     {
-        var transfer = await db.Transfers.Include(t => t.Lines).SingleOrDefaultAsync(t => t.Id == id, ct)
-                       ?? throw new NotFoundException("el traspaso", id);
-        scope.EnsureAccess(transfer.FromLocationId); // planning and dispatching require the origin
+        var transfer = await db.Transfers.Include(t => t.Lines).SingleOrDefaultAsync(t => t.Id == id && t.Kind == kind, ct)
+                       ?? throw new NotFoundException(Noun(kind), id);
+        // Planning and dispatching require the origin; a voucher, the origin sub-warehouse (RN-47).
+        if (kind == TransferKind.Internal)
+            scope.EnsureStockAccess(transfer.FromLocationId);
+        else
+            scope.EnsureAccess(transfer.FromLocationId);
         return transfer;
+    }
+
+    private static string Noun(TransferKind kind) => kind == TransferKind.Internal ? "el vale interno" : "el traspaso";
+
+    /// <summary>
+    /// RN-47: two different active sub-warehouses of the same plant or branch; active items, whole pieces and lots of
+    /// the item, like any transfer.
+    /// </summary>
+    private async Task ValidateInternalPlanAsync(Guid fromId, Guid toId, IReadOnlyList<TransferLineRequest> lines, CancellationToken ct)
+    {
+        var from = await EnsureActiveAsync(fromId, ct);
+        var to = await EnsureActiveAsync(toId, ct);
+        if (!from.IsWarehouse || !to.IsWarehouse || from.ParentLocationId != to.ParentLocationId)
+            throw new BusinessRuleException("internal_transfer_route",
+                "Un vale interno va entre dos subalmacenes de la misma planta o sucursal (RN-47).");
+        if (from.Id == to.Id)
+            throw new BusinessRuleException("transfer_same_location", "El origen y el destino deben ser distintos.");
+        await ValidateLinesAsync(lines, ct);
     }
 
     private async Task ValidatePlanAsync(Guid fromId, Guid toId, IReadOnlyList<TransferLineRequest> lines, CancellationToken ct)
@@ -324,6 +396,11 @@ public sealed class TransferService(
                 "Un traspaso va entre la Planta y las sucursales; entre subalmacenes se usa un vale interno.");
         if (!TransferRoutes.IsStandard(from.Type, to.Type) && access.Access?.Has(Permissions.LogisticsTransfersSpecial) != true)
             throw new ForbiddenException(SpecialRouteMessage);
+        await ValidateLinesAsync(lines, ct);
+    }
+
+    private async Task ValidateLinesAsync(IReadOnlyList<TransferLineRequest> lines, CancellationToken ct)
+    {
 
         var itemIds = lines.Select(l => l.ItemId).Distinct().ToList();
         var items = await (from i in db.Items.AsNoTracking()
@@ -376,7 +453,7 @@ public sealed class TransferService(
         var lineCounts = await db.Transfers.Where(t => ids.Contains(t.Id)).Select(t => new { t.Id, Count = t.Lines.Count })
             .ToDictionaryAsync(x => x.Id, x => x.Count, ct);
         var locations = await LocationsAsync(transfers.SelectMany(t => new[] { t.FromLocationId, t.ToLocationId }), ct);
-        return transfers.Select(t => new TransferListItemDto(t.Id, t.Folio, locations[t.FromLocationId], locations[t.ToLocationId],
+        return transfers.Select(t => new TransferListItemDto(t.Id, t.Folio, t.Kind, locations[t.FromLocationId], locations[t.ToLocationId],
             t.Status, t.BranchOrderId, lineCounts[t.Id], t.CreatedAt, t.DispatchedAt, t.ReceivedAt)).ToList();
     }
 
@@ -398,7 +475,7 @@ public sealed class TransferService(
             .OrderBy(l => l.Sku).ThenBy(l => l.ExpirationDate).ToList();
 
         var users = await userDirectory.GetNamesAsync([t.DispatchedBy, t.ReceivedBy, t.CreatedBy], ct);
-        return new TransferDto(t.Id, t.Folio, locations[t.FromLocationId], locations[t.ToLocationId], t.BranchOrderId, t.Status, t.Notes,
+        return new TransferDto(t.Id, t.Folio, t.Kind, locations[t.FromLocationId], locations[t.ToLocationId], t.BranchOrderId, t.Status, t.Notes,
             t.VehicleDescription, t.DriverName, t.DispatchedAt, t.DispatchedBy, users.Of(t.DispatchedBy), t.ReceivedAt, t.ReceivedBy,
             users.Of(t.ReceivedBy), lines,
             lines.Sum(l => InventoryMath.Round(l.ShippedQty * (l.UnitCost ?? 0))), lines.Sum(l => l.ShortValue ?? 0),

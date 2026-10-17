@@ -190,6 +190,12 @@ public static class OpenApiSetup
                          { "itemId": "0199a1b2-0000-7000-8000-0000000000d3", "date": "2026-10-18", "areaId": null, "shift": null,
                            "quantity": 96, "demandLineIds": ["0199a1b2-0000-7000-8000-0000000000c7"] } ] }
             """,
+        [typeof(CreateInternalTransferRequest)] = """
+            { "fromWarehouseId": "0199a1b2-0000-7000-8000-0000000000a2", "toWarehouseId": "0199a1b2-0000-7000-8000-0000000000a3",
+              "notes": "Harina para masas del turno noche",
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "quantity": 88 } ] }
+            """,
+        [typeof(DispatchInternalTransferRequest)] = """{ "version": 1234, "lines": null }""",
         [typeof(CreateSupplierRequest)] = """
             { "taxId": "HAM980312AB5", "name": "Harinera del Bajío S.A. de C.V.", "contactName": "Jorge Ríos",
               "phone": "477 123 4567", "email": "ventas@harinerabajio.mx", "paymentTermsDays": 30 }

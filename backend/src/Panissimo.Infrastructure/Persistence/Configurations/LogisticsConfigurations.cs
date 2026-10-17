@@ -14,7 +14,9 @@ internal sealed class TransferConfiguration : IEntityTypeConfiguration<Transfer>
         builder.ToTable("transfer", "logistics");
         builder.Property(t => t.Folio).HasMaxLength(30);
         builder.Property(t => t.Status).HasMaxLength(30);
+        builder.Property(t => t.Kind).HasMaxLength(20);
         builder.Property(t => t.Notes).HasMaxLength(500);
+        builder.HasIndex(t => new { t.Kind, t.Status });
         builder.Property(t => t.VehicleDescription).HasMaxLength(150);
         builder.Property(t => t.DriverName).HasMaxLength(150);
         builder.HasIndex(t => t.Folio).IsUnique();

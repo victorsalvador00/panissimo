@@ -111,6 +111,7 @@ public class AdministrationTests(ApiFactory factory)
         var role = await (await admin.PostJsonAsync("/api/v1/roles", new CreateRoleRequest(
             $"Gestor {Guid.NewGuid():N}"[..20], "Administra encargados",
             [Permissions.SecurityUsersManage, Permissions.InventoryView, Permissions.InventoryCount, Permissions.InventoryConsumption,
+             Permissions.InventoryInternalTransfers,
              Permissions.LogisticsView, Permissions.LogisticsOrdersCreate, Permissions.LogisticsTransfersReceive])))
             .Content.ReadJsonAsync<RoleDto>();
         var managerEmail = ApiFactory.UniqueEmail("gestor");

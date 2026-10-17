@@ -36,7 +36,8 @@ public static class SystemRoles
         new("customer_sales", "Ventas a clientes", "Clientes y pedidos de cliente",
             [SalesView, SalesCustomersManage, SalesOrdersManage, InventoryView, ProductionView]),
         new("branch_manager", "Encargado de sucursal", "Operación diaria de sucursal",
-            [InventoryView, InventoryCount, InventoryConsumption, LogisticsView, LogisticsOrdersCreate, LogisticsTransfersReceive]),
+            [InventoryView, InventoryCount, InventoryConsumption, InventoryInternalTransfers, LogisticsView, LogisticsOrdersCreate,
+                LogisticsTransfersReceive]),
         new("read_only", "Consulta", "Solo lectura", [.. Views.Where(c => c != SecurityAuditView)]),
     ];
 }

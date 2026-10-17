@@ -451,7 +451,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 |---|---|
 | Organización | `locations.view`, `locations.manage`, `locations.all` |
 | Catálogos | `catalog.view`, `catalog.manage` |
-| Inventario | `inventory.view`, `inventory.adjust`, `inventory.count`, `inventory.consumption` |
+| Inventario | `inventory.view`, `inventory.adjust`, `inventory.count`, `inventory.consumption`, `inventory.internal_transfers` (vales internos, RN-47) |
 | Producción | `production.view`, `production.recipes.manage`, `production.orders.manage`, `production.orders.close`, `production.orders.import`, `production.areas.manage` |
 | Logística | `logistics.view`, `logistics.orders.create`, `logistics.orders.approve`, `logistics.transfers.dispatch`, `logistics.transfers.receive`, `logistics.transfers.special` |
 | Ventas | `sales.view`, `sales.customers.manage`, `sales.orders.manage`, `sales.shipments.dispatch` |
@@ -471,7 +471,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 | Almacén planta | `inventory.*`, `logistics.view`, `logistics.orders.approve`, `logistics.transfers.dispatch`, `logistics.transfers.special`, `purchasing.view`, `purchasing.receive`, `sales.view`, `sales.shipments.dispatch` |
 | Distribución | `logistics.view`, `logistics.transfers.dispatch`, `sales.view`, `sales.shipments.dispatch`, `inventory.view` |
 | Ventas a clientes | `sales.view`, `sales.customers.manage`, `sales.orders.manage`, `inventory.view`, `production.view` |
-| Encargado de sucursal | `inventory.view`, `inventory.count`, `inventory.consumption`, `logistics.view`, `logistics.orders.create`, `logistics.transfers.receive` |
+| Encargado de sucursal | `inventory.view`, `inventory.count`, `inventory.consumption`, `inventory.internal_transfers`, `logistics.view`, `logistics.orders.create`, `logistics.transfers.receive` |
 | Consulta | Todos los `*.view` excepto `security.audit.view` |
 
 ## 7. Decisiones tomadas (heredadas como criterio del SGO AR)

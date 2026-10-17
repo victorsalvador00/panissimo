@@ -1,4 +1,5 @@
 using Panissimo.Domain.Common;
+using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 
@@ -61,5 +62,18 @@ public class TransferTests
         Assert.Equal("transfer_not_draft", Assert.Throws<BusinessRuleException>(() => transfer.Cancel()).Code);
         Assert.Equal("transfer_not_draft", Assert.Throws<BusinessRuleException>(() =>
             transfer.UpdateDraft(Branch, null, [new TransferLineInput(Bread, null, 1)])).Code);
+    }
+
+    [Fact]
+    public void A_voucher_posts_as_internal_transfer_and_needs_no_vehicle()
+    {
+        var voucher = new Transfer("VI-000001", Plant, Branch, null, null, [new TransferLineInput(Bread, null, 4)], TransferKind.Internal);
+        var exit = voucher.DispatchRequests(new Dictionary<Guid, IReadOnlyList<LotQuantity>>()).Single();
+        Assert.Equal((Transfer.InternalDocType, MovementType.TransferOut, "Vale VI-000001"), (exit.SourceDocType, exit.Type, exit.Notes));
+
+        Assert.Equal("transfer_shipping_required",
+            Assert.Throws<BusinessRuleException>(() => Draft().Dispatch(" ", "Luis", DateTimeOffset.UtcNow, null, [])).Code);
+        Assert.Throws<ArgumentException>(() =>
+            new Transfer("VI-2", Plant, Branch, Guid.NewGuid(), null, [new TransferLineInput(Bread, null, 1)], TransferKind.Internal));
     }
 }

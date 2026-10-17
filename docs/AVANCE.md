@@ -7,13 +7,13 @@
 
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
-- Pruebas en verde: 221 unitarias y 137 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddSubWarehouses` (B-26a).
+- Pruebas en verde: 222 unitarias y 140 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddInternalTransfers` (B-26b).
 - Frontend sin iniciar (no existe `/frontend` todavía).
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**B-27 y B-26a terminadas.** **Siguiente tarea: B-26b..B-26d** (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
+**B-27, B-26a y B-26b terminadas.** **Siguiente tarea: B-26c..B-26d** (subalmacenes, diseño acordado el 2026-10-17: siempre se elige el subalmacén —encabezado + línea—, vale interno con recepción, sucursales también pueden tener subalmacenes, alcance por subalmacén; ver dominio §4.1 RN-44..RN-47) y después **B-21** (requerimiento de MP + `POST /requisitions/suggested`, cierra la fase 4). Orden acordado con el usuario. Actualizar las RN afectadas en `dominio.md` §5 al implementar cada cambio.
 
 **Después**
 - Fase 4: B-21 requerimiento de material y `POST /requisitions/suggested` (pendiente de B-15).
@@ -24,7 +24,7 @@
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
-4. Leer B-26b en `docs/specs/backend.md` §13 y RN-44..RN-47 en `docs/specs/dominio.md` §4.1.
+4. Leer B-26c en `docs/specs/backend.md` §13 y RN-44..RN-47 en `docs/specs/dominio.md` §4.1.
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -56,7 +56,7 @@
 | 4 | B-20 Plan de producción | ✅ | (ver `git log`) |
 | 4 | B-27 Retrabajo por decisiones | ✅ | (ver `git log`) |
 | 4 | B-26a Subalmacenes: modelo y alcance | ✅ | (ver `git log`) |
-| 4 | B-26b Vale interno | ⏳ | |
+| 4 | B-26b Vale interno | ✅ | (ver `git log`) |
 | 4 | B-26c Procesos eligen subalmacén | ⏳ | |
 | 4 | B-26d Totales por ubicación | ⏳ | |
 | 4 | B-21 Requerimiento de materia prima | ⏳ | |
@@ -300,6 +300,14 @@
 - Los traspasos rechazan subalmacenes hasta B-26b/B-26c. **Pendiente para B-26c:** semilla de los 4 subalmacenes de la Planta (no se siembran aún para no romper los procesos que postean en PLANTA). **Pendiente para B-26d:** alertas de mínimo con la existencia de los subalmacenes.
 - Sin paquetes nuevos.
 - Pruebas: 221 unitarias (+2: reglas del subalmacén) y 137 de integración (+4: existencia en subalmacenes y consultas por la sucursal, reglas de alta y baja, usuario de un solo subalmacén, traspasos sin subalmacenes).
+
+### B-26b (2026-10-17)
+
+- El vale interno es un **documento** (folio `VI`, estados, líneas, bitácora) que genera los **movimientos** del kardex, como todo documento del sistema (RN-01): `TransferOut` al enviar en el subalmacén origen y `TransferIn` al recibir en el destino, con el mismo lote y costo; el faltante queda como pérdida en tránsito con motivo.
+- Implementado como `Transfer.Kind = Internal` (migración `AddInternalTransfers`: columna `kind`, existentes `Standard`; secuencia `inventory.internal_transfer_folio_seq`). Origen y destino: dos subalmacenes activos distintos de la misma planta o sucursal (`internal_transfer_route`, 422). Sin vehículo ni chofer. Movimientos con `SourceDocType = InternalTransfer` y nota "Vale VI-…". Nunca sirve a un pedido de sucursal.
+- Endpoints `/internal-transfers` (lista, detalle, alta, edición, `dispatch` con `{ version, lines? }`, `receive`, `cancel`): ver con `inventory.view`, operar con el permiso nuevo `inventory.internal_transfers` (Almacén planta por módulo de inventario y Encargado de sucursal). Crear, editar, enviar y cancelar exigen el subalmacén origen; recibir, el destino. Los endpoints de traspasos no ven vales y viceversa (404).
+- Sin paquetes nuevos.
+- Pruebas: 222 unitarias (+1) y 140 de integración (+3: vale con lote, tránsito, recepción con diferencia, kardex con costo; rutas inválidas, sin existencia y cancelación; alcance origen/destino y permiso). `AdministrationTests` ajustada: el rol de prueba que asigna "Encargado de sucursal" necesita también el permiso nuevo (anti-escalamiento, RN-43).
 
 ## Pendientes y decisiones abiertas
 

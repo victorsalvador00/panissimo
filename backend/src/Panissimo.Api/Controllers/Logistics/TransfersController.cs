@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Panissimo.Api.Auth;
 using Panissimo.Application.Common;
 using Panissimo.Application.Logistics;
+using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Security;
 
 namespace Panissimo.Api.Controllers.Logistics;
@@ -20,12 +21,12 @@ public sealed class TransfersController(ITransferService transfers) : Controller
     [HttpGet]
     [RequirePermission(Permissions.LogisticsView)]
     public Task<PagedResult<TransferListItemDto>> List([FromQuery] TransferListQuery query, CancellationToken ct) =>
-        transfers.ListAsync(query, ct);
+        transfers.ListAsync(query with { Kind = TransferKind.Standard }, ct);
 
     [HttpGet("{id:guid}")]
     [RequirePermission(Permissions.LogisticsView)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    public Task<TransferDto> Get(Guid id, CancellationToken ct) => transfers.GetAsync(id, ct);
+    public Task<TransferDto> Get(Guid id, CancellationToken ct) => transfers.GetAsync(id, ct: ct);
 
     /// <summary>Crea un traspaso en borrador. Fuera de Planta → sucursal requiere logistics.transfers.special (RN-25).</summary>
     [HttpPost]
@@ -46,7 +47,7 @@ public sealed class TransfersController(ITransferService transfers) : Controller
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public Task<TransferDto> Update(Guid id, UpdateTransferRequest request, CancellationToken ct) =>
-        transfers.UpdateAsync(id, request, ct);
+        transfers.UpdateAsync(id, request, ct: ct);
 
     /// <summary>Despacha (RN-21): registra la salida en el origen (lote planeado, lotes elegidos o FEFO) y deja el traspaso en tránsito.</summary>
     [HttpPost("{id:guid}/dispatch")]
@@ -55,7 +56,7 @@ public sealed class TransfersController(ITransferService transfers) : Controller
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public Task<TransferDto> Dispatch(Guid id, DispatchTransferRequest request, CancellationToken ct) =>
-        transfers.DispatchAsync(id, request, ct);
+        transfers.DispatchAsync(id, request, ct: ct);
 
     /// <summary>Recibe en el destino (RN-22). Recibir menos de lo enviado exige motivo y deja el traspaso con discrepancias.</summary>
     [HttpPost("{id:guid}/receive")]
@@ -64,7 +65,7 @@ public sealed class TransfersController(ITransferService transfers) : Controller
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public Task<TransferDto> Receive(Guid id, ReceiveTransferRequest request, CancellationToken ct) =>
-        transfers.ReceiveAsync(id, request, ct);
+        transfers.ReceiveAsync(id, request, ct: ct);
 
     /// <summary>Cancela un traspaso en borrador. Uno despachado no puede cancelarse (RN-23).</summary>
     [HttpPost("{id:guid}/cancel")]
@@ -72,5 +73,5 @@ public sealed class TransfersController(ITransferService transfers) : Controller
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public Task<TransferDto> Cancel(Guid id, VersionRequest request, CancellationToken ct) =>
-        transfers.CancelAsync(id, request.Version, ct);
+        transfers.CancelAsync(id, request.Version, ct: ct);
 }

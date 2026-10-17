@@ -14,6 +14,7 @@ public static class Permissions
     public const string InventoryAdjust = "inventory.adjust";
     public const string InventoryCount = "inventory.count";
     public const string InventoryConsumption = "inventory.consumption";
+    public const string InventoryInternalTransfers = "inventory.internal_transfers";
 
     public const string ProductionView = "production.view";
     public const string ProductionRecipesManage = "production.recipes.manage";
@@ -60,6 +61,7 @@ public static class Permissions
         new(InventoryAdjust, "Inventario", "Registrar ajustes y existencias iniciales"),
         new(InventoryCount, "Inventario", "Realizar conteos físicos"),
         new(InventoryConsumption, "Inventario", "Registrar consumos de sucursal"),
+        new(InventoryInternalTransfers, "Inventario", "Enviar y recibir vales internos entre subalmacenes"),
         new(ProductionView, "Producción", "Ver producción"),
         new(ProductionRecipesManage, "Producción", "Administrar recetas"),
         new(ProductionOrdersManage, "Producción", "Administrar órdenes de producción y generar desde el plan"),

@@ -16,6 +16,7 @@ public enum DocType
     Adjustment,
     PhysicalCount,
     Consumption,
+    InternalTransfer,
 }
 
 /// <summary>Sequential document numbers, e.g. <c>OC-000001</c>. One Postgres sequence per document type.</summary>
@@ -38,6 +39,7 @@ public static class Folio
         [DocType.Adjustment] = new("AJ", "inventory", "adjustment_folio_seq"),
         [DocType.PhysicalCount] = new("CF", "inventory", "physical_count_folio_seq"),
         [DocType.Consumption] = new("CON", "inventory", "consumption_folio_seq"),
+        [DocType.InternalTransfer] = new("VI", "inventory", "internal_transfer_folio_seq"),
     };
 
     public static string Format(DocType docType, long number)

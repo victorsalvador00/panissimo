@@ -34,6 +34,8 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
             modelBuilder.HasSequence("goods_receipt_folio_seq", "purchasing");
 
+            modelBuilder.HasSequence("internal_transfer_folio_seq", "inventory");
+
             modelBuilder.HasSequence("physical_count_folio_seq", "inventory");
 
             modelBuilder.HasSequence("production_close_folio_seq", "production");
@@ -1258,6 +1260,12 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("from_location_id");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -1315,6 +1323,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("FromLocationId", "Status")
                         .HasDatabaseName("ix_transfer_from_location_id_status");
+
+                    b.HasIndex("Kind", "Status")
+                        .HasDatabaseName("ix_transfer_kind_status");
 
                     b.HasIndex("ToLocationId", "Status")
                         .HasDatabaseName("ix_transfer_to_location_id_status");

@@ -24,7 +24,7 @@ describe('inventory rules', () => {
     expect(documentLink('PhysicalCount', 'c1')).toEqual(['/inventario/conteos', 'c1']);
     expect(documentLink('ProductionClose', 'c1')).toEqual(['/produccion/cierres', 'c1']);
     expect(documentLink('GoodsReceipt', 'r1')).toEqual(['/compras/recepciones', 'r1']);
-    expect(documentLink('CustomerShipment', 's1')).toBeNull();
+    expect(documentLink('CustomerShipment', 's1')).toEqual(['/ventas/remisiones', 's1']);
     expect(documentLink('Unknown', 'x')).toBeNull();
   });
 });

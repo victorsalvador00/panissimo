@@ -11,7 +11,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Observable, firstValueFrom } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Notifier } from '../../../core/http/notifier';
@@ -23,12 +23,12 @@ import { Stamp } from '../../../shared/components/stamp/stamp';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { documentLink } from '../../../shared/data-access/document-links';
 import { MxnPipe, QtyPipe, formatQty } from '../../../shared/pipes/pipes';
-import { CustomerOrder, CustomerOrdersApi } from '../data-access/sales-api';
+import { CustomerOrder, CustomerOrdersApi, CustomerShipmentsApi } from '../data-access/sales-api';
 import { CustomerOrderAction, customerOrderActions } from '../ui/customer-order-actions';
 
 /**
  * /ventas/pedidos/:id (frontend §7.7, RN-80..RN-82): ordered / shipped / pending per line, its shipments and the
- * actions by state and permission (confirm, edit, cancel, close with balance). "Nueva remisión" arrives with F-18.
+ * actions by state and permission (confirm, edit, cancel, close with balance, new shipment).
  */
 @Component({
   selector: 'app-customer-order-detail-page',
@@ -183,6 +183,12 @@ import { CustomerOrderAction, customerOrderActions } from '../ui/customer-order-
               Confirmar
             </button>
           }
+          @if (has('ship')) {
+            <button matButton="filled" type="button" [disabled]="busy()" (click)="newShipment(o)">
+              <mat-icon>local_shipping</mat-icon>
+              Nueva remisión
+            </button>
+          }
         </div>
       }
     } @else if (resource.isLoading()) {
@@ -271,6 +277,8 @@ export class CustomerOrderDetailPage {
   readonly id = input.required<string>();
 
   private readonly api = inject(CustomerOrdersApi);
+  private readonly shipments = inject(CustomerShipmentsApi);
+  private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly confirmService = inject(ConfirmService);
   private readonly reasons = inject(ReasonService);
@@ -285,14 +293,11 @@ export class CustomerOrderDetailPage {
   protected readonly order = computed(() =>
     this.resource.hasValue() ? this.resource.value() : null,
   );
-  /** The shipment action ("Nueva remisión") is rendered by F-18. */
   protected readonly actions = computed<CustomerOrderAction[]>(() => {
     const o = this.order();
     if (!o) return [];
     const shippedAny = o.lines.some((l) => l.shippedQty > 0);
-    return customerOrderActions({ status: o.status, shippedAny }, (p) => this.auth.can(p)).filter(
-      (a) => a !== 'ship',
-    );
+    return customerOrderActions({ status: o.status, shippedAny }, (p) => this.auth.can(p));
   });
 
   constructor() {
@@ -308,6 +313,19 @@ export class CustomerOrderDetailPage {
 
   protected shipmentLink(id: string): string[] | null {
     return documentLink('CustomerShipment', id);
+  }
+
+  /** RN-81: a draft shipment filled with the balance of each line; it is completed and dispatched on its screen. */
+  protected async newShipment(o: CustomerOrder): Promise<void> {
+    this.busy.set(true);
+    try {
+      const shipment = await firstValueFrom(this.shipments.createFromOrder(o.id));
+      await this.router.navigate(['/ventas/remisiones', shipment.id]);
+    } catch {
+      // The error interceptor shows why.
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected async confirm(o: CustomerOrder): Promise<void> {

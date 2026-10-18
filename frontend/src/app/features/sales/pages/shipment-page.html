@@ -1,0 +1,218 @@
+@if (shipment(); as s) {
+  <app-page-header class="pan-no-print" [title]="'Remisión ' + s.folio">
+    <app-status-tag [value]="s.status" kind="CustomerShipmentStatus" />
+  </app-page-header>
+
+  <div class="sheet pan-has-action-bar">
+    <header class="print-head pan-print-only">
+      <img src="brand/logo.webp" alt="Paníssimo" width="180" />
+      <div>
+        <h1>Remisión {{ s.folio }}</h1>
+        <p>Documento de entrega · no es factura</p>
+      </div>
+    </header>
+
+    <section class="pan-card">
+      <dl class="data">
+        <dt>Cliente</dt>
+        <dd>{{ s.customerCode }} · {{ s.customerName }}</dd>
+        <dt>Entrega</dt>
+        <dd>
+          {{ s.deliveryPointName ?? 'Sin punto de entrega' }}
+          @if (s.deliveryPointAddress) {
+            · {{ s.deliveryPointAddress }}
+          }
+        </dd>
+        <dt>Pedido</dt>
+        <dd>
+          <a class="row-link" [routerLink]="['/ventas/pedidos', s.customerOrderId]">
+            {{ s.customerOrderFolio }}
+          </a>
+          @if (s.customerReference) {
+            · referencia {{ s.customerReference }}
+          }
+        </dd>
+        <dt>Surte</dt>
+        <dd>{{ s.fromLocationName }}</dd>
+        @if (s.dispatchedAt) {
+          <dt>Despachada</dt>
+          <dd><app-stamp [at]="s.dispatchedAt" [by]="s.dispatchedByName" /></dd>
+          <dt>Vehículo y chofer</dt>
+          <dd>{{ s.vehicleDescription }} · {{ s.driverName }}</dd>
+          @if (s.receivedByName) {
+            <dt>Recibe</dt>
+            <dd>{{ s.receivedByName }}</dd>
+          }
+        }
+        @if (s.notes && !editable()) {
+          <dt>Notas</dt>
+          <dd>{{ s.notes }}</dd>
+        }
+        @if (s.totalCost !== null) {
+          <dt class="pan-no-print">Costo</dt>
+          <dd class="pan-no-print">{{ s.totalCost | mxn }} <span class="muted">(interno)</span></dd>
+        }
+      </dl>
+    </section>
+
+    @if (editable()) {
+      <form
+        id="shipment-form"
+        class="pan-card fields pan-capture"
+        [formGroup]="form"
+        (ngSubmit)="dispatch(s)"
+        novalidate
+      >
+        @if (warehouses().length > 0) {
+          <mat-form-field>
+            <mat-label>Sale del subalmacén</mat-label>
+            <mat-select formControlName="warehouseId">
+              @for (warehouse of warehouses(); track warehouse.id) {
+                <mat-option [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+              }
+            </mat-select>
+            <mat-error>{{ controlError(form.controls.warehouseId) }}</mat-error>
+          </mat-form-field>
+        }
+        <mat-form-field>
+          <mat-label>Vehículo</mat-label>
+          <input matInput formControlName="vehicleDescription" />
+          <mat-error>{{ controlError(form.controls.vehicleDescription) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Chofer</mat-label>
+          <input matInput formControlName="driverName" />
+          <mat-error>{{ controlError(form.controls.driverName) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Recibe (opcional)</mat-label>
+          <input matInput formControlName="receivedByName" />
+          <mat-error>{{ controlError(form.controls.receivedByName) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="wide">
+          <mat-label>Notas</mat-label>
+          <input matInput formControlName="notes" />
+        </mat-form-field>
+      </form>
+
+      @for (d of lines(); track d.line.id) {
+        <article class="pan-card line pan-capture">
+          <div class="item">
+            <strong>{{ d.line.sku }}</strong>
+            <span>{{ d.line.itemName }}</span>
+            <span class="muted">
+              Pedido {{ d.line.orderedQty | qty: d.line.uomCode }}
+              @if (d.line.previouslyShippedQty > 0) {
+                · ya remisionado {{ d.line.previouslyShippedQty | qty: d.line.uomCode }}
+              }
+              · máximo {{ d.line.maxQuantity | qty: d.line.uomCode }}
+              @if (d.line.customerSku) {
+                · clave {{ d.line.customerSku }}
+              }
+            </span>
+          </div>
+          <app-qty-input
+            class="qty"
+            [formControl]="d.quantity"
+            label="Cantidad"
+            [unit]="d.line.uomCode"
+            [max]="d.line.maxQuantity"
+            allowZero
+          />
+          @if (d.line.tracksLots) {
+            <div class="lots">
+              <button matButton type="button" (click)="d.open.set(!d.open())">
+                <mat-icon>{{ d.open() ? 'expand_less' : 'expand_more' }}</mat-icon>
+                Elegir lotes
+                @if (d.lots().length > 0) {
+                  ({{ d.lots().length }})
+                }
+              </button>
+              @if (d.open()) {
+                <app-lot-split
+                  [locationId]="lotLocation(s)"
+                  [itemId]="d.line.itemId"
+                  [target]="d.quantity.value"
+                  [unit]="d.line.uomCode"
+                  [chosen]="d.lots()"
+                  (chosenChange)="setLots(d, $event)"
+                />
+              } @else if (!lotsValid(d)) {
+                <p class="exit">Los lotes elegidos no suman la cantidad.</p>
+              }
+            </div>
+          }
+        </article>
+      }
+    } @else {
+      <section class="pan-card" aria-labelledby="shipment-lines">
+        <h2 id="shipment-lines">Productos</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Producto</th>
+                <th scope="col">Clave del cliente</th>
+                <th scope="col" class="end">Cantidad</th>
+                <th scope="col">Lotes</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of s.lines; track line.id) {
+                <tr>
+                  <td>
+                    <strong>{{ line.sku }}</strong> {{ line.itemName }}
+                  </td>
+                  <td>{{ line.customerSku ?? '—' }}</td>
+                  <td class="end">{{ line.quantity | qty: line.uomCode }}</td>
+                  <td>
+                    @for (lot of line.lots; track lot.lotId) {
+                      <span class="lot">
+                        {{ lot.lotNumber }} · {{ lot.quantity | qty: line.uomCode }}
+                        @if (lot.expirationDate) {
+                          · cad. {{ lot.expirationDate | date: 'dd/MM/yyyy' }}
+                        }
+                      </span>
+                    } @empty {
+                      —
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      @if (s.status === 'Dispatched') {
+        <div class="signatures pan-print-only">
+          <div><span></span>Entregó · {{ s.driverName }}</div>
+          <div><span></span>Recibió · {{ s.receivedByName ?? 'nombre y firma' }}</div>
+        </div>
+      }
+    }
+  </div>
+
+  <div class="pan-action-bar">
+    <a matButton [routerLink]="['/ventas/pedidos', s.customerOrderId]">Volver al pedido</a>
+    @if (editable()) {
+      <span class="total muted">Total {{ totalQuantity() | qty }}</span>
+      <button matButton type="button" [disabled]="busy()" (click)="cancel(s)">
+        Cancelar remisión
+      </button>
+      <button matButton="tonal" type="button" [disabled]="busy()" (click)="saveQuantities(s)">
+        Guardar cantidades
+      </button>
+      <button matButton="filled" type="submit" form="shipment-form" [disabled]="busy()">
+        Despachar
+      </button>
+    } @else if (s.status === 'Dispatched') {
+      <button matButton="filled" type="button" (click)="print()">
+        <mat-icon>print</mat-icon>
+        Imprimir
+      </button>
+    }
+  </div>
+} @else if (resource.isLoading()) {
+  <p role="status">Cargando…</p>
+}

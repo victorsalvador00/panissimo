@@ -168,3 +168,51 @@ input.pan-uppercase.mat-mdc-input-element {
     text-decoration: underline;
   }
 }
+
+// Printable documents (frontend §7.7, a shipment on a letter sheet): only the page content, without the shell.
+.pan-print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: letter;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .topbar,
+  .sidebar,
+  nav[aria-label='Migas de pan'],
+  .pan-action-bar,
+  .pan-no-print,
+  .mat-mdc-snack-bar-container {
+    display: none !important;
+  }
+
+  .pan-print-only {
+    display: block !important;
+  }
+
+  // The shell's scroll container and the sidenav margin would cut the sheet.
+  mat-sidenav-container,
+  mat-sidenav-content,
+  .content {
+    position: static !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .pan-card {
+    box-shadow: none !important;
+    border: 1px solid #999 !important;
+    break-inside: avoid;
+  }
+}

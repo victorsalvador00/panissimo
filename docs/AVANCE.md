@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-17, clientes y pedidos de cliente).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-18, remisiones).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,24 +9,24 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-17 y F-25 terminadas (fases 1, 2 y 3; F-16 y F-17 de la 4) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-18 y F-25 terminadas (fases 1, 2 y 3; F-16..F-18 de la 4) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-18 (★ remisiones con despacho, lotes e impresión) según `docs/specs/frontend.md` §11. La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-19 (plan de producción con generación de OP; pestaña Pedidos del detalle de OP) según `docs/specs/frontend.md` §11. La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-18..F-24.
-- **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
+- Frontend F-19..F-24.
+- **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-18). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-19). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -87,7 +87,8 @@
 | 3 | F-15 Órdenes de compra y recepciones | ✅ | (ver `git log`) |
 | 4 | F-16 Pedidos de sucursal con sugerido y aprobación | ✅ | (ver `git log`) |
 | 4 | F-17 Clientes y pedidos de cliente | ✅ | (ver `git log`) |
-| 4 | F-18..F-20 | ⏳ | |
+| 4 | F-18 Remisiones con despacho, lotes e impresión | ✅ | (ver `git log`) |
+| 4 | F-19, F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
 | + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
 
@@ -556,3 +557,14 @@
 - **E2E de F-17 en verde** (`14-customer-order`, suite 26/26): cliente con código en minúsculas (se guarda en mayúsculas), punto de entrega "Tienda centro", artículo `E2E-PAN` (terminado nuevo) con clave PAN-01 y $4.50; pedido para ese punto con la referencia, precio y clave prellenados, 12 pza, "Guardar y confirmar" → Confirmado con importe $54.00. No mueve inventario; deja un cliente "Cliente E2E …" y un pedido confirmado (demanda del plan) por corrida. `support/api.ts`: `ensureItem` acepta terminados (granel).
 - Pruebas: 135 unitarias (acciones del pedido por estado y permiso; producto repetido). Sin paquetes nuevos.
 - Pendiente para F-19: "OP ligadas con avance" en el detalle del pedido (el DTO aún no las trae; llegan con el plan, que genera las OP con su demanda).
+
+### F-18 (2026-10-17)
+
+- **Remisiones** (`/ventas/remisiones`, RN-81..RN-83): pestañas Por despachar / Todas (en `?tab=`), filtros de cliente y fechas; pedido, cliente, punto, estado, cantidad, creada y despachada.
+- **"Nueva remisión"** en el detalle del pedido (confirmado o remisionado parcial, con `sales.shipments.dispatch`): crea la remisión en borrador prellenada con el saldo y abre su pantalla.
+- ★ **Remisión** (`/:id`): en borrador, tarjeta por producto con pedido, ya remisionado y máximo (saldo + tolerancia, RN-82), cantidad editable, **"Elegir lotes"** (`lot-split`), subalmacén de salida, vehículo, chofer, quién recibe y notas; "Guardar cantidades", "Cancelar remisión" y **Despachar** (guarda primero las cantidades si cambiaron, luego despacha con los lotes elegidos; confirmación con el resumen; 409 por faltantes en el interceptor). Despachada: solo lectura con lotes y caducidad, costo interno solo en pantalla, e **Imprimir** en hoja carta.
+- **Impresión** (`styles/_ui.scss`): `@media print` con `@page { size: letter }`, sin barra superior, menú lateral, migas ni barra de acciones; clases globales `pan-print-only` y `pan-no-print`. La remisión impresa lleva logo, "Documento de entrega · no es factura" (RN-83), datos, productos con lotes y líneas de firma "Entregó" / "Recibió".
+- Corrección: el efecto que llenaba las líneas de la remisión leía y escribía la misma señal (ciclo) y la pantalla no terminaba de mostrarse; ahora lee el estado previo con `untracked`.
+- **E2E 11 en verde** (`15-customer-shipment`, suite 27/27): pedido de 12 `E2E-PAN` confirmado por API → "Nueva remisión" prellenada con 12 → parcial de 5 desde Producto terminado con vehículo, chofer y quién recibe → Despachada → vista de impresión (emulada) con encabezado, sin menú → el pedido queda "Remisionado parcial" con 7 pendientes. **Mueve inventario** (mete 5 pza de `E2E-PAN` en PLANTA-PT y las remisiona). Se cancelaron las remisiones borrador RM-000001..RM-000009 que dejaron las corridas de diagnóstico.
+- Pruebas: 137 unitarias (reparto de lotes). Sin paquetes nuevos.
+- `docs/specs/trazabilidad.md` (nueva versión) y `trazabilidad-ui.md` del usuario se renumeraron a B-28 y F-26 y se comitearon aparte.

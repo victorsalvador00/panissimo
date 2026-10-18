@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Sales to third parties (frontend §7.7). F-18 adds the shipments. */
+/** Sales to third parties (frontend §7.7): customers, their orders and shipments. */
 export const SALES_ROUTES: Routes = [
   {
     path: 'clientes',
@@ -61,6 +61,24 @@ export const SALES_ROUTES: Routes = [
         data: { permission: 'sales.orders.manage', breadcrumb: 'Editar pedido' },
         loadComponent: () =>
           import('./pages/customer-order-form-page').then((m) => m.CustomerOrderFormPage),
+      },
+    ],
+  },
+  {
+    path: 'remisiones',
+    canActivate: [permissionGuard],
+    data: { permission: 'sales.view', breadcrumb: 'Remisiones' },
+    children: [
+      {
+        path: '',
+        title: 'Remisiones · SGO Paníssimo',
+        loadComponent: () => import('./pages/shipments-list-page').then((m) => m.ShipmentsListPage),
+      },
+      {
+        path: ':id',
+        title: 'Remisión · SGO Paníssimo',
+        data: { breadcrumb: 'Remisión' },
+        loadComponent: () => import('./pages/shipment-page').then((m) => m.ShipmentPage),
       },
     ],
   },

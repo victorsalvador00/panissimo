@@ -17,6 +17,9 @@ export type DeliveryPoint = Schemas['DeliveryPointDto'];
 export type CustomerItem = Schemas['CustomerItemDto'];
 export type CustomerOrder = Schemas['CustomerOrderDto'];
 export type CustomerOrderListItem = Schemas['CustomerOrderListItemDto'];
+export type CustomerShipment = Schemas['CustomerShipmentDto'];
+export type CustomerShipmentLine = Schemas['CustomerShipmentLineDto'];
+export type CustomerShipmentListItem = Schemas['CustomerShipmentListItemDto'];
 
 /** Customers with their delivery points and items (`/customers`, D-06). */
 @Injectable({ providedIn: 'root' })
@@ -128,5 +131,48 @@ export class CustomerOrdersApi {
   close(id: string, version: number, reason: string): Observable<CustomerOrder> {
     const body: Schemas['CloseCustomerOrderRequest'] = { version, reason };
     return this.http.post<CustomerOrder>(`customer-orders/${id}/close`, body);
+  }
+}
+
+/** Customer shipments (`/customer-shipments`, RN-81): delivery documents, not invoices (RN-83). */
+@Injectable({ providedIn: 'root' })
+export class CustomerShipmentsApi {
+  private readonly http = inject(HttpClient);
+
+  /** `tab` (All, ToDispatch), `customerId`, `customerOrderId`, `from`/`to`, `q`. */
+  list(query: ListQuery, filters: ParamValues = {}): Observable<Page<CustomerShipmentListItem>> {
+    return this.http.get<Page<CustomerShipmentListItem>>('customer-shipments', {
+      params: toHttpParams(query, filters),
+    });
+  }
+
+  get(id: string): Observable<CustomerShipment> {
+    return this.http.get<CustomerShipment>(`customer-shipments/${id}`);
+  }
+
+  /** A draft from a confirmed or partially shipped order, filled with the balance of each line. */
+  createFromOrder(orderId: string): Observable<CustomerShipment> {
+    return this.http.post<CustomerShipment>(`customer-orders/${orderId}/shipments`, {});
+  }
+
+  /** Quantities of the draft (up to the balance plus the tolerance, RN-82). */
+  update(
+    id: string,
+    request: Schemas['UpdateCustomerShipmentRequest'],
+  ): Observable<CustomerShipment> {
+    return this.http.put<CustomerShipment>(`customer-shipments/${id}`, request);
+  }
+
+  /** Posts the exit (first to expire unless lots are chosen) at the average cost; it is final. */
+  dispatch(
+    id: string,
+    request: Schemas['DispatchCustomerShipmentRequest'],
+  ): Observable<CustomerShipment> {
+    return this.http.post<CustomerShipment>(`customer-shipments/${id}/dispatch`, request);
+  }
+
+  cancel(id: string, version: number): Observable<CustomerShipment> {
+    const body: Schemas['VersionRequest'] = { version };
+    return this.http.post<CustomerShipment>(`customer-shipments/${id}/cancel`, body);
   }
 }

@@ -6,6 +6,7 @@ using Panissimo.Application.Security;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 
 namespace Panissimo.Application.Production;
@@ -47,6 +48,35 @@ public sealed record RecipeDto(
 public sealed record ExplosionLineDto(
     Guid ComponentItemId, string Sku, string Name, ItemType Type, string BaseUomCode, bool HasRecipe, decimal QuantityPerYield,
     decimal WastePct, decimal TheoreticalQty, decimal? Available, decimal? Shortage, decimal? AverageCost, decimal? EstimatedCost);
+
+/// <param name="AverageCost">Current average cost at the location with its sub-warehouses (RN-04, RN-46).</param>
+/// <param name="LineCost">Quantity × (1 + WastePct/100) × average cost, for the whole yield.</param>
+/// <param name="Increase">Set when the component's cost rose recently (RN-51).</param>
+public sealed record RecipeCostLineDto(
+    Guid ComponentItemId, string Sku, string Name, string BaseUomCode, decimal Quantity, decimal WastePct, decimal AverageCost,
+    decimal LineCost, CostIncreaseDto? Increase);
+
+/// <param name="TotalCost">Cost of the whole yield.</param>
+/// <param name="UnitCost">RN-51: theoretical cost per base unit of the product = total / yield.</param>
+public sealed record RecipeVersionCostDto(
+    Guid RecipeId, int RecipeVersion, bool IsActive, decimal YieldQty, decimal TotalCost, decimal UnitCost, int IncreaseCount,
+    IReadOnlyList<RecipeCostLineDto> Lines);
+
+/// <summary>RN-51: the theoretical cost of every version of a product's recipe at today's average costs. Read only.</summary>
+public sealed record RecipeCostsDto(
+    Guid OutputItemId, string OutputSku, string OutputName, string BaseUomCode, Guid LocationId, decimal AlertPct,
+    IReadOnlyList<RecipeVersionCostDto> Versions);
+
+public static class RecipeCostMath
+{
+    /// <summary>RN-51: Quantity × (1 + WastePct/100) × average cost.</summary>
+    public static decimal LineCost(decimal quantity, decimal wastePct, decimal averageCost) =>
+        InventoryMath.Round(quantity * (1 + wastePct / 100) * averageCost);
+
+    /// <summary>RN-51: cost per unit of the product.</summary>
+    public static decimal UnitCost(decimal totalCost, decimal yieldQty) =>
+        yieldQty <= 0 ? 0 : InventoryMath.Round(totalCost / yieldQty);
+}
 
 public sealed record ExplosionDto(
     Guid RecipeId, Guid OutputItemId, string OutputSku, string OutputName, int RecipeVersion, decimal Quantity, decimal YieldQty,
@@ -101,6 +131,9 @@ public interface IRecipeService
 
     /// <summary>RN-11/RN-12: theoretical consumption; with a location, usable availability, shortage and estimated cost.</summary>
     Task<ExplosionDto> ExplodeAsync(Guid id, decimal quantity, Guid? locationId, CancellationToken ct = default);
+
+    /// <summary>RN-51: every version of the recipe's product, costed at the location's current average costs.</summary>
+    Task<RecipeCostsDto> CostsAsync(Guid id, Guid locationId, CancellationToken ct = default);
 }
 
 public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock clock, IUserDirectory userDirectory) : IRecipeService
@@ -331,5 +364,39 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
 
         return new RecipeDto(r.Id, r.OutputItemId, output.Sku, output.Name, output.Type, output.Uom, r.VersionNumber, r.IsActive, r.IsUsed,
             r.YieldQty, r.Notes, lines, versions, r.CreatedAt, r.CreatedBy, users.Of(r.CreatedBy), r.UpdatedAt, users.Of(r.UpdatedBy), r.Version);
+    }
+
+    public async Task<RecipeCostsDto> CostsAsync(Guid id, Guid locationId, CancellationToken ct = default)
+    {
+        scope.EnsureAccess(locationId);
+        var outputId = await db.Recipes.AsNoTracking().Where(r => r.Id == id).Select(r => (Guid?)r.OutputItemId).SingleOrDefaultAsync(ct)
+                       ?? throw new NotFoundException("la receta", id);
+        var output = await (from i in db.Items.AsNoTracking()
+                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
+                            where i.Id == outputId
+                            select new { i.Sku, i.Name, Uom = u.Code }).SingleAsync(ct);
+        var versions = await db.Recipes.AsNoTracking().Include(r => r.Lines).Where(r => r.OutputItemId == outputId)
+            .OrderByDescending(r => r.VersionNumber).ToListAsync(ct);
+
+        var componentIds = versions.SelectMany(v => v.Lines).Select(l => l.ComponentItemId).Distinct().ToList();
+        var components = await ComponentsAsync(componentIds, ct);
+        var costs = await InventoryLocations.AverageCostsAsync(db, locationId, componentIds, ct);
+        var alertPct = await db.GetSettingAsync(AppSettingKeys.CostIncreaseAlertPct, ct);
+        var increases = await RecipeCostRules.IncreasesAsync(db, alertPct, clock.BusinessDate(), ct);
+
+        var dtos = versions.Select(v =>
+        {
+            var lines = v.Lines.OrderBy(l => components[l.ComponentItemId].Sku).Select(l =>
+            {
+                var c = components[l.ComponentItemId];
+                var average = costs.GetValueOrDefault(l.ComponentItemId);
+                return new RecipeCostLineDto(l.ComponentItemId, c.Sku, c.Name, c.Uom, l.Quantity, l.WastePct, average,
+                    RecipeCostMath.LineCost(l.Quantity, l.WastePct, average), increases.GetValueOrDefault(l.ComponentItemId));
+            }).ToList();
+            var total = lines.Sum(l => l.LineCost);
+            return new RecipeVersionCostDto(v.Id, v.VersionNumber, v.IsActive, v.YieldQty, total, RecipeCostMath.UnitCost(total, v.YieldQty),
+                lines.Count(l => l.Increase is not null), lines);
+        }).ToList();
+        return new RecipeCostsDto(outputId, output.Sku, output.Name, output.Uom, locationId, alertPct, dtos);
     }
 }

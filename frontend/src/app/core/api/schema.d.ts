@@ -8249,6 +8249,85 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/recipes/{id}/costs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Costo teórico de cada versión de la receta del producto (RN-51): Σ cantidad × (1 + % merma) × costo promedio vigente en
+     *     la ubicación (con sus subalmacenes) / rendimiento. Marca los componentes cuyo último costo de compra subió al menos
+     *     production.cost_increase_alert_pct en los últimos 30 días. Solo lectura.
+     */
+    get: {
+      parameters: {
+        query?: {
+          locationId?: string;
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['RecipeCostsDto'];
+            'application/json': components['schemas']['RecipeCostsDto'];
+            'text/json': components['schemas']['RecipeCostsDto'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/locations': {
     parameters: {
       query?: never;
@@ -10219,6 +10298,86 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/consumption-analysis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Salidas de la ubicación y sus subalmacenes (consumo, consumo de producción, traspaso y remisión; sin vales internos) en
+     *     semanas completas hasta ayer (8 por omisión, máx. 26): total, promedio diario, patrón por día de la semana, tendencia
+     *     (últimas 4 semanas contra las 4 anteriores), mín/máx actual y sugerido (promedio × inventory.min_cover_days /
+     *     max_cover_days, hacia arriba). Aplicar el sugerido usa PUT /items/{id}/location-settings.
+     */
+    get: {
+      parameters: {
+        query?: {
+          LocationId?: string;
+          Weeks?: number;
+          Q?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ConsumptionAnalysisDto'];
+            'application/json': components['schemas']['ConsumptionAnalysisDto'];
+            'text/json': components['schemas']['ConsumptionAnalysisDto'];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -14146,6 +14305,43 @@ export interface components {
       version: number;
       reason: string;
     };
+    ConsumptionAnalysisDto: {
+      /** Format: uuid */
+      locationId: string;
+      /** Format: int32 */
+      weeks: number;
+      /** Format: date */
+      from: string;
+      /** Format: date */
+      to: string;
+      /** Format: int32 */
+      minCoverDays: number;
+      /** Format: int32 */
+      maxCoverDays: number;
+      rows: components['schemas']['ConsumptionAnalysisRowDto'][];
+    };
+    ConsumptionAnalysisRowDto: {
+      /** Format: uuid */
+      itemId: string;
+      sku: string;
+      name: string;
+      baseUomCode: string;
+      /** Format: double */
+      total: number;
+      /** Format: double */
+      dailyAverage: number;
+      byWeekday: number[];
+      /** Format: double */
+      trendPct: null | number;
+      /** Format: double */
+      currentMin: null | number;
+      /** Format: double */
+      currentMax: null | number;
+      /** Format: double */
+      suggestedMin: number;
+      /** Format: double */
+      suggestedMax: number;
+    };
     ConsumptionDto: {
       /** Format: uuid */
       id: string;
@@ -16844,6 +17040,34 @@ export interface components {
       alertPct: number;
       items: components['schemas']['RecipeCostIncreaseDto'][];
     };
+    RecipeCostLineDto: {
+      /** Format: uuid */
+      componentItemId: string;
+      sku: string;
+      name: string;
+      baseUomCode: string;
+      /** Format: double */
+      quantity: number;
+      /** Format: double */
+      wastePct: number;
+      /** Format: double */
+      averageCost: number;
+      /** Format: double */
+      lineCost: number;
+      increase: null | components['schemas']['CostIncreaseDto'];
+    };
+    RecipeCostsDto: {
+      /** Format: uuid */
+      outputItemId: string;
+      outputSku: string;
+      outputName: string;
+      baseUomCode: string;
+      /** Format: uuid */
+      locationId: string;
+      /** Format: double */
+      alertPct: number;
+      versions: components['schemas']['RecipeVersionCostDto'][];
+    };
     RecipeDto: {
       /** Format: uuid */
       id: string;
@@ -16920,6 +17144,22 @@ export interface components {
       createdByName: null | string;
       /** Format: date-time */
       updatedAt: null | string;
+    };
+    RecipeVersionCostDto: {
+      /** Format: uuid */
+      recipeId: string;
+      /** Format: int32 */
+      recipeVersion: number;
+      isActive: boolean;
+      /** Format: double */
+      yieldQty: number;
+      /** Format: double */
+      totalCost: number;
+      /** Format: double */
+      unitCost: number;
+      /** Format: int32 */
+      increaseCount: number;
+      lines: components['schemas']['RecipeCostLineDto'][];
     };
     RecipeVersionDto: {
       /** Format: uuid */

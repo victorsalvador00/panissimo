@@ -1,23 +1,23 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (B-22, tablero y resumen de producción).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (B-23, costo de receta y análisis de consumo).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
 
 **Dónde quedamos**
-- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5: B-22 terminada.
-- Pruebas en verde: 245 unitarias y 154 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5: B-22 y B-23 terminadas.
+- Pruebas en verde: 264 unitarias y 156 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
 - Backend fases 1-4 completas. Frontend: F-01..F-20 y F-25 terminadas (fases 1 a 4; proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** backend de la fase 5: **B-23** (costo de receta por versión y análisis de consumo, RN-51/RN-52), luego B-24 (fotos) y B-25 (endurecimiento). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
+**Siguiente:** backend de la fase 5: **B-24** (fotos) y B-25 (endurecimiento). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
 
 **Después**
-- Fase 5: B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
+- Fase 5: B-24 fotos, B-25 endurecimiento.
 - Frontend F-21..F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
@@ -26,7 +26,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/backend.md` §13 (B-23). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/backend.md` §13 (B-24). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -63,7 +63,8 @@
 | 4 | B-26d Totales por ubicación | ✅ | (ver `git log`) |
 | 4 | B-21 Requerimiento de materia prima | ✅ | (ver `git log`) |
 | 5 | B-22 Tablero y resumen de producción | ✅ | (ver `git log`) |
-| 5 | B-23..B-25 Costos y análisis, fotos, endurecimiento | ⏳ | |
+| 5 | B-23 Costo de receta y análisis de consumo | ✅ | (ver `git log`) |
+| 5 | B-24..B-25 Fotos, endurecimiento | ⏳ | |
 | + | B-28 Trazabilidad de lotes (`docs/specs/trazabilidad.md`) | ⏳ | |
 
 ## Frontend
@@ -602,3 +603,12 @@
 - Pruebas: unitarias de la regla de alza (umbral exacto, 30 días, bajada, sin anterior, costo ponderado) y del cumplimiento; integración `DashboardTests`: el resumen por área y por producto cuadra con la suma de los cierres (una OP cancelada no cuenta), producción de hoy en el tablero, permisos por bloque (encargado de sucursal), 403 fuera de alcance y receta con alza de 900 %. Backend: 245 unitarias y 154 de integración en verde. Sin migración ni paquetes nuevos.
 - Frontend: tipos regenerados y etiqueta de `ProductionSummaryGroupBy`.
 - Nota de desarrollo: `dotnet watch` no recarga bien un enum nuevo (`/openapi` respondía 500 "Literal value was not found"); se resuelve reiniciando el contenedor del API.
+
+### B-23 (2026-10-17)
+
+- **Costo de receta** `GET /recipes/{id}/costs?locationId` (RN-51, `production.view`): todas las versiones de la receta del producto, la más nueva primero, costeadas con el costo promedio vigente de la ubicación con sus subalmacenes (`InventoryLocations.AverageCostsAsync`). Por línea: cantidad, % merma, costo promedio, costo de línea = cantidad × (1 + merma/100) × costo, y el **alza** si la hay (costo anterior, último, %, fecha). Por versión: costo total del rendimiento, **costo unitario = total / rendimiento** y número de alzas. Solo lectura.
+- La detección de alzas pasó a `RecipeCostRules.IncreasesAsync` (Production) y la comparten el tablero y los costos.
+- **Análisis de consumo** `GET /consumption-analysis?locationId&weeks&q` (RN-52, `inventory.view`, semanas 1..26, 8 por omisión): salidas `Consumption`, `ProductionConsumption`, `TransferOut` y `CustomerShipment` de la ubicación y sus subalmacenes en **N semanas completas que terminan ayer** (N × 7 días; hoy no cuenta). Excluye los vales internos (`TransferOut` con documento `InternalTransfer`): solo mueven existencia entre la ubicación y sus subalmacenes. Por artículo: total, promedio diario, promedio por día de la semana (lunes a domingo), tendencia (últimas 4 semanas contra las 4 anteriores; null con menos de 8 semanas o sin consumo antes), mín/máx actual y sugerido (promedio × `inventory.min_cover_days` / `max_cover_days`, hacia arriba: enteros en `pza`, 4 decimales en las demás unidades; el máx nunca bajo el mín). "Aplicar sugerido" usa el PUT normal de mín/máx.
+- **Decisión tomada (sin pregunta, por ser de presentación):** el redondeo hacia arriba fuera de `pza` es a 4 decimales, la precisión de las cantidades (RN-03b).
+- Pruebas: unitarias del periodo, promedio, tendencia, sugerido (enteros, decimales, máx ≥ mín) y del costo de línea y unitario; integración `ConsumptionAnalysisAndRecipeCostTests`: historial de 8 semanas (8 y 12 pza/día → 10/día, +50 %, 20/70; las salidas de hoy, de antes del periodo y el vale interno no cuentan; 4 semanas sin tendencia; 27 semanas → 400) y dos versiones de receta (132.1 y 112.1 → 1.321 y 1.121 por pieza; azúcar +20 % marcada). Para fechar el historial la prueba cambia la fecha de negocio de sus propios movimientos. Backend: 264 unitarias y 156 de integración en verde. Sin migración ni paquetes nuevos.
+- Frontend: tipos regenerados.

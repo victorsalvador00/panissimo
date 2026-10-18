@@ -71,4 +71,14 @@ public sealed class RecipesController(IRecipeService recipes) : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public Task<ExplosionDto> Explode(Guid id, [FromQuery] decimal qty, [FromQuery] Guid? locationId, CancellationToken ct) =>
         recipes.ExplodeAsync(id, qty, locationId, ct);
+
+    /// <summary>
+    /// Costo teórico de cada versión de la receta del producto (RN-51): Σ cantidad × (1 + % merma) × costo promedio vigente en
+    /// la ubicación (con sus subalmacenes) / rendimiento. Marca los componentes cuyo último costo de compra subió al menos
+    /// production.cost_increase_alert_pct en los últimos 30 días. Solo lectura.
+    /// </summary>
+    [HttpGet("{id:guid}/costs")]
+    [RequirePermission(Permissions.ProductionView)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public Task<RecipeCostsDto> Costs(Guid id, [FromQuery] Guid locationId, CancellationToken ct) => recipes.CostsAsync(id, locationId, ct);
 }

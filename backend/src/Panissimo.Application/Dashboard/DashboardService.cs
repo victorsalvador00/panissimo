@@ -35,9 +35,6 @@ public sealed record ProductionInProgressDto(Guid Id, string Folio, string Outpu
 
 public sealed record ProductionInProgressBlock(int Count, IReadOnlyList<ProductionInProgressDto> Items);
 
-public sealed record CostIncreaseDto(Guid ItemId, string Sku, string Name, decimal PreviousCost, decimal LastCost, decimal IncreasePct,
-    DateOnly ReceivedOn);
-
 public sealed record RecipeCostIncreaseDto(Guid RecipeId, Guid OutputItemId, string OutputSku, string OutputName, int RecipeVersion,
     IReadOnlyList<CostIncreaseDto> Components);
 
@@ -202,7 +199,7 @@ public sealed class DashboardService(IAppDbContext db, ILocationScope scope, Use
     private async Task<RecipeCostIncreasesBlock> RecipeCostIncreasesAsync(DateOnly today, CancellationToken ct)
     {
         var alertPct = await db.GetSettingAsync(AppSettingKeys.CostIncreaseAlertPct, ct);
-        var increases = await CostIncreasesAsync(db, alertPct, today, ct);
+        var increases = await RecipeCostRules.IncreasesAsync(db, alertPct, today, ct);
         if (increases.Count == 0)
             return new RecipeCostIncreasesBlock(0, alertPct, []);
 
@@ -219,42 +216,6 @@ public sealed class DashboardService(IAppDbContext db, ILocationScope scope, Use
             .OrderByDescending(r => r.Components.Max(c => c.IncreasePct)).ThenBy(r => r.OutputSku)
             .ToList();
         return new RecipeCostIncreasesBlock(items.Count, alertPct, [.. items.Take(PreviewSize)]);
-    }
-
-    /// <summary>
-    /// RN-51: items whose last purchase receipt (≤ 30 days old) cost at least <paramref name="alertPct"/> more than the previous
-    /// receipt. A receipt with several lots counts once, at its weighted cost.
-    /// </summary>
-    public static async Task<Dictionary<Guid, CostIncreaseDto>> CostIncreasesAsync(IAppDbContext db, decimal alertPct, DateOnly today,
-        CancellationToken ct)
-    {
-        var since = today.AddDays(-RecipeCostRules.IncreaseWindowDays);
-        var candidates = db.InventoryMovements
-            .Where(m => m.Type == MovementType.PurchaseReceipt && m.BusinessDate >= since)
-            .Select(m => m.ItemId).Distinct();
-        var receipts = await db.InventoryMovements.AsNoTracking()
-            .Where(m => m.Type == MovementType.PurchaseReceipt && candidates.Contains(m.ItemId))
-            .GroupBy(m => new { m.ItemId, m.SourceDocId })
-            .Select(g => new { g.Key.ItemId, Sequence = g.Max(m => m.Sequence), Date = g.Max(m => m.BusinessDate),
-                Total = g.Sum(m => m.TotalCost), Quantity = g.Sum(m => m.Quantity) })
-            .ToListAsync(ct);
-        var risen = new Dictionary<Guid, (ReceiptCost Last, ReceiptCost Previous, decimal Pct)>();
-        foreach (var item in receipts.GroupBy(r => r.ItemId))
-        {
-            var lastTwo = item.OrderByDescending(r => r.Sequence)
-                .Select(r => new ReceiptCost(RecipeCostRules.UnitCost(r.Total, r.Quantity), r.Date)).Take(2).ToList();
-            if (lastTwo.Count < 2)
-                continue;
-            if (RecipeCostRules.Increase(lastTwo[0], lastTwo[1], alertPct, today) is { } pct)
-                risen[item.Key] = (lastTwo[0], lastTwo[1], pct);
-        }
-        if (risen.Count == 0)
-            return [];
-
-        var ids = risen.Keys.ToList();
-        var names = await db.Items.AsNoTracking().Where(i => ids.Contains(i.Id)).Select(i => new { i.Id, i.Sku, i.Name }).ToListAsync(ct);
-        return names.ToDictionary(n => n.Id, n => new CostIncreaseDto(n.Id, n.Sku, n.Name, risen[n.Id].Previous.UnitCost,
-            risen[n.Id].Last.UnitCost, risen[n.Id].Pct, risen[n.Id].Last.BusinessDate));
     }
 
     private async Task<CustomerOrdersDueBlock> CustomerOrdersDueAsync(List<Guid> locations, DateOnly today, CancellationToken ct)

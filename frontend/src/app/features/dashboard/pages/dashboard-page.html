@@ -1,0 +1,125 @@
+<header class="head">
+  <h1 class="pan-page-title">Inicio</h1>
+  @if (location(); as location) {
+    <p class="muted">{{ location.name }}</p>
+  }
+</header>
+
+@if (actions().length > 0) {
+  <nav class="quick" aria-label="Acciones rápidas">
+    @for (action of actions(); track action.key) {
+      <button matButton="tonal" type="button" (click)="run(action)">
+        <mat-icon>{{ action.icon }}</mat-icon>
+        {{ action.label }}
+      </button>
+    }
+  </nav>
+}
+
+@if (!location()) {
+  <p class="pan-card">
+    No tienes una ubicación asignada; pide a un administrador que te asigne una.
+  </p>
+} @else if (dashboard.error()) {
+  <section class="pan-card state" role="alert">
+    <mat-icon aria-hidden="true">cloud_off</mat-icon>
+    <p>No se pudo cargar el tablero.</p>
+    <button matButton="tonal" type="button" (click)="dashboard.reload()">Reintentar</button>
+  </section>
+} @else if (dashboard.isLoading() && cards().length === 0) {
+  <div class="grid" aria-busy="true" aria-label="Cargando el tablero">
+    @for (n of [1, 2, 3, 4]; track n) {
+      <div class="pan-card skeleton"></div>
+    }
+  </div>
+} @else {
+  @if (cards().length === 0 && !productionToday() && !lowStockByLocation()) {
+    <section class="pan-card state">
+      <mat-icon aria-hidden="true">dashboard</mat-icon>
+      <p>
+        No hay nada que mostrar con tus permisos en esta ubicación. Usa el menú para ir a tus
+        pantallas.
+      </p>
+    </section>
+  }
+
+  <div class="grid">
+    @for (card of cards(); track card.key) {
+      <section
+        class="pan-card card"
+        [class.alert]="card.alert"
+        [attr.aria-labelledby]="'card-' + card.key"
+      >
+        <a class="top" [routerLink]="card.link" [queryParams]="card.queryParams">
+          <mat-icon aria-hidden="true">{{ card.icon }}</mat-icon>
+          <h2 [id]="'card-' + card.key">{{ card.title }}</h2>
+          <span class="count" [attr.aria-label]="card.count + ' pendientes'">{{ card.count }}</span>
+        </a>
+        @if (card.note) {
+          <p class="note">{{ card.note }}</p>
+        }
+        @if (card.lines.length > 0) {
+          <ul>
+            @for (line of card.lines; track $index) {
+              <li>
+                <a
+                  class="row-link"
+                  [routerLink]="line.link"
+                  [queryParams]="line.queryParams ?? null"
+                  >{{ line.text }}</a
+                >
+                <span>{{ line.detail }}</span>
+              </li>
+            }
+          </ul>
+          @if (card.count > card.lines.length) {
+            <a class="more row-link" [routerLink]="card.link" [queryParams]="card.queryParams">
+              Ver los {{ card.count }}
+            </a>
+          }
+        } @else {
+          <p class="muted">{{ card.empty }}</p>
+        }
+      </section>
+    }
+  </div>
+
+  @if (productionToday(); as production) {
+    <section class="pan-card chart" aria-labelledby="production-today">
+      <div class="chart-head">
+        <h2 id="production-today">Producción de hoy por área</h2>
+        <a matButton routerLink="/produccion/resumen">Resumen de producción</a>
+      </div>
+      @if (production.categories.length > 0) {
+        <app-bar-chart
+          label="Producción de hoy por área: planeado y producido"
+          categoryLabel="Área"
+          [categories]="production.categories"
+          [series]="production.series"
+          [units]="production.units"
+        />
+      } @else {
+        <p class="muted">No hay órdenes programadas para hoy.</p>
+      }
+    </section>
+  }
+
+  @if (lowStockByLocation(); as low) {
+    <section class="pan-card chart" aria-labelledby="low-by-location">
+      <h2 id="low-by-location">Artículos bajo mínimo por ubicación</h2>
+      @if (low.rows.length > 0) {
+        <p class="muted">Toca una barra para cambiar a esa ubicación y ver sus existencias.</p>
+        <app-bar-chart
+          label="Artículos bajo mínimo por ubicación"
+          categoryLabel="Ubicación"
+          [categories]="low.categories"
+          [series]="low.series"
+          [showLegend]="false"
+          (barClick)="openLowStock($event)"
+        />
+      } @else {
+        <p class="muted">Ninguna ubicación tiene artículos bajo mínimo.</p>
+      }
+    </section>
+  }
+}

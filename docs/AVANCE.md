@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (B-25, endurecimiento y despliegue: backend completo).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-21, tablero y resumen de producción).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,15 +9,15 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5 completa (B-22..B-25): **backend terminado**.
 - Pruebas en verde: 270 unitarias y 159 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `AddCloseListIndex` (B-25).
-- Backend fases 1-4 completas. Frontend: F-01..F-20 y F-25 terminadas (fases 1 a 4; proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-21 y F-25 terminadas (fases 1 a 4 y F-21 de la 5; proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** frontend de la fase 5: **F-21** (tablero y resumen de producción, usa B-22), F-22 (costos de receta y análisis de consumo, B-23), F-23 (fotos, B-24) y F-24 (pulido). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
+**Siguiente:** **F-22** (costos de receta y análisis de consumo, B-23), F-23 (fotos, B-24) y F-24 (pulido); después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
 
 **Después**
-- Frontend F-21..F-24.
+- Frontend F-22..F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
@@ -25,7 +25,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-21). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-22). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -92,7 +92,7 @@
 | 4 | F-18 Remisiones con despacho, lotes e impresión | ✅ | (ver `git log`) |
 | 4 | F-19 Plan de producción con generación de OP | ✅ | (ver `git log`) |
 | 4 | F-20 Requerimiento de materia prima y requisición sugerida | ✅ | (ver `git log`) |
-| 5 | F-21..F-24 | ⏳ | |
+| 5 | F-21 Tablero y resumen de producción | ✅ | (ver `git log`) |
 | + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
 
 ## Notas por tarea
@@ -641,3 +641,22 @@
 - **Licencias** (`docs/licencias.md`): 128 paquetes NuGet y 442 de npm revisados en su versión exacta; ninguno de pago ni prohibido. `SixLabors.Fonts` 1.0.0 llega solo como transitivo de ClosedXML y es Apache-2.0.
 - Pruebas: backend 270 unitarias y 159 de integración en verde. Sin paquetes nuevos.
 - **Backend completo** (B-01..B-27). Queda registrada la ampliación de trazabilidad (B-28).
+
+### F-21 (2026-10-18)
+
+- **Tablero** (`/`, frontend §7.9) de la ubicación activa:
+  - **Tarjetas** según permisos (un bloque en null no tiene tarjeta) y tipo de ubicación (`dashboardCards`): la sucursal ve traspasos por recibir y pedidos en curso; la Planta, traspasos por despachar, pedidos por aprobar, OC por aprobar, OP en proceso, recetas con alza de insumos, pedidos de cliente por surtir y remisiones por despachar; las dos, bajo mínimo y lotes por caducar.
+  - Cada tarjeta trae su conteo y los primeros 5 con enlace, "Ver los N", y abre su lista filtrada por URL (`?tab=`, `?bajoMinimo=1`, `?porCaducar=1`). Las alertas con algo pendiente van en naranja (bajo mínimo, por caducar, alzas, pedidos de cliente vencidos); las colas de trabajo no.
+  - Skeleton, error con "Reintentar" y estado vacío.
+- **Gráficas con Chart.js 4.5.1 (MIT), carga diferida** en su propio chunk (61 KB transferidos; el bundle inicial no cambia). Componente compartido `app-bar-chart`: barras horizontales con colores de tokens que siguen el tema, ticks enteros cuando los valores lo son, y una **tabla oculta para lector de pantalla** con los mismos datos.
+  - **Producción de hoy por área** (planeado contra producido, un renglón por área y unidad) con enlace al resumen.
+  - Con `locations.all`, **artículos bajo mínimo por ubicación**, en un tono y sin leyenda: tocar una barra cambia la ubicación activa y abre Existencias con "Solo bajo mínimo".
+- **Acciones rápidas en celular** (`quickActions`, hasta 4, solo bajo 600 px):
+  - Sucursal: Recibir traspaso (abre el único pendiente), Contar inventario (abre el único conteo en proceso), Registrar consumo y Nuevo pedido.
+  - Planta: Cerrar producción (OP en proceso), Contar inventario, Despachar traspaso y Recibir compra.
+- **Existencias** acepta `?bajoMinimo=1` (enciende el filtro) y `?porCaducar=1` (lleva a la sección de lotes por caducar).
+- **Resumen de producción** (`/produccion/resumen`): periodo (por omisión los últimos 7 días), por área, producto o día; totales de costo producido y merma; barras planeado contra producido (los primeros 15) y tabla completa con OP, planeado, producido, cumplimiento (en rojo bajo 90 %), costo y merma. Un renglón por unidad.
+- **E2E 13 en verde** (`18-dashboard`, escritorio y 390 px): administrador en la Planta (tarjetas de Planta, gráficas, tabla accesible, acciones rápidas en celular, la tarjeta de bajo mínimo abre Existencias filtrada, resumen por día) y encargado de sucursal (tarjetas de sucursal, ninguna de Planta, sus cuatro acciones). No mueve inventario.
+- **Corrección de la E2E 12 (plan):** con el cambio de día, los pedidos E2E de corridas anteriores caen hoy y había dos renglones de E2E-PAN; ahora toma el de mañana, el último.
+- Pruebas: 149 unitarias (tarjetas por tipo de ubicación, permisos, alertas y enlaces; acciones rápidas; rótulo del resumen). Suite E2E 33/33.
+- Paquete nuevo: `chart.js` 4.5.1 (MIT) y su dependencia `@kurkle/color` 0.3.4 (MIT), anotados en `docs/licencias.md`.

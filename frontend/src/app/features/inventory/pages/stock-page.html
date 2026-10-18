@@ -13,7 +13,7 @@
   </p>
 
   @if (expiring().length > 0) {
-    <details class="pan-card expiring" open>
+    <details class="pan-card expiring" open #expiringSection tabindex="-1">
       <summary>
         <strong>Lotes por caducar</strong>
         <span class="muted"

@@ -1,5 +1,17 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  afterRenderEffect,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -54,6 +66,13 @@ import { StockLots } from '../ui/stock-lots';
   styleUrl: './inventory.scss',
 })
 export class StockPage {
+  /** `?bajoMinimo=1` (dashboard card): starts with "Solo bajo mínimo" on. */
+  readonly bajoMinimo = input<string>();
+  /** `?porCaducar=1` (dashboard card): scrolls to the lots about to expire. */
+  readonly porCaducar = input<string>();
+  private readonly expiringSection = viewChild<ElementRef<HTMLElement>>('expiringSection');
+  private scrolled = false;
+
   private readonly api = inject(StockApi);
   private readonly categoriesApi = inject(CategoriesApi);
   protected readonly location = inject(LocationContextService).active;
@@ -91,6 +110,17 @@ export class StockPage {
   });
 
   constructor() {
+    effect(() => {
+      if (this.bajoMinimo() === '1') untracked(() => this.setFilter('belowMin', true));
+    });
+    afterRenderEffect(() => {
+      const section = this.expiringSection();
+      if (this.porCaducar() === '1' && section && !this.scrolled) {
+        this.scrolled = true;
+        section.nativeElement.scrollIntoView({ block: 'start' });
+        section.nativeElement.focus({ preventScroll: true });
+      }
+    });
     this.search.valueChanges
       .pipe(debounceTime(300), takeUntilDestroyed())
       .subscribe((q) => this.query.update((x) => ({ ...x, page: 1, q: q.trim() || undefined })));

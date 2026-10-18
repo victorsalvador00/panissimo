@@ -36,6 +36,13 @@ export const PRODUCTION_ROUTES: Routes = [
     loadComponent: () => import('./pages/plan-page').then((m) => m.PlanPage),
   },
   {
+    path: 'resumen',
+    title: 'Resumen de producción · SGO Paníssimo',
+    canActivate: [permissionGuard],
+    data: { permission: 'production.view', breadcrumb: 'Resumen' },
+    loadComponent: () => import('./pages/summary-page').then((m) => m.SummaryPage),
+  },
+  {
     path: 'ordenes',
     canActivate: [permissionGuard],
     data: { permission: 'production.view', breadcrumb: 'Órdenes' },

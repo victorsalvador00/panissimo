@@ -27,6 +27,9 @@ export type OrderImportListItem = Schemas['ProductionOrderImportListItemDto'];
 export type ProductionPlan = Schemas['ProductionPlanDto'];
 export type PlanRow = Schemas['ProductionPlanRowDto'];
 export type GeneratedOrder = Schemas['GeneratedProductionOrderDto'];
+export type ProductionSummary = Schemas['ProductionSummaryDto'];
+export type SummaryRow = Schemas['ProductionSummaryRowDto'];
+export type SummaryGroupBy = ApiEnum<'ProductionSummaryGroupBy'>;
 
 /** Versioned recipes (`/recipes`, RN-10). */
 @Injectable({ providedIn: 'root' })
@@ -196,5 +199,22 @@ export class ProductionPlanApi {
     return this.http
       .post<Schemas['GenerateProductionPlanResult']>('production-plan/generate', request)
       .pipe(map((result) => result.orders));
+  }
+}
+
+/** Production summary (`/reports/production-summary`, RN-53): planned, produced, compliance, cost and waste. */
+@Injectable({ providedIn: 'root' })
+export class ProductionSummaryApi {
+  private readonly http = inject(HttpClient);
+
+  get(
+    locationId: string,
+    from: string,
+    to: string,
+    groupBy: SummaryGroupBy,
+  ): Observable<ProductionSummary> {
+    return this.http.get<ProductionSummary>('reports/production-summary', {
+      params: httpParams({ locationId, from, to, groupBy }),
+    });
   }
 }

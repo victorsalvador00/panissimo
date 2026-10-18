@@ -85,7 +85,7 @@ Todo `node_modules` (442 paquetes) es MIT, Apache-2.0, ISC, BSD, MIT-0, BlueOak,
 - `caniuse-lite` (CC-BY-4.0, datos de compatibilidad de navegadores).
 - `argparse` (Python-2.0).
 
-**F-21** agregará Chart.js (MIT), cargado de forma diferida. Al agregarlo hay que anotarlo aquí con su versión exacta.
+**F-21** agregó `chart.js` **4.5.1** (MIT; versión exacta en `package.json`) con su única dependencia `@kurkle/color` 0.3.4 (MIT). Se carga de forma diferida en su propio chunk.
 
 ## Imágenes de contenedor e infraestructura
 

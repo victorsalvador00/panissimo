@@ -1,0 +1,108 @@
+<app-page-header title="Resumen de producción" />
+
+@if (plant(); as plant) {
+  <div class="filters">
+    <span class="plant">{{ plant.name }}</span>
+    <mat-form-field>
+      <mat-label>Periodo</mat-label>
+      <mat-date-range-input [formGroup]="range" [rangePicker]="picker">
+        <input matStartDate formControlName="from" placeholder="Desde" />
+        <input matEndDate formControlName="to" placeholder="Hasta" />
+      </mat-date-range-input>
+      <mat-datepicker-toggle matIconSuffix [for]="picker" />
+      <mat-date-range-picker #picker />
+      <mat-hint>Planeado: OP programadas en el periodo. Producido: cierres del periodo.</mat-hint>
+    </mat-form-field>
+    <mat-button-toggle-group
+      aria-label="Agrupar"
+      [value]="groupBy()"
+      (change)="groupBy.set($event.value)"
+    >
+      @for (group of groups; track group.value) {
+        <mat-button-toggle [value]="group.value">{{ group.label }}</mat-button-toggle>
+      }
+    </mat-button-toggle-group>
+  </div>
+
+  @if (summary.error()) {
+    <section class="pan-card state" role="alert">
+      <p>No se pudo cargar el resumen.</p>
+      <button matButton="tonal" type="button" (click)="summary.reload()">Reintentar</button>
+    </section>
+  } @else if (data(); as data) {
+    <div class="totals">
+      <section class="pan-card">
+        <span class="muted">Costo producido</span>
+        <strong>{{ data.producedCost | mxn }}</strong>
+      </section>
+      <section class="pan-card">
+        <span class="muted">Merma de producción</span>
+        <strong [class.exit]="data.wasteCost > 0">{{ data.wasteCost | mxn }}</strong>
+      </section>
+    </div>
+
+    @if (data.rows.length === 0) {
+      <p class="pan-card muted">No hay órdenes ni cierres en ese periodo.</p>
+    } @else {
+      <section class="pan-card">
+        <h2>Planeado contra producido</h2>
+        @if (data.rows.length > chartRows) {
+          <p class="muted">
+            La gráfica muestra los primeros {{ chartRows }}; la tabla tiene todos.
+          </p>
+        }
+        <app-bar-chart
+          label="Planeado contra producido"
+          [categoryLabel]="column()"
+          [categories]="chart().categories"
+          [series]="chart().series"
+          [units]="chart().units"
+        />
+      </section>
+
+      <section class="pan-card">
+        <div class="table-wrap">
+          <table aria-label="Resumen de producción">
+            <thead>
+              <tr>
+                <th scope="col">{{ column() }}</th>
+                <th scope="col" class="end">OP</th>
+                <th scope="col" class="end">Planeado</th>
+                <th scope="col" class="end">Producido</th>
+                <th scope="col" class="end">Cumplimiento</th>
+                <th scope="col" class="end">Costo producido</th>
+                <th scope="col" class="end">Merma</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of data.rows; track $index) {
+                <tr>
+                  <th scope="row">{{ label(row) }}</th>
+                  <td class="end">{{ row.orders }}</td>
+                  <td class="end">{{ row.planned | qty: row.baseUomCode }}</td>
+                  <td class="end">{{ row.produced | qty: row.baseUomCode }}</td>
+                  <td
+                    class="end"
+                    [class.low]="row.compliancePct !== null && row.compliancePct < 90"
+                  >
+                    {{
+                      row.compliancePct === null
+                        ? '—'
+                        : (row.compliancePct | number: '1.0-1') + ' %'
+                    }}
+                  </td>
+                  <td class="end">{{ row.producedCost | mxn }}</td>
+                  <td class="end">{{ row.wasteCost | mxn }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  } @else {
+    <p class="muted" role="status">Cargando el resumen…</p>
+  }
+} @else {
+  <p class="pan-card">El resumen es de la Planta y no tienes acceso a una.</p>
+}

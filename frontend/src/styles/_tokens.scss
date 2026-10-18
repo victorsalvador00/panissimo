@@ -43,6 +43,10 @@
   --pan-status-green-fg: light-dark(#1b5e20, #9fe0a6);
   --pan-status-orange-bg: light-dark(#ffe9d6, #4d2700);
   --pan-status-orange-fg: light-dark(#8a3d00, #ffbd86);
+  // Charts (F-21): planned in a muted tone, produced in the brand tone, alerts in orange.
+  --pan-chart-planned: light-dark(#a5c8a8, #4a5f86);
+  --pan-chart-produced: light-dark(#2e7d32, #4fc3f7);
+  --pan-chart-alert: light-dark(#e07a1f, #ffa654);
   --pan-status-red-bg: light-dark(#fde3e1, #5a1612);
   --pan-status-red-fg: light-dark(#a8201a, #ffb4ab);
 

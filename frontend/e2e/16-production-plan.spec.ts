@@ -51,11 +51,13 @@ test('plan: pedido enviado, sugerido y OP ligada', async ({ page, baseURL, isMob
   await signIn(page, adminCredentials());
   await page.goto('/produccion/plan');
   await page.getByLabel('Buscar por SKU o producto').fill('E2E-PAN');
+  // The plan goes by date and the default range is today and tomorrow: the order for tomorrow is in the last E2E-PAN row
+  // (orders of earlier runs that were never fulfilled fall on today).
   const row = page
     .getByRole('row')
     .filter({ hasText: 'E2E-PAN' })
     .filter({ has: page.getByRole('checkbox') })
-    .first();
+    .last();
   await expect(row).toBeVisible();
 
   // The order that originates the demand.

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
+using Panissimo.Application.Dashboard;
 using Panissimo.Application.Inventory;
 using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
@@ -114,6 +115,8 @@ public static class DependencyInjection
         services.AddScoped<ISupplierService, SupplierService>();
         services.AddScoped<IRequisitionService, RequisitionService>();
         services.AddScoped<IMaterialRequirementService, MaterialRequirementService>();
+        services.AddScoped<IProductionSummaryService, ProductionSummaryService>();
+        services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IGoodsReceiptService, GoodsReceiptService>();
         services.AddScoped<ICustomerService, CustomerService>();

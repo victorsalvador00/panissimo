@@ -7591,6 +7591,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/reports/production-summary': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Resumen de producción (RN-53) por área, producto o día en un rango (máx. 366 días): planeado (OP del rango no
+     *     canceladas), producido (cierres del rango), % de cumplimiento, costo producido y merma en pesos (RN-13). Un renglón
+     *     por unidad: nunca suma kg con piezas.
+     */
+    get: {
+      parameters: {
+        query?: {
+          LocationId?: string;
+          From?: string;
+          To?: string;
+          GroupBy?: components['schemas']['ProductionSummaryGroupBy'];
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProductionSummaryDto'];
+            'application/json': components['schemas']['ProductionSummaryDto'];
+            'text/json': components['schemas']['ProductionSummaryDto'];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/recipes': {
     parameters: {
       query?: never;
@@ -12214,6 +12294,75 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/dashboard': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Bloques del tablero de una ubicación o, sin locationId, de todas las del alcance. Basta la sesión: cada bloque llega
+     *     en null cuando falta su permiso (bajo mínimo y lotes por caducar con inventory.view; traspasos con logistics.view;
+     *     pedidos por aprobar con logistics.orders.approve; pedidos en curso con logistics.orders.create; OC por aprobar con
+     *     purchasing.po.approve; producción de hoy, OP en proceso y recetas con alza de insumos con production.view; pedidos de
+     *     cliente por surtir con sales.view; remisiones por despachar con sales.shipments.dispatch; bajo mínimo por ubicación
+     *     solo con locations.all). Cada lista trae el conteo y los primeros 5.
+     */
+    get: {
+      parameters: {
+        query?: {
+          locationId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['DashboardDto'];
+            'application/json': components['schemas']['DashboardDto'];
+            'text/json': components['schemas']['DashboardDto'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/units-of-measure': {
     parameters: {
       query?: never;
@@ -14098,6 +14247,20 @@ export interface components {
     ConvertRequisitionsResult: {
       purchaseOrders: components['schemas']['ConvertedPurchaseOrderDto'][];
     };
+    CostIncreaseDto: {
+      /** Format: uuid */
+      itemId: string;
+      sku: string;
+      name: string;
+      /** Format: double */
+      previousCost: number;
+      /** Format: double */
+      lastCost: number;
+      /** Format: double */
+      increasePct: number;
+      /** Format: date */
+      receivedOn: string;
+    };
     CountInput: {
       /** Format: uuid */
       lineId: null | string;
@@ -14853,6 +15016,13 @@ export interface components {
       /** Format: date-time */
       createdAt: string;
     };
+    CustomerOrdersDueBlock: {
+      /** Format: int32 */
+      count: number;
+      /** Format: int32 */
+      overdueCount: number;
+      items: components['schemas']['DashboardDocumentDto'][];
+    };
     CustomerOrderShipmentDto: {
       /** Format: uuid */
       id: string;
@@ -14981,6 +15151,38 @@ export interface components {
     CustomerShipmentStatus: 'Draft' | 'Dispatched' | 'Cancelled';
     /** @enum {unknown} */
     CustomerShipmentTab: 'All' | 'ToDispatch' | null;
+    DashboardDocumentDto: {
+      /** Format: uuid */
+      id: string;
+      folio: string;
+      title: string;
+      /** Format: date */
+      date: null | string;
+    };
+    DashboardDocumentsBlock: {
+      /** Format: int32 */
+      count: number;
+      items: components['schemas']['DashboardDocumentDto'][];
+    };
+    DashboardDto: {
+      /** Format: uuid */
+      locationId: null | string;
+      /** Format: date */
+      businessDate: string;
+      lowStock: null | components['schemas']['LowStockBlock'];
+      expiringLots: null | components['schemas']['ExpiringLotsBlock'];
+      transfersToReceive: null | components['schemas']['DashboardDocumentsBlock'];
+      transfersToDispatch: null | components['schemas']['DashboardDocumentsBlock'];
+      branchOrdersToApprove: null | components['schemas']['DashboardDocumentsBlock'];
+      branchOrdersInProgress: null | components['schemas']['DashboardDocumentsBlock'];
+      purchaseOrdersToApprove: null | components['schemas']['DashboardDocumentsBlock'];
+      productionToday: null | components['schemas']['ProductionTodayRowDto'][];
+      productionInProgress: null | components['schemas']['ProductionInProgressBlock'];
+      recipesWithCostIncreases: null | components['schemas']['RecipeCostIncreasesBlock'];
+      customerOrdersDue: null | components['schemas']['CustomerOrdersDueBlock'];
+      customerShipmentsToDispatch: null | components['schemas']['DashboardDocumentsBlock'];
+      lowStockByLocation: null | components['schemas']['LocationLowStockDto'][];
+    };
     DeliveryPointDto: {
       /** Format: uuid */
       id: string;
@@ -15101,6 +15303,15 @@ export interface components {
       /** Format: int32 */
       daysToExpire: number;
       isExpired: boolean;
+    };
+    ExpiringLotsBlock: {
+      /** Format: int32 */
+      count: number;
+      /** Format: int32 */
+      expiredCount: number;
+      /** Format: int32 */
+      expiryAlertDays: number;
+      items: components['schemas']['ExpiringLotAlertDto'][];
     };
     ExplosionDto: {
       /** Format: uuid */
@@ -15553,6 +15764,14 @@ export interface components {
       name: string;
       type: components['schemas']['LocationType'];
     };
+    LocationLowStockDto: {
+      /** Format: uuid */
+      locationId: string;
+      code: string;
+      name: string;
+      /** Format: int32 */
+      count: number;
+    };
     /** @enum {unknown} */
     LocationType: 'Plant' | 'Branch' | 'Warehouse';
     /**
@@ -15598,6 +15817,11 @@ export interface components {
       minQty: number;
       /** Format: double */
       maxQty: number;
+    };
+    LowStockBlock: {
+      /** Format: int32 */
+      count: number;
+      items: components['schemas']['LowStockAlertDto'][];
     };
     MaterialRequirementDto: {
       /** Format: uuid */
@@ -16146,6 +16370,25 @@ export interface components {
       close: components['schemas']['ProductionCloseDto'];
       order: components['schemas']['ProductionOrderDto'];
     };
+    ProductionInProgressBlock: {
+      /** Format: int32 */
+      count: number;
+      items: components['schemas']['ProductionInProgressDto'][];
+    };
+    ProductionInProgressDto: {
+      /** Format: uuid */
+      id: string;
+      folio: string;
+      outputSku: string;
+      outputName: string;
+      baseUomCode: string;
+      /** Format: date */
+      scheduledDate: string;
+      /** Format: double */
+      plannedQty: number;
+      /** Format: double */
+      producedQty: number;
+    };
     ProductionOrderDemandDto: {
       demandType: components['schemas']['DemandType'];
       /** Format: uuid */
@@ -16356,6 +16599,55 @@ export interface components {
       suggestedQty: number;
       demandLines: components['schemas']['PlanDemandLineDto'][];
     };
+    ProductionSummaryDto: {
+      /** Format: uuid */
+      locationId: string;
+      /** Format: date */
+      from: string;
+      /** Format: date */
+      to: string;
+      groupBy: components['schemas']['ProductionSummaryGroupBy'];
+      rows: components['schemas']['ProductionSummaryRowDto'][];
+      /** Format: double */
+      producedCost: number;
+      /** Format: double */
+      wasteCost: number;
+    };
+    /** @enum {unknown} */
+    ProductionSummaryGroupBy: 'Area' | 'Item' | 'Day';
+    ProductionSummaryRowDto: {
+      /** Format: uuid */
+      key: null | string;
+      /** Format: date */
+      date: null | string;
+      label: string;
+      sku: null | string;
+      baseUomCode: string;
+      /** Format: int32 */
+      orders: number;
+      /** Format: double */
+      planned: number;
+      /** Format: double */
+      produced: number;
+      /** Format: double */
+      compliancePct: null | number;
+      /** Format: double */
+      producedCost: number;
+      /** Format: double */
+      wasteCost: number;
+    };
+    ProductionTodayRowDto: {
+      /** Format: uuid */
+      areaId: null | string;
+      areaName: string;
+      baseUomCode: string;
+      /** Format: int32 */
+      orders: number;
+      /** Format: double */
+      planned: number;
+      /** Format: double */
+      produced: number;
+    };
     PurchaseOrderDto: {
       /** Format: uuid */
       id: string;
@@ -16533,6 +16825,24 @@ export interface components {
       lines: components['schemas']['ReceiveLineRequest'][];
       /** Format: uuid */
       toWarehouseId?: null | string;
+    };
+    RecipeCostIncreaseDto: {
+      /** Format: uuid */
+      recipeId: string;
+      /** Format: uuid */
+      outputItemId: string;
+      outputSku: string;
+      outputName: string;
+      /** Format: int32 */
+      recipeVersion: number;
+      components: components['schemas']['CostIncreaseDto'][];
+    };
+    RecipeCostIncreasesBlock: {
+      /** Format: int32 */
+      count: number;
+      /** Format: double */
+      alertPct: number;
+      items: components['schemas']['RecipeCostIncreaseDto'][];
     };
     RecipeDto: {
       /** Format: uuid */

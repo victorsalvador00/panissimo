@@ -51,6 +51,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<CustomerOrder> CustomerOrders => Set<CustomerOrder>();
     public DbSet<CustomerShipment> CustomerShipments => Set<CustomerShipment>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<KnownPermission> KnownPermissions => Set<KnownPermission>();
     public DbSet<UserLocation> UserLocations => Set<UserLocation>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

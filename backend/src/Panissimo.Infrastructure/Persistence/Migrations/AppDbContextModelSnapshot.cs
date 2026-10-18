@@ -835,9 +835,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_inventory_movement");
 
-                    b.HasIndex("LotId")
-                        .HasDatabaseName("ix_inventory_movement_lot_id");
-
                     b.HasIndex("Sequence")
                         .IsUnique()
                         .HasDatabaseName("ix_inventory_movement_sequence");
@@ -847,6 +844,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("LocationId", "Sequence")
                         .HasDatabaseName("ix_inventory_movement_location_id_sequence");
+
+                    b.HasIndex("LotId", "LocationId")
+                        .HasDatabaseName("ix_inventory_movement_lot_id_location_id");
+
+                    NpgsqlIndexBuilderExtensions.IncludeProperties(b.HasIndex("LotId", "LocationId"), new[] { "Type", "Quantity", "OccurredAt" });
 
                     b.HasIndex("SourceDocType", "SourceDocId")
                         .HasDatabaseName("ix_inventory_movement_source_doc_type_source_doc_id");
@@ -3475,6 +3477,23 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_audit_log_entity_type_entity_id");
 
                     b.ToTable("audit_log", "audit");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Security.KnownPermission", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("SeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("seen_at");
+
+                    b.HasKey("Code")
+                        .HasName("pk_known_permission");
+
+                    b.ToTable("known_permission", "security");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Security.RefreshToken", b =>

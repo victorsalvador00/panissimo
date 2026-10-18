@@ -1,20 +1,20 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-24, pulido: frontend completo).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (B-28, trazabilidad de lotes en el backend).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
 
 **Dónde quedamos**
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5 completa (B-22..B-25): **backend terminado**.
-- Pruebas en verde: 270 unitarias y 159 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddCloseListIndex` (B-25).
+- Pruebas en verde: 282 unitarias y 167 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddTraceability` (B-28).
 - Backend fases 1-4 completas. Frontend: F-01..F-25 terminadas (las cinco fases; proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** la ampliación de trazabilidad: **B-28** y luego **F-26**; después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
+**Siguiente:** **F-26**, la pantalla de trazabilidad (`docs/specs/trazabilidad-ui.md`); después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
 
 **Después**
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
@@ -24,7 +24,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer `docs/specs/trazabilidad.md` (B-28) y `docs/specs/trazabilidad-ui.md` (F-26). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer `docs/specs/trazabilidad-ui.md` y `docs/specs/trazabilidad.md` §6 (F-26). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -725,3 +725,45 @@
 - El build de producción con Caddy quedó verificado en B-25.
 - Pruebas: 162 unitarias; suite E2E 45 en verde (21 omitidas por diseño: las que solo aplican a un ancho). Paquetes nuevos (dev): `@axe-core/playwright` 4.14.0 (MPL-2.0) y `lighthouse` 13.5.0 (Apache-2.0), anotados en `docs/licencias.md`.
 - **Frontend completo** (F-01..F-25). Sigue la ampliación de trazabilidad: B-28 y F-26.
+
+### B-28 (2026-10-18)
+
+- **D-11 decidida con el usuario:** `inventory.traceability` para Administrador, Dirección, Jefe de producción y Almacén planta; las sucursales no.
+- **Verificación previa** (trazabilidad §3.1 y §3.3, sin cambios):
+  - `GoodsReceiptLine.LotId` ya existía desde B-16 (sin relleno).
+  - Al despachar, cada lote es una línea del traspaso (`transfer_line.lot_id` hace de `transfer_line_lot`) y la recepción captura cada lote, con su `TransferIn` por lote; el faltante queda en el lote que se indica.
+  - Consumo, ajustes y conteos parten por FEFO con lote en el movimiento.
+  - El cierre guarda los lotes que FEFO tomó realmente.
+- **Migración `AddTraceability`:**
+  - Índice `inventory_movement(lot_id, location_id) INCLUDE (type, quantity, occurred_at)`, que reemplaza el de `lot_id`. Los demás de §3.2 ya existían.
+  - Tabla `security.known_permission`, con los 36 permisos existentes como base.
+  - **La semilla otorga un permiso nuevo una sola vez** a los roles de sistema que lo incluyen y lo registra, para no pisar lo que el cliente cambie en sus roles. Verificado en la BD de desarrollo: solo esos cuatro roles.
+  - Parámetro `traceability.max_nodes` (100–10,000, 2,000).
+  - `AuditAction.Queried`: cada consulta queda en la bitácora (RN-109).
+- **`/traceability/graph`** (RN-100..RN-109):
+  - Entradas: lote, OC, OP, traspaso o remisión, con la dirección por omisión de RN-100.
+  - `TraceGraphBuilder` arma el grafo en memoria por niveles: hacia atrás (cierre que produjo, lotes que consumió, recepciones con OC y proveedor, ajuste o conteo de origen) y hacia adelante (cierres que consumieron, lotes producidos, traspasos con lo recibido y el motivo, remisiones y clientes).
+  - Existencia por lote en cada planta o sucursal, agrupando sus subalmacenes y sin vales internos: entradas, salidas por tipo, existencia y kardex (máx. 50).
+  - OP como grupos (historial de estados y pedidos que atiende), bitácora cronológica, y resumen de retiro: orígenes, lotes terminados, ubicaciones, clientes y pérdida en tránsito.
+  - Avisos `no_lots`, `truncated`, `unlotted_components` y `missing_receipt_link`.
+  - Campos de la ficha de `trazabilidad-ui.md` §8. Costos y precios en null sin `production.view` o `purchasing.view`.
+  - No filtra por el alcance del usuario (RN-109).
+- **`TraceabilityQueries`:** una consulta por tipo de liga y nivel (`= ANY(@ids)`). Lookups `/traceability/lots/lookup` y `/traceability/sources/lookup` (folios OC-, OP-, TR-, RM- o número de lote).
+- **Pruebas:**
+  - **Unitarias:** ciclo, `maxDepth`, límite de nodos, consultas en lote, resumen con existencia y pérdida en tránsito, sin lote, eventos con empate por folio, costos sin permiso y dirección por entrada.
+  - **Integración** (`TraceabilityTests`, escenario §9 por API):
+    - Hacia atrás desde TR2: las dos OC de harina con 62, 28.1 y 85.0944 kg, el azúcar 10 bultos = 500 kg, el agua sin lote.
+    - Hacia adelante desde la harina más antigua: TR1 1,200 y TR2 600, SUC-01 y SUC-02, sin SUC-03; desde su OC, el mismo grafo.
+    - Resumen de la OP: PLANTA 400, SUC-01 1,200, SUC-02 990, SUC-03 900, pérdida 10 en el lote -02.
+    - Dos niveles hasta el cliente.
+    - 403 al encargado; 200 al almacén con solo la planta y sin costos; lookups; 404 y 400; bitácora; semilla D-11; OP sin cierres → `no_lots`.
+  - **Rendimiento:** 802 nodos en ~200 ms (`docs/rendimiento.md`).
+  - Backend: 282 unitarias y 167 de integración en verde.
+- **Desviaciones del spec, anotadas:**
+  - `transfer_line_lot` es `transfer_line` (un lote por línea).
+  - El nodo de recepción es por recepción y lote.
+  - El origen sin proveedor se llama `InitialStock` y cubre ajustes y conteos.
+  - Los ≈ 1,500 nodos estimados son 802 con el mismo volumen.
+- Specs actualizados según trazabilidad §8: `dominio.md` (glosario, `LotId` de la recepción, RN-100..RN-109, permiso, roles, parámetro y D-11), `backend.md` (índices, endpoints, pruebas, B-28) y `frontend.md` (rutas, componentes, tokens, E2E 17, F-26).
+- Frontend: tipos regenerados, etiquetas de los enums de trazabilidad y de la acción "Consulta" en la bitácora.
+- Sin paquetes nuevos.

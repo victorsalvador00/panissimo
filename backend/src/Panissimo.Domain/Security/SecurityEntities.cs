@@ -20,6 +20,24 @@ public class RolePermission
     public string PermissionCode { get; private set; } = null!;
 }
 
+/// <summary>
+/// A permission the seed has already seen. A code of <see cref="Permissions.All"/> that is not here is new: the seed grants
+/// it once to the system roles that include it, and records it, so later edits the client makes to its roles stay.
+/// </summary>
+public class KnownPermission
+{
+    private KnownPermission() { }
+
+    public KnownPermission(string code, DateTimeOffset seenAt)
+    {
+        Code = code;
+        SeenAt = seenAt;
+    }
+
+    public string Code { get; private set; } = null!;
+    public DateTimeOffset SeenAt { get; private set; }
+}
+
 /// <summary>RN-40: a location the user may access.</summary>
 [Audited]
 public class UserLocation
@@ -41,6 +59,9 @@ public enum AuditAction
     Created,
     Updated,
     Deleted,
+
+    /// <summary>A query that must leave a trace (the lot traceability, RN-109).</summary>
+    Queried,
 }
 
 /// <summary>RN-41: immutable record of a change to an audited entity.</summary>

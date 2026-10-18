@@ -53,3 +53,16 @@ Revisión con un año de producción de la Planta, medida por la API y con los p
 
 - Al tocar el kardex, la lista de OP o de cierres, el plan o el resumen.
 - Si la operación real supera ~3 años de historia en la BD: el conteo del kardex de toda la planta es el primero que crece. La opción es no contar el total en esa vista, que se pagina por secuencia.
+
+## Trazabilidad de lotes (B-28)
+
+`TraceabilityPerformanceTests` (`Category=Performance`, corre en la suite normal): un lote de harina consumido por **20 OP** (40 cierres, 40 lotes terminados) cuyo pan salió en **600 traspasos**, insertado con SQL. Hacia adelante: **802 nodos y 1,320 aristas en ~200 ms** (límite 1.5 s).
+
+- El spec estimaba ≈ 1,500 nodos para esos datos. Son 802 porque un lote tiene un nodo de existencia por ubicación, no uno por traspaso: lote de harina y su existencia, 40 cierres, 40 lotes, su existencia en planta y en las dos sucursales, y 600 traspasos.
+- Consultas por nivel y en lote: una por tipo de liga con `lot_id = ANY(@ids)`, nunca una por nodo. Una prueba unitaria verifica que 30 cierres de un mismo lote se resuelven en menos de 20 consultas.
+- **Planes:** en la BD de prueba las tablas son chicas y Postgres escoge `Seq Scan` (0.02–0.2 ms), que es lo correcto a ese tamaño. Con `enable_seqscan = off` la prueba imprime el índice que cada consulta usa al crecer las tablas (trazabilidad §3.2):
+  - lotes consumidos por cierre: `Index Scan using ix_production_close_line_lot_lot_id`;
+  - cierres por lote producido: `Index Scan using ix_production_close_output_lot_id`;
+  - líneas de traspaso por lote: `Bitmap Index Scan on ix_transfer_line_lot_id`;
+  - kardex de los lotes: `Bitmap Index Scan on ix_inventory_movement_lot_id_location_id` (índice nuevo de B-28, con `type`, `quantity` y `occurred_at` incluidos).
+

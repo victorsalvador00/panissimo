@@ -101,6 +101,7 @@ backend/
   - `production_order_demand(demand_type, demand_line_id)`; `production_order_import(file_sha256)`.
   - `branch_order(supplying_location_id, required_date, status)`, `customer_order(supplying_location_id, required_date, status)`.
   - `supplier_item(item_id) WHERE is_preferred` único parcial; `supplier.tax_id` único parcial excepto genéricos.
+  - Trazabilidad (B-28): `goods_receipt_line(lot_id)`, `production_close_line_lot(lot_id)`, `production_close(output_lot_id)`, `transfer_line(lot_id)` (cada lote despachado es una línea), `customer_shipment_line_lot(lot_id)` e `inventory_movement(lot_id, location_id) INCLUDE (type, quantity, occurred_at)`.
 - **Migraciones:** nombre descriptivo por tarea (`AddCatalog`, `AddProductionCloses`…). **Nunca modificar una migración ya aplicada**; crear una nueva. En producción se aplican con un **bundle**, nunca al arrancar.
 - **Semilla** (idempotente; en Development o con `--seed`):
   - Unidades de medida (`kg`, `g`, `l`, `ml`, `pza`, `caja`, `bulto`, `paq`).
@@ -259,6 +260,9 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 | GET / POST | `/consumptions`, `/consumptions/{id}` | [inventory.view] / [inventory.consumption] |
 | POST | `/imports/initial-stock` (CSV) | [inventory.adjust] |
 | GET | `/consumption-analysis?locationId&weeks&q` (RN-52) | [inventory.view] |
+| GET | `/traceability/graph?sourceType&sourceId&direction&maxDepth` (RN-100..RN-109; `trazabilidad.md` §5.3) | [inventory.traceability] |
+| GET | `/traceability/lots/lookup?q&itemId&limit` — lotes por número, SKU o nombre (≤ 50) | [inventory.traceability] |
+| GET | `/traceability/sources/lookup?q` — entradas por folio `OC-`, `OP-`, `TR-`, `RM-` o número de lote | [inventory.traceability] |
 
 **Producción**
 
@@ -401,7 +405,8 @@ Los secretos nunca se versionan; `.env.example` lista todas las variables.
 - Pedido de sucursal → aprobación → traspaso → despacho → recepción → `Fulfilled`.
 - Pedido de cliente → confirmar → remisión parcial → final → `Shipped`; lote vencido rechazado.
 - Plan → generar OP → la OP cubre el plan siguiente y queda ligada a los pedidos.
-- Rendimiento (`Category=Performance`): kardex de 100,000 movimientos < 300 ms; plan < 1 s; importación de 3,000 filas < 10 s.
+- Trazabilidad (B-28): escenario de `trazabilidad.md` §9 por API: hacia atrás desde lo recibido en una sucursal (las dos OC de harina con las cantidades de los lotes del cierre), hacia adelante desde la harina más antigua (llega a dos sucursales y no a la tercera), resumen con existencia por ubicación y pérdida en tránsito, componente sin lote, semiterminado en dos niveles hasta el cliente, 403 sin permiso, alcance sin filtrar (RN-109), costos ocultos sin `production.view`, bitácora y semilla de D-11.
+- Rendimiento (`Category=Performance`): kardex de 100,000 movimientos < 300 ms; plan < 1 s; importación de 3,000 filas < 10 s; trazabilidad de un lote con 20 OP, 40 lotes terminados y 600 traspasos < 1.5 s.
 
 **Criterio:** `dotnet test` en verde antes de cerrar cualquier tarea. Los archivos de prueba (`.csv`, `.xlsx`) viven en `tests/Fixtures/`.
 
@@ -471,5 +476,11 @@ Cada tarea deja el código compilando, con pruebas en verde y la migración crea
 | B-23 | Costo de receta por versión y alzas de insumos (RN-51); análisis de consumo (RN-52) | — | Integración con historial de 8 semanas y dos versiones de receta |
 | B-24 | Fotos de artículos (`ItemPhoto`): GET/PUT/DELETE, `photoRevision` en los DTO de artículo | — | Carga, reemplazo, borrado, 304 con `ETag`, tipo y tamaño inválidos, permisos |
 | B-25 | Endurecimiento y despliegue: índices, `EXPLAIN` de kardex, existencias, lista de OP y plan con ~27,000 OP y ~80,000 cierres de prueba; bundle de migraciones; compose de producción y demo; `deploy/README.md`; revisión de licencias | — | Kardex y lista de OP < 300 ms, plan < 1 s; resultados en `docs/rendimiento.md` |
+
+**Ampliación: trazabilidad de lotes** (requerimiento agregado por el usuario el 2026-10-17; spec `trazabilidad.md`)
+
+| ID | Tarea | Decisiones | Criterio de aceptación |
+|---|---|---|---|
+| B-28 | Trazabilidad de lotes: índices, verificaciones de `trazabilidad.md` §3.3, permiso `inventory.traceability` (semilla de D-11 solo la primera vez), `/traceability/*` con los campos de `trazabilidad-ui.md` §8, pruebas | D-11 | `trazabilidad.md` §5.6 |
 
 **Entregables por fase** (para facturación y aceptación con el cliente): Fase 1 = usuarios, catálogos, inventario y traspasos; Fase 2 = producción con cierres e importación; Fase 3 = compras; Fase 4 = pedidos, ventas a terceros y plan; Fase 5 = tablero, análisis y producción.

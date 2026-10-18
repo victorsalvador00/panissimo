@@ -5,6 +5,8 @@ using Npgsql;
 using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Dashboard;
+using Panissimo.Application.Inventory.Traceability;
+using Panissimo.Infrastructure.Inventory.Traceability;
 using Panissimo.Application.Inventory;
 using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
@@ -128,6 +130,8 @@ public static class DependencyInjection
         services.AddScoped<IProductionSummaryService, ProductionSummaryService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<IItemPhotoService, ItemPhotoService>();
+        services.AddScoped<ITraceDataSource, TraceabilityQueries>();
+        services.AddScoped<ITraceabilityService, TraceabilityService>();
         services.AddScoped<IConsumptionAnalysisService, ConsumptionAnalysisService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IGoodsReceiptService, GoodsReceiptService>();

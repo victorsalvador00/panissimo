@@ -88,6 +88,7 @@ frontend/
 
 - **Layout:** sidebar colapsable (estado recordado en `localStorage`) con el menú por módulo **filtrado por permisos**; en móvil es un drawer. Topbar de color (verde en claro, azul marino en oscuro) con la marca "SGO Paníssimo" (en < 600 px solo el ícono con `aria-label`), el **selector de ubicación activa** en píldora sin etiqueta flotante (`aria-label="Ubicación activa"`; se oculta si el usuario tiene una sola ubicación) y el menú del usuario (perfil, tema, salir). Migas de pan automáticas con área táctil de 24 px.
 - **Paleta del claro en verde** (decisión del usuario, 2026-10-17): el tema claro usa tonos verdes (primario `$green-palette`, terciario `$chartreuse-palette`, barra #2E7D32, fondo #EEF5EE), no azules; el oscuro conserva el "neón azul" (paleta `$azure-palette`).
+- **Trazabilidad** (F-26): tokens `--pan-trace-*` para carriles, cintas y estados del mapa, en claro y oscuro (`trazabilidad-ui.md`).
 - **Tema:** Material 3 con `theme-type: color-scheme`; los tokens usan `light-dark()` y el tema se aplica con `html[data-theme]`. Modos **Claro, Oscuro y Según el sistema** (default), elegidos por dispositivo (`localStorage` `pan.theme`; "Según el sistema" borra la clave y sigue `prefers-color-scheme` en vivo). Un script en `index.html` aplica el tema antes de que arranque Angular (sin destello).
 - **Estilo de pantallas** (`styles/_ui.scss` y tokens `--pan-page-bg`, `--pan-card-*`, `--pan-row-*`, `--pan-pill-*`, `--pan-soft-bg`, `--pan-topbar-*`): en claro, fondo verde suave, tarjetas blancas con sombra suave, campos de Material en **píldora rellena** (radio 12 px dentro de tablas de captura), botón principal con sombra, secundario en píldora suave sin contorno, botones de ícono del contenido en círculo, pestañas con subrayado de 3 px, títulos de página en negrita. `app-data-table` con renglones de 64 px, divisores suaves, alternancia y hover; en celular cada renglón es una tarjeta.
 - **Oscuro "neón azul"** (`styles/_dark.scss`): en el menú lateral, la barra superior y la ayuda, texto #90BEFE, secundario #6F9DFF, líneas #2A63FF / #1F4FD6, primario #4F86FF con texto negro, elemento activo #0B2A73 y resplandor sutil (`--pan-glow`, `--pan-focus-glow`). El **contenido** de las pantallas y las capas emergentes usan texto blanco y líneas grises de Material, sin resplandor; botones principales, enlaces y pestañas en el primario azul. Fondo gris oscuro de Material (no negro). Los estados conservan rojo, verde, naranja y amarillo con variante oscura.
@@ -179,6 +180,8 @@ Rutas en español. Entre corchetes, el permiso mínimo. ★ = diseño móvil o t
 | ★ `/inventario/vales-internos`, `/nuevo`, `/:id` | **Vales internos entre subalmacenes** de la ubicación activa (RN-47): pestañas Por enviar / En tránsito / Recibidos / Todos; formulario con subalmacén origen y destino (solo los de la ubicación activa, distintos) y líneas con lote planeado opcional; **Enviar** (lotes FEFO, confirmación con resumen) y **Recibir** con tarjeta por línea prellenada con lo enviado, como la recepción de traspasos; Cancelar solo en borrador | [inventory.view]; enviar y recibir [inventory.internal_transfers] |
 | `/inventario/existencias-iniciales` | CSV de existencias iniciales | [inventory.adjust] |
 | `/inventario/analisis-consumo` | Promedio diario, barras por día de la semana, tendencia, mín/máx actual y sugerido con **Aplicar sugerido** ([catalog.manage]) | [inventory.view] |
+| `/inventario/trazabilidad` | Búsqueda de punto de entrada (lote, OC, OP, traspaso o remisión) y dirección (`trazabilidad.md` §6.2) | [inventory.traceability] |
+| `/inventario/trazabilidad/:sourceType/:sourceId?direccion=` | Resultado: mapa con ficha emergente (`trazabilidad-ui.md`), resumen de retiro y bitácora; exportar CSV | [inventory.traceability] |
 
 ### 7.4 Producción
 
@@ -311,6 +314,7 @@ Filtros por URL que usan las tarjetas: `?bajoMinimo=1`, `?porCaducar=1`, `?pesta
 | `app-stamp` | "fecha · nombre" en detalles |
 | `app-item-photo` | Miniatura del artículo o sus iniciales; descarga con token y caché por revisión |
 | `app-progress-meter` | Barra de avance accesible (`progressbar`) |
+| `app-trace-graph`, `app-trace-card`, `app-trace-detail` | Mapa de trazabilidad por carriles con cintas proporcionales, tarjetas y ficha emergente por tipo de nodo (`trazabilidad-ui.md`; tokens `--pan-trace-*`) |
 | `app-stock-level` | Existencia contra mín/máx |
 | `app-csv-import` | Importación CSV (lector RFC 4180 con `,`/`;`, plantilla con BOM, vista previa, errores por fila) |
 | `app-xlsx-import` | Importación de Excel en 3 pasos con validación en servidor |
@@ -340,6 +344,7 @@ Pipes: `qty`, `mxn`, `statusLabel`.
   14. Accesibilidad: axe (WCAG 2.1 A/AA, falla con serious/critical) en claro y oscuro en login, tablero, listas y flujos de captura.
   15. Tema: persistencia y "según el sistema".
   16. Ayuda: abrir, video, Esc y foco.
+  17. Trazabilidad (`trazabilidad.md` §6.4, `trazabilidad-ui.md` §11): busca la OP, abre el mapa, selecciona el lote más antiguo de harina y la sucursal que no lo recibió queda atenuada; en celular, pestaña Resumen sin scroll horizontal; axe en claro y oscuro. Mueve inventario.
 - **Lighthouse** (`npm run lighthouse`, accesibilidad con emulación móvil, ≥ 90): login, tablero, recepción de traspaso y cierre de producción.
 
 ## 10. Build y despliegue
@@ -426,3 +431,9 @@ Cada tarea deja `npm run lint` y `npm test` en verde. **Una tarea por sesión, e
 | F-22 | Costos de receta y análisis de consumo | B-23 | La receta muestra su costo por versión |
 | F-23 | Fotos de artículos (`app-item-photo`, pestaña Foto, importación masiva por SKU) | B-24 | Subir desde el artículo y verla en el selector |
 | F-24 | Pulido: ayuda contextual con videos, revisión móvil y tableta de todas las pantallas, accesibilidad (axe y Lighthouse), estados vacíos, build de producción con Caddy | todas | E2E 14–16 en verde; Lighthouse ≥ 90; sin scroll horizontal a 360 px |
+
+**Ampliación: trazabilidad de lotes**
+
+| ID | Tarea | Requiere | Criterio de aceptación |
+|---|---|---|---|
+| F-26 | Pantalla de trazabilidad (búsqueda, mapa y ficha emergente según `trazabilidad-ui.md`, resumen, bitácora, CSV) y accesos directos | B-28, F-11, F-15, F-16, F-18 | `trazabilidad.md` §6.5 y `trazabilidad-ui.md` §12 |

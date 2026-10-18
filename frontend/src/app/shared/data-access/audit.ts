@@ -30,6 +30,8 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   Created: 'Alta',
   Updated: 'Cambio',
   Deleted: 'Baja',
+  // RN-109: a lot traceability query leaves its trace (entry, direction and nodes).
+  Queried: 'Consulta',
 };
 
 /** Spanish names of the audited entities (the backend sends the class name). */
@@ -65,6 +67,7 @@ export const AUDIT_ENTITIES: Record<string, string> = {
   PurchaseRequisition: 'Requisición',
   PurchaseOrder: 'Orden de compra',
   GoodsReceipt: 'Recepción de compra',
+  Traceability: 'Trazabilidad',
 };
 
 /** Labels of the fields that appear most; the rest show their own name. */

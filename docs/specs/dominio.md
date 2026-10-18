@@ -80,6 +80,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 | Usuario / Rol / Permiso | `User` / `Role` / `Permission` | |
 | Foto de artículo | `ItemPhoto` | Una por artículo |
 | Bitácora | `AuditLog` | |
+| Trazabilidad | `Traceability` | Consulta; no guarda datos (B-28) |
 | Parámetro | `AppSetting` | |
 
 ## 3. Convenciones generales
@@ -257,7 +258,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 **GoodsReceipt**
 - Encabezado: `Folio`, `PurchaseOrderId`, `LocationId`, `ReceivedAt`, `SupplierInvoiceNumber` (opcional), `Notes`.
-- Líneas: `PurchaseOrderLineId`, `ItemId`, `Quantity` (unidad de compra), `BaseQuantity`, `UnitCostBase`, `LotNumber`, `ExpirationDate`.
+- Líneas: `PurchaseOrderLineId`, `ItemId`, `Quantity` (unidad de compra), `BaseQuantity`, `UnitCostBase`, `LotId` (el lote creado o reutilizado; nulo solo si el artículo no maneja lotes; liga de la trazabilidad, RN-101), `LotNumber`, `ExpirationDate`.
 
 ### 4.8 Seguridad, auditoría y parámetros
 
@@ -278,6 +279,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 | `production.overrun_tolerance_pct` | decimal 0–100 | 10 | RN-63 |
 | `production.plan_default_days` | entero 1–14 | 1 | RN-70 |
 | `sales.shipment_tolerance_pct` | decimal 0–100 | 0 | RN-82 |
+| `traceability.max_nodes` | entero 100–10,000 | 2,000 | RN-103 |
 
 ## 5. Reglas de negocio
 
@@ -438,6 +440,21 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - **RN-52 (análisis de consumo)**: sobre semanas completas hasta ayer (8 por omisión, máx. 26), con las salidas `Consumption`, `ProductionConsumption`, `TransferOut` y `CustomerShipment`. Promedio diario = total / días; patrón por día de la semana; tendencia = últimas 4 semanas contra las 4 anteriores. Mín sugerido = promedio × `inventory.min_cover_days`; máx = promedio × `inventory.max_cover_days`, redondeados hacia arriba (enteros en `pza`); el máx nunca queda por debajo del mín. Aplicarlo usa el mín/máx normal.
 - **RN-53 (resumen de producción)**: por área, producto o día en un rango: planeado (OP del rango no canceladas), producido (cierres del rango), % de cumplimiento, costo producido y merma de producción en pesos (RN-13).
 
+### Trazabilidad
+
+Detalle, algoritmo y API en `docs/specs/trazabilidad.md` (B-28) y la pantalla en `docs/specs/trazabilidad-ui.md` (F-26). La trazabilidad es una **consulta** sobre lo que ya registran los documentos: no guarda datos propios.
+
+- **RN-100 (puntos de entrada)**: la consulta parte de un lote, una OC, una OP, un traspaso o una remisión, y cada entrada se convierte en lotes semilla: el lote; los lotes de las recepciones de la OC (dirección por omisión: hacia adelante); los lotes generados por los cierres de la OP; los lotes despachados del traspaso; los lotes despachados de la remisión (hacia atrás). Las demás van en ambas direcciones. Una OC sin recepciones o una OP sin cierres responde sin nodos y con el aviso `no_lots`.
+- **RN-101 (hacia atrás)**: de un lote se sube a su origen: el cierre que lo produjo (y su OP), las recepciones que lo trajeron (OC, proveedor, fecha y cantidad) o el ajuste o conteo que lo creó (origen sin proveedor). De un cierre se sube a **todos** los lotes que consumió, con la cantidad de cada uno.
+- **RN-102 (hacia adelante)**: de un lote se baja por los cierres que lo consumieron, los traspasos y remisiones que lo despacharon y, en cada ubicación donde estuvo, su resumen de entradas, consumos, mermas y existencia. De un cierre se baja al lote que produjo.
+- **RN-103 (niveles y ciclos)**: el recorrido sigue lote → cierre → lote las veces necesarias (semiterminados), hasta `maxDepth` (10 por omisión, máx. 20). Un lote ya visitado no se vuelve a expandir. Al llegar a `maxDepth` o a `traceability.max_nodes` la respuesta trae `truncated` y los lotes que no se expandieron.
+- **RN-104 (componentes sin lote)**: un componente sin control de lote aparece en el cierre como consumo sin lote, con su cantidad y unidad, sin ligas a compras; no se adivina su origen (aviso `unlotted_components`).
+- **RN-105 (cantidades)**: todo en unidad base; la recepción muestra también la cantidad en unidad de compra. Las cantidades salen de los documentos (lotes del cierre, líneas por lote del traspaso, lotes de la remisión), nunca de prorrateos.
+- **RN-106 (existencia por ubicación)**: por cada lote y planta o sucursal alcanzada (con sus subalmacenes) se calcula desde el kardex: entradas, salidas por tipo y existencia actual. Los vales internos no cuentan: no salen de la ubicación.
+- **RN-107 (discrepancias)**: un traspaso recibido con diferencia muestra, por lote, lo enviado, lo recibido y el motivo; la diferencia es pérdida en tránsito (RN-22) y no es existencia en ningún lado. El faltante queda en el lote que el usuario indica al recibir (cada lote despachado es una línea del traspaso).
+- **RN-108 (resumen de retiro)**: de los lotes de producto terminado alcanzados: por ubicación (recibido, consumido, merma y existencia actual), por cliente (remisionado), por origen (proveedor, OC, recepción y lote de materia prima con lo consumido) y la pérdida en tránsito.
+- **RN-109 (permiso y alcance)**: requiere `inventory.traceability`. Es una función de calidad que cruza ubicaciones: **no se limita** al alcance de ubicaciones del usuario (RN-40). Los costos y precios llegan vacíos sin `production.view` o `purchasing.view`. Cada consulta queda en `AuditLog` (acción `Queried`) con la entrada, la dirección y el número de nodos.
+
 ### Seguridad
 
 - **RN-40 (permisos y alcance)**: un rol es un conjunto de permisos; un usuario tiene uno o más roles y una o más ubicaciones. Solo ve y opera datos de sus ubicaciones, salvo con `locations.all`. Una ubicación asignada incluye sus subalmacenes. Un usuario puede tener asignado **solo un subalmacén**: entonces mueve inventario solo en ese subalmacén y ve los documentos de su ubicación padre (B-26).
@@ -451,7 +468,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 |---|---|
 | Organización | `locations.view`, `locations.manage`, `locations.all` |
 | Catálogos | `catalog.view`, `catalog.manage` |
-| Inventario | `inventory.view`, `inventory.adjust`, `inventory.count`, `inventory.consumption`, `inventory.internal_transfers` (vales internos, RN-47) |
+| Inventario | `inventory.view`, `inventory.adjust`, `inventory.count`, `inventory.consumption`, `inventory.internal_transfers` (vales internos, RN-47), `inventory.traceability` (trazabilidad de lotes, RN-109) |
 | Producción | `production.view`, `production.recipes.manage`, `production.orders.manage`, `production.orders.close`, `production.orders.import`, `production.areas.manage` |
 | Logística | `logistics.view`, `logistics.orders.create`, `logistics.orders.approve`, `logistics.transfers.dispatch`, `logistics.transfers.receive`, `logistics.transfers.special` |
 | Ventas | `sales.view`, `sales.customers.manage`, `sales.orders.manage`, `sales.shipments.dispatch` |
@@ -464,11 +481,11 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 | Rol | Permisos |
 |---|---|
 | Administrador | Todos |
-| Dirección | Todos los `*.view`, `locations.all`, `logistics.orders.approve`, `purchasing.po.approve`, `security.audit.view`, `logistics.transfers.special` |
+| Dirección | Todos los `*.view`, `locations.all`, `logistics.orders.approve`, `purchasing.po.approve`, `security.audit.view`, `logistics.transfers.special`, `inventory.traceability` |
 | Compras | `purchasing.*` excepto `purchasing.po.approve`; `catalog.view`; `inventory.view`; `production.view` |
-| Jefe de producción | `production.*`, `inventory.view`, `inventory.count`, `inventory.adjust`, `catalog.view`, `sales.view`, `logistics.view` |
+| Jefe de producción | `production.*`, `inventory.view`, `inventory.count`, `inventory.adjust`, `catalog.view`, `sales.view`, `logistics.view`, `inventory.traceability` |
 | Supervisor de producción | `production.view`, `production.orders.close`, `inventory.view`, `catalog.view` |
-| Almacén planta | `inventory.*`, `logistics.view`, `logistics.orders.approve`, `logistics.transfers.dispatch`, `logistics.transfers.special`, `purchasing.view`, `purchasing.receive`, `sales.view`, `sales.shipments.dispatch` |
+| Almacén planta | `inventory.*` (incluye `inventory.traceability`), `logistics.view`, `logistics.orders.approve`, `logistics.transfers.dispatch`, `logistics.transfers.special`, `purchasing.view`, `purchasing.receive`, `sales.view`, `sales.shipments.dispatch` |
 | Distribución | `logistics.view`, `logistics.transfers.dispatch`, `sales.view`, `sales.shipments.dispatch`, `inventory.view` |
 | Ventas a clientes | `sales.view`, `sales.customers.manage`, `sales.orders.manage`, `inventory.view`, `production.view` |
 | Encargado de sucursal | `inventory.view`, `inventory.count`, `inventory.consumption`, `inventory.internal_transfers`, `logistics.view`, `logistics.orders.create`, `logistics.transfers.receive` |
@@ -500,6 +517,7 @@ Cada decisión tenía una **propuesta**; las reglas de la sección 5 se escribie
 | D-08 | ¿Cómo se registran devoluciones y rechazos de clientes? | Ajuste de entrada que además permite capturar, por línea, qué parte es **merma** con su propio motivo | Decidida, **amplía** la propuesta | B-27 |
 | D-09 | ¿Cuántos clientes y puntos de entrega? ¿Quién confirma y quién despacha? | 20 a 100 clientes. Confirma Ventas a clientes; despacha Almacén planta o Distribución | Confirmada | B-18, B-19 |
 | D-10 | ¿Cuántos usuarios por rol? | Se define antes del arranque (semilla de demo y capacitación) | Abierta, no bloquea | B-04, B-25 |
+| D-11 | ¿Qué roles consultan la trazabilidad? ¿Las sucursales ven la cadena completa? | Administrador, Dirección, Jefe de producción y Almacén planta (decidida con el usuario el 2026-10-18). **Las sucursales no** reciben el permiso. La semilla lo asigna solo la primera vez que el permiso aparece, para no pisar ajustes posteriores a los roles | Confirmada | B-28 |
 
 **Otras decisiones de la revisión (2026-10-17):**
 - RN-70: la reposición a stock del plan reserva `MaxQty` como stock objetivo el primer día cuando la existencia proyectada al final del rango queda debajo de `MinQty` (implementado en B-20, confirmado).

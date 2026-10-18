@@ -199,8 +199,36 @@ public sealed class DatabaseSeeder(
                 db.RolePermissions.AddRange(definition.Permissions.Except(granted).Select(p => new RolePermission(role.Id, p)));
             }
         }
-
         await db.SaveChangesAsync(ct);
+        await GrantNewPermissionsAsync(ct);
+    }
+
+    /// <summary>
+    /// A permission added in a later version (e.g. inventory.traceability, D-11) goes once to the system roles whose
+    /// definition includes it. After that it is "known": removing it from a role is the client's decision and stays.
+    /// </summary>
+    private async Task GrantNewPermissionsAsync(CancellationToken ct)
+    {
+        var known = (await db.KnownPermissions.Select(p => p.Code).ToListAsync(ct)).ToHashSet();
+        var fresh = Permissions.All.Select(p => p.Code).Where(code => !known.Contains(code)).ToList();
+        if (fresh.Count == 0)
+            return;
+
+        var roles = await db.Roles.Where(r => r.SystemKey != null).Select(r => new { r.Id, r.SystemKey }).ToListAsync(ct);
+        var granted = await db.RolePermissions.Where(rp => fresh.Contains(rp.PermissionCode))
+            .Select(rp => new { rp.RoleId, rp.PermissionCode }).ToListAsync(ct);
+        foreach (var code in fresh)
+        {
+            foreach (var definition in SystemRoles.All.Where(d => d.Permissions.Contains(code)))
+            {
+                var role = roles.SingleOrDefault(r => r.SystemKey == definition.Key);
+                if (role is not null && !granted.Any(g => g.RoleId == role.Id && g.PermissionCode == code))
+                    db.RolePermissions.Add(new RolePermission(role.Id, code));
+            }
+            db.KnownPermissions.Add(new KnownPermission(code, DateTimeOffset.UtcNow));
+        }
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Permissions granted to their system roles for the first time: {Permissions}", string.Join(", ", fresh));
     }
 
     private async Task SeedAdminAsync(CancellationToken ct)

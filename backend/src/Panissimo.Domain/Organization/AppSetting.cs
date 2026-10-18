@@ -45,6 +45,7 @@ public static class AppSettingKeys
     public const string OverrunTolerancePct = "production.overrun_tolerance_pct";
     public const string PlanDefaultDays = "production.plan_default_days";
     public const string ShipmentTolerancePct = "sales.shipment_tolerance_pct";
+    public const string TraceabilityMaxNodes = "traceability.max_nodes";
 }
 
 public enum SettingKind
@@ -81,6 +82,7 @@ public static class SettingDefinitions
         new(AppSettingKeys.OverrunTolerancePct, "Tolerancia de sobreproducción (%)", SettingKind.Decimal, 0, 100, 2, 10),
         new(AppSettingKeys.PlanDefaultDays, "Días del plan de producción por omisión", SettingKind.Integer, 1, 14, 0, 1),
         new(AppSettingKeys.ShipmentTolerancePct, "Tolerancia de remisión sobre lo pedido (%)", SettingKind.Decimal, 0, 100, 2, 0),
+        new(AppSettingKeys.TraceabilityMaxNodes, "Nodos máximos de una consulta de trazabilidad", SettingKind.Integer, 100, 10_000, 0, 2_000),
     ];
 
     public static SettingDefinition? Find(string key) => All.FirstOrDefault(d => d.Key == key);

@@ -63,6 +63,8 @@ internal sealed class InventoryMovementConfiguration : IEntityTypeConfiguration<
         builder.HasIndex(m => new { m.LocationId, m.Sequence });
         builder.HasIndex(m => new { m.SourceDocType, m.SourceDocId });
         builder.HasIndex(m => new { m.ItemId, m.Type, m.BusinessDate });
+        // Lot traceability (RN-106): what a lot did in each location, read from the index only.
+        builder.HasIndex(m => new { m.LotId, m.LocationId }).IncludeProperties(m => new { m.Type, m.Quantity, m.OccurredAt });
         builder.HasOne<Location>().WithMany().HasForeignKey(m => m.LocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Item>().WithMany().HasForeignKey(m => m.ItemId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Lot>().WithMany().HasForeignKey(m => m.LotId).OnDelete(DeleteBehavior.Restrict);

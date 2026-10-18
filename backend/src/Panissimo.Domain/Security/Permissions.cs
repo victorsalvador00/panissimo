@@ -15,6 +15,7 @@ public static class Permissions
     public const string InventoryCount = "inventory.count";
     public const string InventoryConsumption = "inventory.consumption";
     public const string InventoryInternalTransfers = "inventory.internal_transfers";
+    public const string InventoryTraceability = "inventory.traceability";
 
     public const string ProductionView = "production.view";
     public const string ProductionRecipesManage = "production.recipes.manage";
@@ -62,6 +63,7 @@ public static class Permissions
         new(InventoryCount, "Inventario", "Realizar conteos físicos"),
         new(InventoryConsumption, "Inventario", "Registrar consumos de sucursal"),
         new(InventoryInternalTransfers, "Inventario", "Enviar y recibir vales internos entre subalmacenes"),
+        new(InventoryTraceability, "Inventario", "Consultar la trazabilidad de lotes (cruza ubicaciones)"),
         new(ProductionView, "Producción", "Ver producción"),
         new(ProductionRecipesManage, "Producción", "Administrar recetas"),
         new(ProductionOrdersManage, "Producción", "Administrar órdenes de producción y generar desde el plan"),

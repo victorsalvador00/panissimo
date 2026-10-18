@@ -12453,6 +12453,225 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/traceability/graph': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Cadena de un lote, una OC, una OP, un traspaso o una remisión: nodos (proveedores, recepciones, lotes, cierres, existencia
+     *     por ubicación, traspasos, remisiones y clientes), aristas con cantidades y fechas, OP como grupos, bitácora y resumen
+     *     de retiro (RN-108). Dirección por omisión según la entrada (RN-100); maxDepth de 1 a 20 (10 por omisión). Cruza
+     *     ubicaciones: no se limita al alcance del usuario; cada consulta queda en la bitácora (RN-109). Los costos llegan en
+     *     null sin production.view y los precios de compra sin purchasing.view.
+     */
+    get: {
+      parameters: {
+        query?: {
+          SourceType?: components['schemas']['TraceSourceType'];
+          SourceId?: string;
+          Direction?: components['schemas']['TraceDirection'];
+          MaxDepth?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['TraceGraphDto'];
+            'application/json': components['schemas']['TraceGraphDto'];
+            'text/json': components['schemas']['TraceGraphDto'];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/traceability/lots/lookup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Lotes por número, SKU o nombre del artículo (máximo 50), los más recientes primero. */
+    get: {
+      parameters: {
+        query?: {
+          Q?: string;
+          ItemId?: string;
+          Limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['TraceLotLookupDto'][];
+            'application/json': components['schemas']['TraceLotLookupDto'][];
+            'text/json': components['schemas']['TraceLotLookupDto'][];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/traceability/sources/lookup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Puntos de entrada por folio (OC-, OP-, TR-, RM-) o número de lote: { sourceType, sourceId, label }. */
+    get: {
+      parameters: {
+        query?: {
+          q?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['TraceSourceDto'][];
+            'application/json': components['schemas']['TraceSourceDto'][];
+            'text/json': components['schemas']['TraceSourceDto'][];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/dashboard': {
     parameters: {
       query?: never;
@@ -17713,6 +17932,356 @@ export interface components {
       accessToken: string;
       /** Format: int32 */
       expiresIn: number;
+    };
+    TraceCloseLineDto: {
+      /** Format: uuid */
+      itemId: string;
+      sku: string;
+      itemName: string;
+      /** Format: uuid */
+      lotId: null | string;
+      lotNumber: null | string;
+      /** Format: double */
+      theoreticalQty: number;
+      /** Format: double */
+      actualQty: number;
+      /** Format: double */
+      unitCost: null | number;
+      baseUom: string;
+    };
+    TraceCustomerSummaryDto: {
+      /** Format: uuid */
+      customerId: string;
+      customerName: string;
+      /** Format: double */
+      shippedQty: number;
+      baseUom: string;
+      shipmentFolios: string[];
+    };
+    TraceDemandDto: {
+      type: components['schemas']['DemandType'];
+      folio: string;
+      partyName: string;
+      /** Format: double */
+      quantity: number;
+    };
+    /** @enum {unknown} */
+    TraceDirection: 'Backward' | 'Forward' | 'Both';
+    TraceEdgeDto: {
+      from: string;
+      to: string;
+      kind: components['schemas']['TraceEdgeKind'];
+      /** Format: double */
+      qty: null | number;
+      baseUom: null | string;
+      /** Format: date-time */
+      at: null | string;
+      /** Format: double */
+      shippedQty?: null | number;
+      discrepancyReason?: null | components['schemas']['DiscrepancyReason'];
+    };
+    /** @enum {unknown} */
+    TraceEdgeKind:
+      | 'Supplied'
+      | 'Received'
+      | 'Created'
+      | 'Entered'
+      | 'Consumed'
+      | 'Produced'
+      | 'Dispatched'
+      | 'Delivered'
+      | 'Shipped';
+    TraceEventDto: {
+      /** Format: date-time */
+      at: string;
+      docType: string;
+      /** Format: uuid */
+      docId: string;
+      folio: string;
+      description: string;
+      sku: null | string;
+      lotNumber: null | string;
+      /** Format: double */
+      qty: null | number;
+      baseUom: null | string;
+      locationCode: null | string;
+    };
+    TraceFinishedLotDto: {
+      /** Format: uuid */
+      lotId: string;
+      lotNumber: string;
+      sku: string;
+      itemName: string;
+      /** Format: double */
+      producedQty: number;
+      baseUom: string;
+      /** Format: date */
+      expirationDate: null | string;
+    };
+    TraceGraphDto: {
+      source: components['schemas']['TraceSourceDto'];
+      direction: components['schemas']['TraceDirection'];
+      /** Format: date-time */
+      asOf: string;
+      truncated: boolean;
+      unexpandedNodeIds: string[];
+      warnings: string[];
+      nodes: components['schemas']['TraceNodeDto'][];
+      edges: components['schemas']['TraceEdgeDto'][];
+      groups: components['schemas']['TraceGroupDto'][];
+      events: components['schemas']['TraceEventDto'][];
+      summary: components['schemas']['TraceSummaryDto'];
+    };
+    TraceGroupDto: {
+      id: string;
+      /** Format: uuid */
+      productionOrderId: string;
+      folio: string;
+      /** Format: uuid */
+      itemId: string;
+      sku: string;
+      itemName: string;
+      /** Format: double */
+      plannedQty: number;
+      /** Format: double */
+      producedQty: number;
+      baseUom: string;
+      status: components['schemas']['ProductionOrderStatus'];
+      /** Format: date */
+      scheduledDate: string;
+      shift: null | components['schemas']['Shift'];
+      areaName: null | string;
+      recipeName: string;
+      /** Format: int32 */
+      recipeVersion: number;
+      source: components['schemas']['ProductionOrderSource'];
+      /** Format: double */
+      totalCost: null | number;
+      /** Format: double */
+      unitCost: null | number;
+      shortfallReason: null | components['schemas']['ShortfallReason'];
+      statusHistory: components['schemas']['TraceStatusDto'][];
+      demands: components['schemas']['TraceDemandDto'][];
+      nodeIds: string[];
+    };
+    TraceLocationSummaryDto: {
+      /** Format: uuid */
+      locationId: string;
+      locationCode: string;
+      locationName: string;
+      locationType: components['schemas']['LocationType'];
+      /** Format: double */
+      receivedQty: number;
+      /** Format: double */
+      consumedQty: number;
+      /** Format: double */
+      wasteQty: number;
+      /** Format: double */
+      onHandQty: number;
+      baseUom: string;
+    };
+    TraceLotLookupDto: {
+      /** Format: uuid */
+      lotId: string;
+      lotNumber: string;
+      /** Format: uuid */
+      itemId: string;
+      sku: string;
+      itemName: string;
+      /** Format: date */
+      expirationDate: null | string;
+    };
+    TraceNodeDto: {
+      id: string;
+      type: components['schemas']['TraceNodeType'];
+      label: string;
+      /** Format: uuid */
+      itemId?: null | string;
+      sku?: null | string;
+      itemName?: null | string;
+      itemType?: null | components['schemas']['ItemType'];
+      baseUom?: null | string;
+      /** Format: uuid */
+      supplierId?: null | string;
+      taxId?: null | string;
+      /** Format: int32 */
+      paymentTermsDays?: null | number;
+      /** Format: uuid */
+      purchaseOrderId?: null | string;
+      purchaseOrderFolio?: null | string;
+      /** Format: date */
+      purchaseOrderDate?: null | string;
+      purchaseOrderStatus?: null | components['schemas']['PurchaseOrderStatus'];
+      /** Format: double */
+      purchaseOrderSubtotal?: null | number;
+      /** Format: uuid */
+      receiptId?: null | string;
+      receiptFolio?: null | string;
+      /** Format: date-time */
+      receivedAt?: null | string;
+      /** Format: double */
+      purchaseQty?: null | number;
+      purchaseUom?: null | string;
+      /** Format: double */
+      baseQty?: null | number;
+      supplierInvoiceNumber?: null | string;
+      /** Format: double */
+      unitPrice?: null | number;
+      /** Format: double */
+      unitCostBase?: null | number;
+      docType?: null | string;
+      /** Format: uuid */
+      docId?: null | string;
+      /** Format: date-time */
+      postedAt?: null | string;
+      /** Format: uuid */
+      lotId?: null | string;
+      lotNumber?: null | string;
+      /** Format: date */
+      expirationDate?: null | string;
+      /** Format: date-time */
+      createdAt?: null | string;
+      /** Format: double */
+      unitCost?: null | number;
+      /** Format: uuid */
+      closeId?: null | string;
+      folio?: null | string;
+      kind?: null | components['schemas']['ProductionCloseKind'];
+      /** Format: int32 */
+      sequence?: null | number;
+      /** Format: uuid */
+      productionOrderId?: null | string;
+      /** Format: date-time */
+      closedAt?: null | string;
+      /** Format: date */
+      businessDate?: null | string;
+      shift?: null | components['schemas']['Shift'];
+      /** Format: double */
+      producedQty?: null | number;
+      /** Format: double */
+      totalCost?: null | number;
+      /** Format: double */
+      wasteCost?: null | number;
+      closedByName?: null | string;
+      unlottedConsumption?: null | components['schemas']['TraceQtyDto'][];
+      lines?: null | components['schemas']['TraceCloseLineDto'][];
+      /** Format: uuid */
+      locationId?: null | string;
+      locationCode?: null | string;
+      locationName?: null | string;
+      locationType?: null | components['schemas']['LocationType'];
+      /** Format: double */
+      inQty?: null | number;
+      outByType?: null | {
+        [key: string]: number;
+      };
+      /** Format: double */
+      onHandQty?: null | number;
+      movements?: null | components['schemas']['TraceStockMovementDto'][];
+      movementsTruncated?: null | boolean;
+      /** Format: uuid */
+      transferId?: null | string;
+      branchOrderFolio?: null | string;
+      fromLocationCode?: null | string;
+      toLocationCode?: null | string;
+      transferStatus?: null | components['schemas']['TransferStatus'];
+      /** Format: date-time */
+      dispatchedAt?: null | string;
+      /** Format: date-time */
+      deliveredAt?: null | string;
+      vehicleDescription?: null | string;
+      driverName?: null | string;
+      /** Format: double */
+      requestedQty?: null | number;
+      /** Format: double */
+      approvedQty?: null | number;
+      /** Format: date-time */
+      approvedAt?: null | string;
+      transferLines?: null | components['schemas']['TraceTransferLineDto'][];
+      /** Format: uuid */
+      shipmentId?: null | string;
+      customerOrderFolio?: null | string;
+      shipmentStatus?: null | components['schemas']['CustomerShipmentStatus'];
+      /** Format: uuid */
+      customerId?: null | string;
+      customerCode?: null | string;
+      customerName?: null | string;
+    };
+    /** @enum {unknown} */
+    TraceNodeType:
+      | 'Supplier'
+      | 'PurchaseReceipt'
+      | 'InitialStock'
+      | 'Lot'
+      | 'ProductionClose'
+      | 'Stock'
+      | 'Transfer'
+      | 'CustomerShipment'
+      | 'Customer';
+    TraceOriginDto: {
+      supplierName: null | string;
+      purchaseOrderFolio: null | string;
+      receiptFolio: null | string;
+      docFolio: null | string;
+      /** Format: uuid */
+      lotId: string;
+      lotNumber: string;
+      sku: string;
+      /** Format: double */
+      consumedQty: number;
+      baseUom: string;
+    };
+    TraceQtyDto: {
+      /** Format: uuid */
+      itemId: string;
+      sku: string;
+      itemName: string;
+      /** Format: double */
+      qty: number;
+      baseUom: string;
+    };
+    TraceSourceDto: {
+      type: components['schemas']['TraceSourceType'];
+      /** Format: uuid */
+      id: string;
+      label: string;
+    };
+    /** @enum {unknown} */
+    TraceSourceType: 'Lot' | 'PurchaseOrder' | 'ProductionOrder' | 'Transfer' | 'CustomerShipment';
+    TraceStatusDto: {
+      status: components['schemas']['ProductionOrderStatus'];
+      /** Format: date-time */
+      at: string;
+      byName: null | string;
+    };
+    TraceStockMovementDto: {
+      /** Format: date-time */
+      at: string;
+      type: components['schemas']['MovementType'];
+      folio: string;
+      /** Format: double */
+      quantity: number;
+      /** Format: double */
+      balance: number;
+    };
+    TraceSummaryDto: {
+      origins: components['schemas']['TraceOriginDto'][];
+      finishedLots: components['schemas']['TraceFinishedLotDto'][];
+      locations: components['schemas']['TraceLocationSummaryDto'][];
+      customers: components['schemas']['TraceCustomerSummaryDto'][];
+      /** Format: double */
+      inTransitLossQty: number;
+    };
+    TraceTransferLineDto: {
+      /** Format: uuid */
+      lotId: null | string;
+      lotNumber: null | string;
+      /** Format: double */
+      shippedQty: number;
+      /** Format: double */
+      receivedQty: null | number;
+      discrepancyReason: null | components['schemas']['DiscrepancyReason'];
+      discrepancyNotes: null | string;
     };
     TransferDto: {
       /** Format: uuid */

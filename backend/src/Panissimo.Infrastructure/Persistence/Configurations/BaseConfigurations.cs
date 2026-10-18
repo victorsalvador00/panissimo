@@ -57,6 +57,16 @@ internal sealed class UnitOfMeasureConfiguration : IEntityTypeConfiguration<Unit
     }
 }
 
+internal sealed class KnownPermissionConfiguration : IEntityTypeConfiguration<KnownPermission>
+{
+    public void Configure(EntityTypeBuilder<KnownPermission> builder)
+    {
+        builder.ToTable("known_permission", "security");
+        builder.HasKey(p => p.Code);
+        builder.Property(p => p.Code).HasMaxLength(100);
+    }
+}
+
 internal sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermission>
 {
     public void Configure(EntityTypeBuilder<RolePermission> builder)

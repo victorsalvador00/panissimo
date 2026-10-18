@@ -80,6 +80,21 @@ public class InternalTransferTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task The_list_by_a_location_includes_the_vouchers_of_its_warehouses()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var (branch, storeroom, showcase) = await BranchAsync(admin);
+        var flour = await factory.CreateItemAsync("HAR");
+        await factory.AddStockAsync(storeroom.Id, flour.Id, 10, 18m);
+        var voucher = await CreateAsync(admin, storeroom.Id, showcase.Id, flour.Id, 4);
+
+        var list = (await admin.GetJsonAsync<PagedResult<TransferListItemDto>>($"/api/v1/internal-transfers?locationId={branch.Id}&tab=All"))!;
+        Assert.Contains(list.Items, t => t.Id == voucher.Id);
+        var byWarehouse = (await admin.GetJsonAsync<PagedResult<TransferListItemDto>>($"/api/v1/internal-transfers?locationId={showcase.Id}"))!;
+        Assert.Contains(byWarehouse.Items, t => t.Id == voucher.Id);
+    }
+
+    [Fact]
     public async Task A_voucher_stays_inside_one_location()
     {
         var admin = await factory.LoginAsAdminAsync();

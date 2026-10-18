@@ -237,7 +237,11 @@ public sealed class TransferService(
         if (query.ToLocationId is { } to)
             transfers = transfers.Where(t => t.ToLocationId == to);
         if (query.LocationId is { } either)
-            transfers = transfers.Where(t => t.FromLocationId == either || t.ToLocationId == either);
+        {
+            // RN-46: a plant or branch also covers its sub-warehouses (the ends of an internal voucher).
+            var ids = await InventoryLocations.WithWarehousesAsync(db, either, ct);
+            transfers = transfers.Where(t => ids.Contains(t.FromLocationId) || ids.Contains(t.ToLocationId));
+        }
         if (query.From is { } fromDate)
             transfers = transfers.Where(t => t.CreatedAt >= fromDate);
         if (query.To is { } toDate)

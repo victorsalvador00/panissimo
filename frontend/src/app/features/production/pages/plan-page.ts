@@ -5,6 +5,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   signal,
   untracked,
 } from '@angular/core';
@@ -78,6 +79,9 @@ const DEMAND_DOCS = {
   styleUrl: './plan-page.scss',
 })
 export class PlanPage {
+  /** `?q=`: a product to look for (the requirement links its semi-finished goods to produce). */
+  readonly q = input<string>();
+
   private readonly api = inject(ProductionPlanApi);
   private readonly areasApi = inject(AreasApi);
   private readonly confirmService = inject(ConfirmService);
@@ -137,6 +141,10 @@ export class PlanPage {
           { from: fromIsoDate(plan.from), to: fromIsoDate(plan.to) },
           { emitEvent: false },
         );
+    });
+    effect(() => {
+      const q = this.q();
+      if (q) untracked(() => this.filters.controls.q.setValue(q));
     });
     this.filters.valueChanges
       .pipe(debounceTime(300), takeUntilDestroyed())

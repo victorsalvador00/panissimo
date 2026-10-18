@@ -1,8 +1,19 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Purchasing (frontend §7.6). F-20 adds the raw material requirement. */
+/** Purchasing (frontend §7.6). */
 export const PURCHASING_ROUTES: Routes = [
+  {
+    path: 'requerimiento',
+    title: 'Requerimiento de materia prima · SGO Paníssimo',
+    canActivate: [permissionGuard],
+    // Purchasing or production (frontend §7.6).
+    data: {
+      permission: ['purchasing.view', 'production.view'],
+      breadcrumb: 'Requerimiento',
+    },
+    loadComponent: () => import('./pages/requirement-page').then((m) => m.RequirementPage),
+  },
   {
     path: 'proveedores',
     canActivate: [permissionGuard],

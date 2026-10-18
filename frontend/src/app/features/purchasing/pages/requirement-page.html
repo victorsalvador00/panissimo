@@ -1,0 +1,157 @@
+<app-page-header title="Requerimiento de materia prima">
+  @if (canRequest && counts().ToBuy > 0) {
+    <button matButton="filled" type="button" [disabled]="busy()" (click)="createRequisition()">
+      <mat-icon>playlist_add</mat-icon>
+      Crear requisición sugerida
+      @if (chosen().size > 0) {
+        ({{ chosen().size }})
+      }
+    </button>
+  }
+</app-page-header>
+
+@if (plant(); as plant) {
+  <div class="filters">
+    <span class="plant">{{ plant.name }}</span>
+    <mat-form-field>
+      <mat-label>Órdenes hasta</mat-label>
+      <input matInput [matDatepicker]="toPicker" [formControl]="to" />
+      <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+      <mat-datepicker #toPicker />
+      <mat-hint>Lo pendiente de producir de las OP abiertas hasta ese día.</mat-hint>
+    </mat-form-field>
+    <mat-button-toggle-group
+      aria-label="Mostrar"
+      [value]="group()"
+      (change)="group.set($event.value)"
+    >
+      @for (option of groupOptions; track option.value) {
+        <mat-button-toggle [value]="option.value">
+          {{ option.label }} ({{ counts()[option.value] }})
+        </mat-button-toggle>
+      }
+    </mat-button-toggle-group>
+  </div>
+
+  @if (requirement.isLoading() && visible().length === 0) {
+    <p class="muted" role="status">Calculando el requerimiento…</p>
+  } @else {
+    <section class="pan-card">
+      @if (group() === 'ToBuy' && canRequest && visible().length > 0) {
+        <p class="muted">
+          Elige los artículos de la requisición; sin elegir ninguno, se piden todos los de esta
+          lista.
+        </p>
+      }
+      <div class="table-wrap">
+        <table aria-label="Requerimiento de materia prima">
+          <thead>
+            <tr>
+              @if (group() === 'ToBuy' && canRequest) {
+                <th scope="col" class="check"><span class="pan-sr-only">Elegir</span></th>
+              }
+              <th scope="col">Artículo</th>
+              <th scope="col" class="end">Requerido</th>
+              <th scope="col" class="end">Mínimo</th>
+              <th scope="col" class="end">Existencia</th>
+              <th scope="col" class="end">En OC</th>
+              <th scope="col" class="end">En requisiciones</th>
+              <th scope="col" class="end">Faltante</th>
+              @if (group() === 'ToBuy') {
+                <th scope="col" class="end">Sugerido</th>
+                <th scope="col">Proveedor preferido</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of visible(); track row.itemId) {
+              <tr>
+                @if (group() === 'ToBuy' && canRequest) {
+                  <td class="check">
+                    <mat-checkbox
+                      [checked]="chosen().has(row.itemId)"
+                      (change)="toggleChosen(row, $event.checked)"
+                      [aria-label]="'Elegir ' + row.sku"
+                    />
+                  </td>
+                }
+                <td class="item">
+                  <button
+                    class="expand"
+                    type="button"
+                    [attr.aria-expanded]="expanded().has(row.itemId)"
+                    [attr.aria-label]="'Órdenes que requieren ' + row.sku"
+                    [disabled]="row.orders.length === 0"
+                    (click)="toggleExpanded(row)"
+                  >
+                    <mat-icon>{{
+                      expanded().has(row.itemId) ? 'expand_less' : 'expand_more'
+                    }}</mat-icon>
+                  </button>
+                  <strong>{{ row.sku }}</strong> {{ row.name }}
+                  @if (row.status === 'ToProduce') {
+                    <a class="produce" routerLink="/produccion/plan" [queryParams]="{ q: row.sku }">
+                      Ver en el plan
+                    </a>
+                  }
+                </td>
+                <td class="end">{{ row.required | qty: row.baseUomCode }}</td>
+                <td class="end">{{ row.minQty | qty: row.baseUomCode }}</td>
+                <td class="end">{{ row.stock | qty: row.baseUomCode }}</td>
+                <td class="end">{{ row.inTransitOrders | qty: row.baseUomCode }}</td>
+                <td class="end">{{ row.inTransitRequisitions | qty: row.baseUomCode }}</td>
+                <td class="end" [class.exit]="row.shortage > 0">
+                  {{ row.shortage | qty: row.baseUomCode }}
+                </td>
+                @if (group() === 'ToBuy') {
+                  <td class="end strong">
+                    {{ row.suggestedPurchaseQty | qty: row.purchaseUomCode }}
+                  </td>
+                  <td>{{ row.preferredSupplierName ?? 'Sin proveedor preferido' }}</td>
+                }
+              </tr>
+              @if (expanded().has(row.itemId)) {
+                <tr class="orders">
+                  <td [attr.colspan]="group() === 'ToBuy' ? 10 : 7">
+                    <ul>
+                      @for (order of row.orders; track order.productionOrderId) {
+                        <li>
+                          <a
+                            class="row-link"
+                            [routerLink]="['/produccion/ordenes', order.productionOrderId]"
+                          >
+                            {{ order.folio }}
+                          </a>
+                          {{ order.outputSku }} · {{ order.scheduledDate | date: 'dd/MM/yyyy' }} ·
+                          requiere {{ order.quantity | qty: row.baseUomCode }}
+                        </li>
+                      }
+                    </ul>
+                  </td>
+                </tr>
+              }
+            } @empty {
+              <tr>
+                <td colspan="10" class="muted">
+                  @switch (group()) {
+                    @case ('ToBuy') {
+                      No hay nada por comprar para las órdenes hasta esa fecha.
+                    }
+                    @case ('ToProduce') {
+                      No falta ningún semiterminado.
+                    }
+                    @default {
+                      Ningún componente está cubierto todavía.
+                    }
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+} @else {
+  <p class="pan-card">El requerimiento es de la Planta y no tienes acceso a una.</p>
+}

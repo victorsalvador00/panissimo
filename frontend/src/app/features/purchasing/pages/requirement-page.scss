@@ -1,0 +1,94 @@
+:host {
+  display: block;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+
+  .plant {
+    font-weight: 700;
+  }
+
+  mat-form-field {
+    flex: 0 1 260px;
+  }
+}
+
+.muted {
+  margin: 0 0 8px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--pan-row-divider);
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-medium);
+    white-space: nowrap;
+  }
+}
+
+.end {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.check {
+  width: 40px;
+}
+
+.item {
+  min-width: 240px;
+}
+
+.strong {
+  font-weight: 700;
+}
+
+.exit {
+  color: var(--pan-status-red-fg);
+  font-weight: 600;
+}
+
+.produce {
+  margin-left: 8px;
+  font: var(--mat-sys-body-small);
+}
+
+.expand {
+  display: inline-flex;
+  margin-right: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  vertical-align: middle;
+  cursor: pointer;
+
+  &:disabled {
+    visibility: hidden;
+  }
+}
+
+.orders ul {
+  margin: 0;
+  padding-left: 48px;
+}

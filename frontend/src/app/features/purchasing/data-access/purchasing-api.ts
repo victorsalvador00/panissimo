@@ -23,6 +23,8 @@ export type PurchaseOrderLine = Schemas['PurchaseOrderLineDto'];
 export type PurchaseOrderListItem = Schemas['PurchaseOrderListItemDto'];
 export type GoodsReceipt = Schemas['GoodsReceiptDto'];
 export type GoodsReceiptListItem = Schemas['GoodsReceiptListItemDto'];
+export type MaterialRequirement = Schemas['MaterialRequirementDto'];
+export type RequirementRow = Schemas['MaterialRequirementRowDto'];
 
 /** Suppliers and their catalog of items (`/suppliers`, RN-30, RN-35). */
 @Injectable({ providedIn: 'root' })
@@ -109,6 +111,14 @@ export class RequisitionsApi {
 
   cancel(id: string, version: number): Observable<Requisition> {
     return this.http.post<Requisition>(`requisitions/${id}/cancel`, this.version(version));
+  }
+
+  /**
+   * RN-50: the suggested requisition of the raw material requirement, a normal draft with what is "to buy" in whole
+   * purchase units and the preferred supplier; `itemIds` limits it to some items.
+   */
+  suggested(request: Schemas['CreateSuggestedRequisitionRequest']): Observable<Requisition> {
+    return this.http.post<Requisition>('requisitions/suggested', request);
   }
 
   /** Approved requisitions → draft purchase orders grouped by supplier and delivery location. All or nothing. */
@@ -215,5 +225,18 @@ export class GoodsReceiptsApi {
   /** Partial or total; a line may come in several lots; over-receiving up to the tolerance. */
   create(request: Schemas['CreateGoodsReceiptRequest']): Observable<GoodsReceipt> {
     return this.http.post<GoodsReceipt>('goods-receipts', request);
+  }
+}
+
+/** Raw material requirement of the plant (`/material-requirements`, RN-50): open orders up to a date. */
+@Injectable({ providedIn: 'root' })
+export class MaterialRequirementsApi {
+  private readonly http = inject(HttpClient);
+
+  /** Without `to`: today + 7 days; the answer brings the date used. */
+  get(locationId: string, to: string | null): Observable<MaterialRequirement> {
+    return this.http.get<MaterialRequirement>('material-requirements', {
+      params: httpParams({ locationId, to }),
+    });
   }
 }

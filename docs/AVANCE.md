@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-19, plan de producción).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-20, requerimiento de materia prima; fase 4 del frontend completa).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,16 +9,16 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-19 y F-25 terminadas (fases 1, 2 y 3; F-16..F-19 de la 4) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-20 y F-25 terminadas (fases 1 a 4) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-20 (requerimiento de materia prima y requisición sugerida) según `docs/specs/frontend.md` §11; cierra la fase 4. La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** fase 5. F-21 (tablero y resumen de producción) depende de **B-22**, F-22 (costos de receta y análisis de consumo) de **B-23** y F-23 (fotos) de **B-24**: conviene hacer cada tarea de backend antes de su pantalla. F-24 (pulido) va al final. La ampliación de trazabilidad (B-28, F-26) sigue registrada. La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-20..F-24.
+- Frontend F-21..F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
@@ -26,7 +26,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-20). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/backend.md` §13 (B-22) y luego `docs/specs/frontend.md` §11 (F-21). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -89,7 +89,7 @@
 | 4 | F-17 Clientes y pedidos de cliente | ✅ | (ver `git log`) |
 | 4 | F-18 Remisiones con despacho, lotes e impresión | ✅ | (ver `git log`) |
 | 4 | F-19 Plan de producción con generación de OP | ✅ | (ver `git log`) |
-| 4 | F-20 | ⏳ | |
+| 4 | F-20 Requerimiento de materia prima y requisición sugerida | ✅ | (ver `git log`) |
 | 5 | F-21..F-24 | ⏳ | |
 | + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
 
@@ -579,3 +579,12 @@
 - **E2E 12 en verde** (`16-production-plan`, suite 28/28): pedido de sucursal de 40 `E2E-PAN` enviado para mañana → aparece por producir con su pedido al expandir → generar OP (cantidad que cubre toda la demanda del día) → la OP lo lista en su pestaña Pedidos. Cancela al inicio las OP en borrador de `E2E-PAN` de corridas anteriores. No mueve inventario; crea la receta de `E2E-PAN` la primera vez.
 - Pruebas: 141 unitarias (agrupación del plan, múltiplo como pista, calendario en español). Sin paquetes nuevos.
 - Sigue pendiente "OP ligadas con avance" en el detalle del pedido de cliente: el `CustomerOrderDto` no trae las OP (requiere un campo en el backend; se anota para B-25 o una tarea menor).
+
+### F-20 (2026-10-17)
+
+- **Requerimiento de materia prima** (`/compras/requerimiento`, RN-50, con `purchasing.view` o `production.view`): Planta y horizonte "Órdenes hasta" (el que usa el servidor por omisión, hoy + 7, llena la fecha); grupos **Por comprar / Por producir / Cubiertos** con su número; por componente: requerido, mínimo, existencia, en OC, en requisiciones, faltante y, por comprar, sugerido en unidades de compra y proveedor preferido. Al expandir: las OP que lo requieren con enlace.
+- **"Crear requisición sugerida"** (con `purchasing.requisitions.manage`): de los renglones elegidos o, sin elegir, de todo lo por comprar; confirmación con el resumen; abre la requisición en borrador.
+- Un semiterminado **por producir** (D-04) enlaza al plan filtrado por su SKU: el plan acepta `?q=`.
+- **E2E de F-20 en verde** (`17-material-requirement`, suite 29/29): una OP en borrador de 50,000 kg de `E2E-MASA` deja `E2E-HARINA` por comprar con su proveedor preferido → requisición sugerida de esa línea → borrador con la harina y el proveedor. Cancela la OP y la requisición al final para no cubrir el requerimiento de las siguientes corridas. No mueve inventario.
+- Pruebas: 141 unitarias. Sin paquetes nuevos.
+- **Fase 4 del frontend completa** (F-16..F-20).

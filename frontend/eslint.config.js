@@ -17,6 +17,8 @@ module.exports = defineConfig([
     ],
     processor: angular.processInlineTemplates,
     rules: {
+      // Template context guards name their parameters only for the type predicate (`_ctx is RowContext<T>`).
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@angular-eslint/directive-selector': [
         'error',
         {

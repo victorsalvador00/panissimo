@@ -1,0 +1,91 @@
+@if (isHandset()) {
+  <div class="cards pan-capture">
+    @for (line of lines().controls; track line; let i = $index) {
+      <article class="card" [attr.aria-label]="'Línea ' + (i + 1)">
+        <header>
+          <strong>Línea {{ i + 1 }}</strong>
+          @if (!readonly()) {
+            <button
+              mat-icon-button
+              type="button"
+              [disabled]="lines().length <= minLines()"
+              [attr.aria-label]="'Quitar línea ' + (i + 1)"
+              (click)="remove(i)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          }
+        </header>
+        @for (column of columns(); track column.name()) {
+          <div class="card-field">
+            @if (column.header()) {
+              <span class="card-label" aria-hidden="true">{{ column.header() }}</span>
+            }
+            <ng-container
+              [ngTemplateOutlet]="column.template"
+              [ngTemplateOutletContext]="{ $implicit: line, index: i }"
+            />
+          </div>
+        }
+      </article>
+    }
+  </div>
+} @else {
+  <div class="table-wrap pan-capture">
+    <table class="lines">
+      <thead>
+        <tr>
+          <th scope="col" class="number">#</th>
+          @for (column of columns(); track column.name()) {
+            <th scope="col" [style.width]="column.width()">{{ column.header() }}</th>
+          }
+          @if (!readonly()) {
+            <th scope="col" class="actions"><span class="pan-sr-only">Acciones</span></th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (line of lines().controls; track line; let i = $index) {
+          <tr>
+            <td class="number">{{ i + 1 }}</td>
+            @for (column of columns(); track column.name()) {
+              <td>
+                <ng-container
+                  [ngTemplateOutlet]="column.template"
+                  [ngTemplateOutletContext]="{ $implicit: line, index: i }"
+                />
+              </td>
+            }
+            @if (!readonly()) {
+              <td class="actions">
+                <button
+                  mat-icon-button
+                  type="button"
+                  [disabled]="lines().length <= minLines()"
+                  [attr.aria-label]="'Quitar línea ' + (i + 1)"
+                  (click)="remove(i)"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@for (message of arrayErrors(); track message) {
+  <p class="array-error" role="alert">{{ message }}</p>
+}
+
+<div class="footer">
+  @if (!readonly()) {
+    <button matButton="tonal" type="button" (click)="add()">
+      <mat-icon>add</mat-icon>
+      {{ addLabel() }}
+    </button>
+  }
+  <div class="totals"><ng-content select="[linesFooter]" /></div>
+</div>

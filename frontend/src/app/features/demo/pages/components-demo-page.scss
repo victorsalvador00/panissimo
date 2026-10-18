@@ -1,0 +1,64 @@
+:host {
+  display: block;
+}
+
+section,
+mat-tab-group {
+  margin-bottom: 16px;
+}
+
+h2 {
+  margin: 0 0 16px;
+  font: var(--mat-sys-title-medium);
+  font-weight: 700;
+}
+
+.tags,
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.formats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 16px 0 0;
+
+  dt {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 8px 16px;
+  align-items: start;
+}
+
+.table-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.selected {
+  margin-left: auto;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.tab {
+  padding: 16px 0 0;
+}

@@ -1,0 +1,134 @@
+:host {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--pan-card-radius);
+  background: var(--pan-card-bg);
+  box-shadow: var(--pan-card-shadow);
+  --mat-table-background-color: transparent;
+  --mat-table-row-item-container-height: var(--pan-row-height);
+  --mat-table-row-item-outline-color: var(--pan-row-divider);
+  --mat-paginator-container-background-color: transparent;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+}
+
+th {
+  font-weight: 700;
+}
+
+.end {
+  text-align: right;
+}
+
+.check {
+  width: 48px;
+  padding-right: 0;
+}
+
+// Zebra over the data rows only (detail rows exist only when expanded).
+tr:nth-child(even of .mat-mdc-row:not(.detail-row)) {
+  background: var(--pan-row-alt-bg);
+}
+
+tr.mat-mdc-row:not(.detail-row) {
+  &:hover {
+    background: var(--pan-row-hover-bg);
+  }
+
+  &.selected {
+    background: var(--pan-row-selected-bg);
+  }
+}
+
+.detail-row {
+  height: auto;
+
+  &.collapsed {
+    display: none;
+  }
+}
+
+.detail-cell {
+  padding: 8px 16px 16px 56px;
+  background: var(--pan-soft-bg);
+}
+
+.skeleton {
+  padding: 8px 16px;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: var(--pan-row-height);
+  border-bottom: 1px solid var(--pan-row-divider);
+
+  .pan-skeleton {
+    flex: 2;
+  }
+
+  .short {
+    flex: 1;
+  }
+}
+
+.empty {
+  padding: 32px 16px;
+  color: var(--mat-sys-on-surface-variant);
+  text-align: center;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+  gap: 8px;
+}
+
+.card {
+  position: relative;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--pan-row-divider);
+
+  &.selected {
+    background: var(--pan-row-selected-bg);
+    border-radius: 12px;
+  }
+
+  dl {
+    margin: 0;
+  }
+}
+
+.card-check {
+  float: right;
+}
+
+.card-field {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+
+  dt {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+  }
+}
+
+.card-detail {
+  padding: 8px 0;
+}

@@ -1,0 +1,16 @@
+// Dark "neon blue" (frontend §4.1). The sidebar, top bar and help take their neon tones from the tokens; here the
+// content primary becomes #4F86FF with black text. Applies when dark is chosen or, without a choice, when the system is.
+@mixin neon-primary {
+  --mat-sys-primary: #4f86ff;
+  --mat-sys-on-primary: #000000;
+}
+
+html[data-theme='dark'] {
+  @include neon-primary;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    @include neon-primary;
+  }
+}

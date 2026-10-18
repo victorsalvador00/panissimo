@@ -1,5 +1,13 @@
 <mat-toolbar class="topbar">
-  <button mat-icon-button (click)="drawer.toggle()" aria-label="Menú">
+  <button
+    mat-icon-button
+    (click)="toggleMenu(drawer)"
+    [attr.aria-label]="
+      isHandset() ? 'Abrir menú' : showCollapsed() ? 'Expandir menú' : 'Contraer menú'
+    "
+    [attr.aria-expanded]="isHandset() ? drawer.opened : !showCollapsed()"
+    aria-controls="pan-sidebar"
+  >
     <mat-icon>menu</mat-icon>
   </button>
   <a class="brand" routerLink="/" aria-label="SGO Paníssimo, inicio">
@@ -54,30 +62,44 @@
 <mat-sidenav-container class="body">
   <mat-sidenav
     #drawer
+    id="pan-sidebar"
     class="sidebar"
+    [class.pan-nav-collapsed]="showCollapsed()"
     [mode]="isHandset() ? 'over' : 'side'"
     [opened]="!isHandset()"
   >
     <nav aria-label="Menú principal">
-      @for (section of navigation(); track section.label) {
-        <h2 class="nav-section">{{ section.label }}</h2>
-        <mat-nav-list>
-          @for (item of section.items; track item.route) {
-            <a
-              mat-list-item
-              [routerLink]="item.route"
-              routerLinkActive
-              #active="routerLinkActive"
-              [routerLinkActiveOptions]="{ exact: item.route === '/' }"
-              [activated]="active.isActive"
-              [attr.aria-current]="active.isActive ? 'page' : null"
-              (click)="isHandset() && drawer.close()"
-            >
-              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-              <span matListItemTitle>{{ item.label }}</span>
-            </a>
+      @for (section of navigation(); track section.label; let first = $first) {
+        @if (showCollapsed()) {
+          @if (!first) {
+            <mat-divider class="nav-divider" />
           }
-        </mat-nav-list>
+        } @else {
+          <h2 class="nav-section">{{ section.label }}</h2>
+        }
+        <ul>
+          @for (item of section.items; track item.route) {
+            <li>
+              <a
+                class="pan-nav-item"
+                [routerLink]="item.route"
+                routerLinkActive="active"
+                ariaCurrentWhenActive="page"
+                [routerLinkActiveOptions]="{ exact: item.route === '/' }"
+                [matTooltip]="item.label"
+                matTooltipPosition="right"
+                [matTooltipDisabled]="!showCollapsed()"
+                [attr.aria-label]="showCollapsed() ? item.label : null"
+                (click)="closeOnPhone(drawer)"
+              >
+                <span class="pan-nav-icon"
+                  ><mat-icon aria-hidden="true">{{ item.icon }}</mat-icon></span
+                >
+                <span class="pan-nav-label">{{ item.label }}</span>
+              </a>
+            </li>
+          }
+        </ul>
       }
     </nav>
   </mat-sidenav>

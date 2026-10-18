@@ -1,0 +1,158 @@
+<app-page-header title="Demostración de componentes">
+  <button matButton="tonal" type="button" (click)="askReason()">
+    <mat-icon>edit_note</mat-icon>
+    Motivo
+  </button>
+  <button matButton="filled" type="button" (click)="confirm()">
+    <mat-icon>task_alt</mat-icon>
+    Confirmar con resumen
+  </button>
+</app-page-header>
+
+<div class="pan-has-action-bar">
+  <section class="pan-card" aria-labelledby="demo-states">
+    <h2 id="demo-states">Estados y formatos</h2>
+    <div class="tags">
+      @for (status of statuses; track status) {
+        <app-status-tag [value]="status" kind="TransferStatus" />
+      }
+      <app-status-tag value="PendingApproval" kind="PurchaseOrderStatus" />
+      <app-status-tag value="InProgress" kind="ProductionOrderStatus" />
+    </div>
+    <dl class="formats">
+      <dt>Cantidad</dt>
+      <dd>{{ 1234.5 | qty: 'kg' }} · {{ 3200 | qty: 'pza' }} · {{ 0.125 | qty: 'l' }}</dd>
+      <dt>Importe</dt>
+      <dd>{{ 1234.56 | mxn }}</dd>
+      <dt>Enum</dt>
+      <dd>
+        {{ 'FinishedGood' | statusLabel: 'ItemType' }} · {{ 'Afternoon' | statusLabel: 'Shift' }}
+      </dd>
+      <dt>Sello</dt>
+      <dd><app-stamp [at]="now" by="Ana López" /></dd>
+    </dl>
+  </section>
+
+  <section class="pan-card" aria-labelledby="demo-fields">
+    <h2 id="demo-fields">Campos</h2>
+    <form [formGroup]="form" class="fields" (ngSubmit)="save()" novalidate>
+      <app-lookup-picker
+        formControlName="supplier"
+        label="Proveedor"
+        [search]="searchSuppliers"
+        [displayWith]="supplierName"
+        [describeWith]="supplierTaxId"
+      />
+      <app-location-picker formControlName="location" label="Ubicación" />
+      <mat-form-field>
+        <mat-label>Fecha requerida</mat-label>
+        <input matInput [matDatepicker]="picker" formControlName="date" />
+        <mat-datepicker-toggle matIconSuffix [for]="picker" />
+        <mat-datepicker #picker />
+      </mat-form-field>
+      <app-qty-input formControlName="kilos" label="Cantidad" unit="kg" [max]="500" />
+      <app-qty-input formControlName="pieces" label="Piezas" unit="pza" />
+    </form>
+  </section>
+
+  <section class="pan-card" aria-labelledby="demo-lines">
+    <h2 id="demo-lines">Líneas</h2>
+    <app-lines-editor [lines]="lines" [newLine]="newLineFn" addLabel="Agregar artículo">
+      <ng-template appLineColumn="item" header="Artículo" [appLineColumnOf]="lines" let-line>
+        <app-item-picker [formControl]="line.controls.item" label="Artículo" />
+      </ng-template>
+      <ng-template
+        appLineColumn="qty"
+        header="Cantidad"
+        width="12rem"
+        [appLineColumnOf]="lines"
+        let-line
+        let-i="index"
+      >
+        <app-qty-input
+          [formControl]="line.controls.qty"
+          [unit]="line.controls.item.value?.baseUomCode ?? null"
+          [ariaLabel]="'Cantidad de la línea ' + (i + 1)"
+        />
+      </ng-template>
+      <span linesFooter>Total: {{ totalQty() | qty }}</span>
+    </app-lines-editor>
+  </section>
+
+  <section class="pan-card" aria-labelledby="demo-table">
+    <div class="table-head">
+      <h2 id="demo-table">Tabla</h2>
+      <mat-slide-toggle [checked]="loading()" (change)="loading.set($event.checked)">
+        Cargando
+      </mat-slide-toggle>
+      <mat-slide-toggle [checked]="empty()" (change)="empty.set($event.checked)">
+        Sin datos
+      </mat-slide-toggle>
+      <span class="selected">Seleccionados: {{ selection().length }}</span>
+    </div>
+    <app-data-table
+      label="Traspasos de ejemplo"
+      [rows]="loading() ? [] : page().items"
+      [total]="page().total"
+      [query]="query()"
+      [loading]="loading()"
+      selectable
+      [(selection)]="selection"
+      (queryChange)="query.set($event)"
+    >
+      <ng-template appCell="folio" [appCellOf]="page().items" header="Folio" sortable let-row>
+        <strong>{{ row.folio }}</strong>
+      </ng-template>
+      <ng-template
+        appCell="destination"
+        [appCellOf]="page().items"
+        header="Destino"
+        sortable
+        let-row
+      >
+        {{ row.destination }}
+      </ng-template>
+      <ng-template appCell="status" [appCellOf]="page().items" header="Estado" let-row>
+        <app-status-tag [value]="row.status" kind="TransferStatus" />
+      </ng-template>
+      <ng-template
+        appCell="amount"
+        [appCellOf]="page().items"
+        header="Importe"
+        sortable
+        end
+        let-row
+      >
+        {{ row.amount | mxn }}
+      </ng-template>
+      <ng-template appRowDetail [appRowDetailOf]="page().items" let-row>
+        Creado: <app-stamp [at]="row.createdAt" by="Encargado Centro" />
+      </ng-template>
+      <div empty>
+        <mat-icon aria-hidden="true">inbox</mat-icon>
+        <p>No hay traspasos con estos filtros.</p>
+      </div>
+    </app-data-table>
+  </section>
+
+  <section class="pan-card" aria-labelledby="demo-dialogs">
+    <h2 id="demo-dialogs">Diálogos de 409</h2>
+    <div class="buttons">
+      <button matButton="tonal" type="button" (click)="showConcurrency()">Concurrencia</button>
+      <button matButton="tonal" type="button" (click)="showShortages()">
+        Existencia insuficiente
+      </button>
+    </div>
+  </section>
+
+  <mat-tab-group class="pan-card" aria-label="Pestañas de ejemplo">
+    <mat-tab label="Por despachar"><p class="tab">Pestaña con subrayado de 3 px.</p></mat-tab>
+    <mat-tab label="En tránsito"><p class="tab">Segunda pestaña.</p></mat-tab>
+    <mat-tab label="Todos"><p class="tab">Tercera pestaña.</p></mat-tab>
+  </mat-tab-group>
+</div>
+
+<div class="pan-action-bar">
+  <button matButton type="button" (click)="form.reset()">Limpiar</button>
+  <button matButton="filled" type="button" (click)="save()">Guardar</button>
+</div>

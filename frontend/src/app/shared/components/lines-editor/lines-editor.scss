@@ -1,0 +1,84 @@
+:host {
+  display: block;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.lines {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    padding: 8px;
+    border-bottom: 1px solid var(--pan-row-divider);
+    color: var(--mat-sys-on-surface-variant);
+    font: var(--mat-sys-label-large);
+    text-align: left;
+  }
+
+  td {
+    padding: 6px 8px 0;
+    border-bottom: 1px solid var(--pan-row-divider);
+    vertical-align: top;
+  }
+
+  .number {
+    width: 2.5rem;
+    padding-top: 22px;
+    color: var(--mat-sys-on-surface-variant);
+    text-align: right;
+  }
+
+  .actions {
+    width: 48px;
+    padding-top: 10px;
+  }
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  padding: 8px 12px 4px;
+  border: 1px solid var(--pan-row-divider);
+  border-radius: var(--pan-card-radius);
+  background: var(--pan-card-bg);
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.card-label {
+  display: block;
+  margin: 4px 4px 2px;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-medium);
+}
+
+.array-error {
+  margin: 8px 0 0;
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-medium);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.totals {
+  margin-left: auto;
+  font: var(--mat-sys-title-small);
+}

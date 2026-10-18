@@ -1,0 +1,123 @@
+// Sidebar item with the "tag" (frontend §4.1), CSS only: a faint slanted bar with a radial glow, a slanted block
+// behind the icon and three squares on the right for the current page. Hover and focus light it up; collapsed, only
+// the block. No Material active indicator or state layers on these items.
+.pan-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+  margin: 2px 8px;
+  padding: 0 12px 0 8px;
+  color: var(--pan-nav-fg);
+  text-decoration: none;
+  font: var(--mat-sys-label-large);
+  isolation: isolate;
+  outline: none;
+
+  // The slanted bar.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 4px 0;
+    z-index: -1;
+    border-radius: 6px;
+    background:
+      radial-gradient(circle at 18% 50%, var(--pan-nav-tag-glow), transparent 65%),
+      var(--pan-nav-tag-bg);
+    transform: skewX(-12deg);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  &:hover::before,
+  &:focus-visible::before {
+    opacity: 0.6;
+  }
+
+  &:focus-visible {
+    box-shadow: none;
+    outline: 2px solid var(--pan-nav-icon-line, currentColor);
+    outline-offset: 0;
+  }
+
+  &.active {
+    color: var(--pan-nav-active-fg);
+    font-weight: 700;
+
+    &::before {
+      opacity: 1;
+    }
+
+    // Three squares on the right.
+    &::after {
+      content: '';
+      position: absolute;
+      right: 30px;
+      top: 50%;
+      width: 5px;
+      height: 5px;
+      margin-top: -2.5px;
+      background: currentColor;
+      box-shadow:
+        8px 0 0 currentColor,
+        16px 0 0 currentColor;
+      opacity: 0.8;
+    }
+  }
+}
+
+// The slanted block behind the icon.
+.pan-nav-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  transform: skewX(-12deg);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+
+  .mat-icon {
+    transform: skewX(12deg);
+  }
+
+  .pan-nav-item:hover &,
+  .pan-nav-item:focus-visible & {
+    background: var(--pan-nav-tag-bg);
+  }
+
+  .pan-nav-item.active & {
+    background: var(--pan-nav-icon-bg);
+    border-color: var(--pan-nav-icon-line);
+    color: var(--pan-nav-icon-fg);
+    box-shadow: var(--pan-glow);
+  }
+}
+
+.pan-nav-label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// Collapsed sidebar: only the block.
+.pan-nav-collapsed {
+  .pan-nav-item {
+    justify-content: center;
+    padding: 0;
+
+    &::before,
+    &::after {
+      display: none;
+    }
+  }
+
+  .pan-nav-label {
+    display: none;
+  }
+}

@@ -1,0 +1,31 @@
+<mat-form-field class="field">
+  <mat-label>{{ label() }}</mat-label>
+  <input
+    matInput
+    [formControl]="text"
+    [matAutocomplete]="auto"
+    [placeholder]="placeholder()"
+    [errorStateMatcher]="matcher"
+    (focus)="onFocus()"
+    (blur)="onBlur()"
+  />
+  <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+  <mat-error>{{ error() }}</mat-error>
+</mat-form-field>
+
+<mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn" autoActiveFirstOption>
+  @for (option of options(); track $index) {
+    <mat-option [value]="option">
+      <span class="option">
+        <span class="primary">{{ display(option) }}</span>
+        @if (describe(option); as description) {
+          <span class="secondary">{{ description }}</span>
+        }
+      </span>
+    </mat-option>
+  } @empty {
+    @if (searched()) {
+      <mat-option disabled>Sin resultados</mat-option>
+    }
+  }
+</mat-autocomplete>

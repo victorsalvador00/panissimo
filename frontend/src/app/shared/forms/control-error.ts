@@ -1,4 +1,5 @@
 import { AbstractControl } from '@angular/forms';
+import { formatQty } from '../pipes/pipes';
 
 /** The message of the first error of a touched control, in Spanish; null when there is nothing to show. */
 export function controlError(control: AbstractControl | null): string | null {
@@ -12,5 +13,15 @@ export function controlError(control: AbstractControl | null): string | null {
   if (errors['minlength'])
     return `Mínimo ${(errors['minlength'] as { requiredLength: number }).requiredLength} caracteres.`;
   if (errors['mismatch']) return 'Las contraseñas no coinciden.';
+  if (errors['number']) return 'Escribe un número válido.';
+  if (errors['positive']) return 'Debe ser mayor que 0.';
+  if (errors['nonNegative']) return 'No puede ser negativo.';
+  if (errors['maxQty'])
+    return `No puede ser mayor que ${formatQty((errors['maxQty'] as { max: number }).max)}.`;
+  if (errors['decimals']) {
+    const digits = (errors['decimals'] as { digits: number }).digits;
+    return digits === 0 ? 'Solo se aceptan cantidades enteras.' : `Máximo ${digits} decimales.`;
+  }
+  if (errors['notFromList']) return 'Elige una opción de la lista.';
   return 'Valor no válido.';
 }

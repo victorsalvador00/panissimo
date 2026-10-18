@@ -34,14 +34,20 @@ function walk(dir) {
   });
 }
 
+// <mat-icon>{{ open ? 'expand_less' : 'expand_more' }}</mat-icon>: every quoted name of the interpolation.
+const interpolated = /<mat-icon[^>]*>\s*\{\{([\s\S]*?)\}\}\s*<\/mat-icon>/g;
+const quoted = new RegExp(`'${name}'`, 'g');
+
 function usedIcons() {
   const used = new Map();
+  const add = (icon, file) => {
+    if (!used.has(icon)) used.set(icon, relative(root, file));
+  };
   for (const file of walk(src)) {
     const text = stripComments(readFileSync(file, 'utf8'));
-    for (const pattern of patterns)
-      for (const match of text.matchAll(pattern)) {
-        if (!used.has(match[1])) used.set(match[1], relative(root, file));
-      }
+    for (const pattern of patterns) for (const match of text.matchAll(pattern)) add(match[1], file);
+    for (const match of text.matchAll(interpolated))
+      for (const icon of match[1].matchAll(quoted)) add(icon[1], file);
   }
   return used;
 }

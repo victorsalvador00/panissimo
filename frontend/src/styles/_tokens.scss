@@ -8,6 +8,44 @@
   --pan-card-radius: 16px;
   --pan-soft-bg: light-dark(#e1eee2, #36343b);
 
+  // Tables (app-data-table): 64 px rows, soft dividers, zebra and hover.
+  --pan-row-height: 64px;
+  --pan-row-divider: light-dark(#e3ece3, #3a3840);
+  --pan-row-alt-bg: light-dark(#f7faf7, #2f2d34);
+  --pan-row-hover-bg: light-dark(#eaf3ea, #36343b);
+  --pan-row-selected-bg: light-dark(#dcefdc, #1b2a4f);
+
+  // Filled Material fields as pills (12 px inside capture tables).
+  --pan-pill-radius: 28px;
+  --pan-pill-radius-capture: 12px;
+  --pan-pill-bg: light-dark(#e8f1e8, #36343b);
+
+  // Sidebar with the "tag" (styles/_nav-tag.scss): one tone per state for a contrast of at least 3:1.
+  --pan-sidebar-bg: light-dark(#ffffff, #0a1430);
+  --pan-sidebar-line: light-dark(#dfe9df, #1f4fd6);
+  --pan-nav-fg: light-dark(#1f3323, #90befe);
+  --pan-nav-section-fg: light-dark(#4f6652, #6f9dff);
+  --pan-nav-active-fg: light-dark(#1b5e20, #ffffff);
+  --pan-nav-tag-bg: light-dark(rgb(46 125 50 / 14%), rgb(42 99 255 / 20%));
+  --pan-nav-tag-glow: light-dark(rgb(102 187 106 / 40%), rgb(79 134 255 / 50%));
+  --pan-nav-icon-bg: light-dark(#2e7d32, #0b2a73);
+  --pan-nav-icon-fg: light-dark(#ffffff, #90befe);
+  --pan-nav-icon-line: light-dark(transparent, #2a63ff);
+
+  // Status colors (app-status-tag, frontend §4.2), with a dark variant.
+  --pan-status-grey-bg: light-dark(#eceff1, #3b3f45);
+  --pan-status-grey-fg: light-dark(#37474f, #d5dbe0);
+  --pan-status-blue-bg: light-dark(#e3f0ff, #13305f);
+  --pan-status-blue-fg: light-dark(#0b4a9c, #a9c9ff);
+  --pan-status-yellow-bg: light-dark(#fff6d1, #4a3d00);
+  --pan-status-yellow-fg: light-dark(#6b5200, #ffe17a);
+  --pan-status-green-bg: light-dark(#e1f4e3, #10391a);
+  --pan-status-green-fg: light-dark(#1b5e20, #9fe0a6);
+  --pan-status-orange-bg: light-dark(#ffe9d6, #4d2700);
+  --pan-status-orange-fg: light-dark(#8a3d00, #ffbd86);
+  --pan-status-red-bg: light-dark(#fde3e1, #5a1612);
+  --pan-status-red-fg: light-dark(#a8201a, #ffb4ab);
+
   // Top bar: green in light, navy with "neon blue" text in dark.
   --pan-topbar-bg: light-dark(#2e7d32, #0a1a3d);
   --pan-topbar-fg: light-dark(#ffffff, #90befe);

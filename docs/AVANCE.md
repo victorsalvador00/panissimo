@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-02, login y sesión).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-03, layout y componentes compartidos).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01 y F-02 terminadas (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-03 terminadas (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-03 (layout definitivo, estilos y componentes compartidos, diálogos de 409) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-04 (administración: usuarios, roles, bitácora, configuración) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-03..F-24.
+- Frontend F-04..F-24 y F-25 (vales internos, fase 2).
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-03).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-04). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -69,7 +69,8 @@
 |---|---|---|---|
 | 1 | F-01 Proyecto, tema, locale, íconos, shell | ✅ | (ver `git log`) |
 | 1 | F-02 Sesión, interceptores, guardas, login, perfil | ✅ | (ver `git log`) |
-| 1 | F-03..F-08 | ⏳ | |
+| 1 | F-03 Layout, estilos y componentes compartidos | ✅ | (ver `git log`) |
+| 1 | F-04..F-08 | ⏳ | |
 | 2 | F-09..F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
@@ -373,3 +374,15 @@
 - Probado en Chrome contra una API local con BD desechable: credenciales inválidas muestran el mensaje del backend; login regresa al `returnUrl`; F5 y dos pestañas mantienen la sesión; cerrar sesión en una pestaña cierra la otra; el encargado de sucursal ve solo General, Inventario y Logística, sin selector de ubicación.
 - Paquete nuevo: `openapi-typescript` 7.13.0 MIT (dev). Su peer pide TypeScript 5; se usa con el TypeScript 6 del proyecto mediante `overrides` en `package.json` (generación verificada).
 - Vales internos (B-26b): el usuario decidió hacerlos en la siguiente fase; quedaron como **F-25** en la Fase 2 de `frontend.md` §11 y su pantalla en §7.3.
+
+### F-03 (2026-10-17)
+
+- Estilos (`styles/`): `_ui` (tarjetas, campos de Material en píldora rellena sin línea inferior —12 px dentro de `.pan-capture`—, botón principal con sombra, secundario tonal en píldora, pestañas con subrayado de 3 px, barra de acción fija en celular `.pan-action-bar`, skeleton, `pan-sr-only`), `_dark` (primario #4F86FF con texto negro), `_nav-tag` (menú con "etiqueta" solo CSS: barra inclinada con resplandor radial, bloque tras el ícono y tres cuadritos en la página actual; contraído solo el bloque), tokens `--pan-row-*`, `--pan-pill-*`, `--pan-sidebar-*`, `--pan-nav-*` y colores de estado con variante oscura.
+- Layout: menú lateral propio (sin capas de Material) colapsable en escritorio (`localStorage` `pan.sidebar`, tooltips al estar contraído) y drawer en celular (< 768 px); `BreadcrumbsService` (migas desde `data.breadcrumb`, `setCurrent(folio)` para detalles). Todo lo que está detrás del login se carga en diferido (`core/layout/shell.routes.ts`, con los providers de fechas, paginador y campos): bundle inicial 372 kB.
+- Formatos: pipes `qty` (es-MX, hasta 4 decimales, `pza` entero), `mxn` y `statusLabel`; `ENUM_LABELS` cubre **todos** los enums del OpenAPI y está tipado: un enum o valor nuevo sin etiqueta rompe la compilación tras `npm run api:types`. Colores de estado de frontend §4.2. `EsMxDateAdapter` (`dd/MM/yyyy`) y paginador en español.
+- Componentes (`shared/components`): `page-header`, `data-table` (columnas `appCell`, `appCardDef`, `appRowDetail`; orden y paginado en servidor con `ListQuery`; selección conservada entre páginas; skeleton; vacío con contenido `[empty]`; tarjetas en celular), `status-tag`, `lookup-picker` (genérico) e `item-picker` (lo extiende con `/items/lookup`; la foto llega en F-23), `location-picker`, `qty-input` (valida número, > 0 o ≥ 0, máximo y decimales en el control padre), `lines-editor` (`appLineColumn`, `minLinesValidator`, `uniqueLinesValidator`, Enter pasa a la siguiente cantidad, tarjetas en celular), `confirm-summary` (`ConfirmService`), `reason-dialog` (`ReasonService`), `stamp`, y los diálogos de 409 (`ConflictHandler`, cargados en diferido; el interceptor los abre en lugar del aviso). Las plantillas se tipan con `[appCellOf]`, `[appRowDetailOf]`, `[appCardDefOf]` y `[appLineColumnOf]`.
+- Los campos compartidos se enlazan al control del padre (`bindParentControl`), muestran su error y se repintan con `control.events` (errores 400 del servidor, `markAllAsTouched`). MatInput y MatSelect llevan un control interno para que su estado de error funcione.
+- Script de íconos: detecta también nombres entre comillas dentro de interpolaciones (`{{ abierto ? 'expand_less' : 'expand_more' }}`); 49 íconos.
+- `/demo/componentes` [settings.manage] con todos los componentes y datos de ejemplo. Revisada en Chrome en claro y oscuro, escritorio y 390 px (sin scroll horizontal; drawer, tarjetas y barra de acción fija).
+- 58 pruebas unitarias (formatos y etiquetas, adaptador de fechas, migas, `qty-input`, `lookup-picker`, `lines-editor`, `data-table`, conflictos 409 en el interceptor, más las de F-01/F-02). Sin paquetes nuevos.
+- Pendientes para tareas posteriores: `app-item-photo` (F-23) y existencia en `item-picker`; `app-audit-panel`, `app-progress-meter`, `app-stock-level`, `app-csv-import`, `app-xlsx-import`, `app-shift-select` y `lot-split` llegan con las tareas que los usan (no estaban en el alcance de F-03).

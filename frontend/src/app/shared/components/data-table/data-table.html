@@ -1,0 +1,181 @@
+@if (showSkeleton()) {
+  <div class="skeleton" role="status" aria-label="Cargando">
+    @for (row of skeletonRows; track row) {
+      <div class="skeleton-row">
+        <span class="pan-skeleton"></span>
+        <span class="pan-skeleton short"></span>
+      </div>
+    }
+  </div>
+} @else if (showEmpty()) {
+  <div class="empty" role="status">
+    <ng-content select="[empty]">
+      <p>{{ emptyMessage() }}</p>
+    </ng-content>
+  </div>
+} @else if (isHandset()) {
+  <ul class="cards" [attr.aria-label]="label()" [attr.aria-busy]="loading()">
+    @for (row of rows(); track trackRow($index, row)) {
+      <li class="card" [class.selected]="isSelected(row)">
+        @if (selectable()) {
+          <mat-checkbox
+            class="card-check"
+            [checked]="isSelected(row)"
+            (change)="toggle(row)"
+            aria-label="Seleccionar"
+          />
+        }
+        @if (card(); as card) {
+          <ng-container
+            [ngTemplateOutlet]="card.template"
+            [ngTemplateOutletContext]="{ $implicit: row }"
+          />
+        } @else {
+          <dl>
+            @for (cell of cells(); track cell.name()) {
+              <div class="card-field">
+                <dt>{{ cell.header() }}</dt>
+                <dd>
+                  <ng-container
+                    [ngTemplateOutlet]="cell.template"
+                    [ngTemplateOutletContext]="{ $implicit: row }"
+                  />
+                </dd>
+              </div>
+            }
+          </dl>
+        }
+        @if (detail(); as detail) {
+          <button
+            matButton
+            type="button"
+            [attr.aria-expanded]="isExpanded(row)"
+            (click)="toggleExpanded(row)"
+          >
+            <mat-icon>{{ isExpanded(row) ? 'expand_less' : 'expand_more' }}</mat-icon>
+            {{ isExpanded(row) ? 'Ocultar detalle' : 'Ver detalle' }}
+          </button>
+          @if (isExpanded(row)) {
+            <div class="card-detail">
+              <ng-container
+                [ngTemplateOutlet]="detail.template"
+                [ngTemplateOutletContext]="{ $implicit: row }"
+              />
+            </div>
+          }
+        }
+      </li>
+    }
+  </ul>
+} @else {
+  <div class="table-wrap">
+    <table
+      mat-table
+      [dataSource]="rows()"
+      [trackBy]="trackRow"
+      [attr.aria-label]="label()"
+      [attr.aria-busy]="loading()"
+      multiTemplateDataRows
+      matSort
+      matSortDisableClear
+      [matSortActive]="sortActive()"
+      [matSortDirection]="sortDirection()"
+      (matSortChange)="onSort($event)"
+    >
+      <ng-container matColumnDef="__select">
+        <th mat-header-cell *matHeaderCellDef class="check">
+          <mat-checkbox
+            [checked]="pageSelected().all"
+            [indeterminate]="pageSelected().some"
+            (change)="togglePage()"
+            aria-label="Seleccionar los renglones de esta página"
+          />
+        </th>
+        <td mat-cell *matCellDef="let row" class="check">
+          <mat-checkbox
+            [checked]="isSelected(row)"
+            (change)="toggle(row)"
+            aria-label="Seleccionar"
+          />
+        </td>
+      </ng-container>
+
+      @for (cell of cells(); track cell.name()) {
+        <ng-container [matColumnDef]="cell.name()">
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            mat-sort-header
+            [disabled]="!cell.sortable() || !query()"
+            [arrowPosition]="cell.end() ? 'before' : 'after'"
+            [class.end]="cell.end()"
+          >
+            {{ cell.header() }}
+          </th>
+          <td mat-cell *matCellDef="let row" [class.end]="cell.end()">
+            <ng-container
+              [ngTemplateOutlet]="cell.template"
+              [ngTemplateOutletContext]="{ $implicit: row }"
+            />
+          </td>
+        </ng-container>
+      }
+
+      <ng-container matColumnDef="__expand">
+        <th mat-header-cell *matHeaderCellDef class="check">
+          <span class="pan-sr-only">Detalle</span>
+        </th>
+        <td mat-cell *matCellDef="let row" class="check">
+          <button
+            mat-icon-button
+            type="button"
+            [attr.aria-expanded]="isExpanded(row)"
+            [attr.aria-label]="isExpanded(row) ? 'Ocultar detalle' : 'Ver detalle'"
+            (click)="toggleExpanded(row)"
+          >
+            <mat-icon>{{ isExpanded(row) ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="__detail">
+        <td mat-cell *matCellDef="let row" [attr.colspan]="columns().length" class="detail-cell">
+          @if (isExpanded(row)) {
+            @if (detail(); as detail) {
+              <ng-container
+                [ngTemplateOutlet]="detail.template"
+                [ngTemplateOutletContext]="{ $implicit: row }"
+              />
+            }
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns()"></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: columns()"
+        [class.selected]="isSelected(row)"
+        [class.expanded]="isExpanded(row)"
+      ></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: ['__detail']; when: hasDetail"
+        class="detail-row"
+        [class.collapsed]="!isExpanded(row)"
+      ></tr>
+    </table>
+  </div>
+}
+
+@if (query(); as query) {
+  @if (length() > 0) {
+    <mat-paginator
+      [length]="length()"
+      [pageIndex]="query.page - 1"
+      [pageSize]="query.pageSize"
+      [pageSizeOptions]="pageSizeOptions()"
+      (page)="onPage($event)"
+    />
+  }
+}

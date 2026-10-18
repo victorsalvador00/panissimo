@@ -4,7 +4,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin, map } from 'rxjs';
 import type { ApiEnum } from '../../../core/api/api';
 import { ItemLookupApi, ItemOption } from '../../data-access/item-lookup';
 import { enumLabel } from '../../pipes/labels';
@@ -14,7 +14,8 @@ export type { ItemOption };
 
 /**
  * Item autocomplete by SKU or name (`GET /items/lookup`, frontend §8), filterable by type, presentation and area.
- * The value is the chosen ItemLookupDto (with its unit). The photo arrives with app-item-photo (F-23).
+ * The value is the chosen ItemLookupDto (with its unit). `types` allows several types (one search per type). The
+ * photo arrives with app-item-photo (F-23).
  */
 @Component({
   selector: 'app-item-picker',
@@ -31,17 +32,19 @@ export type { ItemOption };
 })
 export class ItemPicker extends LookupPicker<ItemOption> {
   readonly type = input<ApiEnum<'ItemType'> | null>(null);
+  readonly types = input<readonly ApiEnum<'ItemType'>[]>([]);
   readonly presentation = input<ApiEnum<'ItemPresentation'> | null>(null);
   readonly areaId = input<string | null>(null);
 
   private readonly lookup = inject(ItemLookupApi);
 
   protected override runSearch(q: string): Observable<ItemOption[]> {
-    return this.lookup.search(q, {
-      type: this.type(),
-      presentation: this.presentation(),
-      areaId: this.areaId(),
-    });
+    const filters = { presentation: this.presentation(), areaId: this.areaId() };
+    const types = this.types();
+    if (types.length === 0) return this.lookup.search(q, { ...filters, type: this.type() });
+    return forkJoin(types.map((type) => this.lookup.search(q, { ...filters, type }))).pipe(
+      map((results) => results.flat().sort((a, b) => a.sku.localeCompare(b.sku))),
+    );
   }
 
   protected override display(item: ItemOption): string {

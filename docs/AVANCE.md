@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-08, traspasos; fase 1 del frontend completa).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-09, recetas).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-08 terminadas (fase 1 completa) (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-09 terminadas (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** fase 2 del frontend, empezando por F-09 (recetas con editor, versiones y componentes de tipo insumo) según `docs/specs/frontend.md` §11; F-25 (vales internos) también es de la fase 2. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-10 (órdenes de producción: lista con pestañas y avance, formulario con explosión, detalle con pestañas) según `docs/specs/frontend.md` §11; F-25 (vales internos) también es de la fase 2. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-09..F-24 y F-25 (vales internos, fase 2).
+- Frontend F-10..F-24 y F-25 (vales internos, fase 2).
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-09). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-10). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -75,7 +75,8 @@
 | 1 | F-06 Inventario (existencias, kardex, ajustes, existencias iniciales) | ✅ | (ver `git log`) |
 | 1 | F-07 Conteo físico y consumo | ✅ | (ver `git log`) |
 | 1 | F-08 Traspasos directos | ✅ | (ver `git log`) |
-| 2 | F-09..F-12, F-25 (vales internos) | ⏳ | |
+| 2 | F-09 Recetas | ✅ | (ver `git log`) |
+| 2 | F-10..F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
@@ -448,3 +449,13 @@
 - **E2E 5 en verde** (escritorio; recepción a 390 px sin scroll horizontal; suite 17/17): mete 3 pza de `E2E-TRASPASO` en PLANTA-PT con un ajuste de corrección por API, crea PLANTA → `SUC-E2E`, despacha desde Producto terminado, recibe 2 con motivo Faltante y verifica "Recibido con diferencias" y la pérdida en tránsito. **Sí mueve inventario** en la BD contra la que corre (cada corrida deja 2 pza en SUC-E2E y 1 de pérdida).
 - Pruebas: 91 unitarias (rutas RN-25, motivo RN-22, suma de lotes). Sin paquetes nuevos.
 - Datos de prueba en la BD de desarrollo: TR-000001..TR-000003 recibidos con diferencias (corridas E2E), TR-000004 cancelado, el artículo `E2E-TRASPASO` y sus ajustes de corrección.
+
+### F-09 (2026-10-17)
+
+- **Recetas** (`/produccion/recetas`): lista de activas con búsqueda, tipo (semiterminado / terminado) e interruptor "Incluir versiones anteriores"; versión, rendimiento, componentes y si está en uso.
+- **Editor** (`/nueva`, `/:id`, RN-10): producto (semiterminado o terminado; fijo al editar), rendimiento con su unidad, notas y componentes con `app-lines-editor` (materia prima, **insumo** o semiterminado; cantidad y % de merma 0–100 con 2 decimales). Una versión ya usada muestra el aviso "guardar creará la versión N+1", el botón dice "Guardar versión N+1" y pide confirmación; al guardar navega a la versión nueva. Las versiones inactivas y los usuarios sin `production.recipes.manage` ven el editor en solo lectura. **Desactivar / Activar esta versión** con confirmación (activar con otra activa lo rechaza el backend, RN-10). **Historial de versiones** con enlaces, fecha, activa/inactiva y uso.
+- La pestaña **Costos** por versión (RN-51) queda para F-22, que depende de B-23 (aún sin endpoint `/recipes/{id}/costs`).
+- `app-item-picker` acepta `types` (varios tipos: una búsqueda por tipo, combinadas por SKU) para producto y componentes.
+- **E2E 6 en verde** (escritorio; suite 18/18): crea la primera vez `E2E-HARINA`, `E2E-MASA` y su receta; si la receta no está usada crea una OP en borrador y la cancela; edita la merma, confirma, verifica la versión N+1 activa y que la anterior quede inactiva y en solo lectura. No mueve inventario (cada corrida deja una versión más de la receta de `E2E-MASA`).
+- Revisado en escritorio y 390 px con capturas de Playwright (las capturas de la extensión de Chrome fallaron por el entorno; el DOM respondía bien).
+- Pruebas: 94 unitarias. Sin paquetes nuevos.

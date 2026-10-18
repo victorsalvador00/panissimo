@@ -80,7 +80,13 @@ export class AdminApi {
   }
 
   /** A raw material with this SKU (created the first time, never touched afterwards). */
-  async ensureItem(sku: string, name: string, categoryName: string, unitCode: string): Promise<void> {
+  async ensureItem(
+    sku: string,
+    name: string,
+    categoryName: string,
+    unitCode: string,
+    type: 'RawMaterial' | 'Supply' | 'SemiFinished' = 'RawMaterial',
+  ): Promise<void> {
     const found = await this.get<{ id: string }[]>(`items/lookup?q=${encodeURIComponent(sku)}`);
     if (found.length > 0) return;
     const categories = await this.get<{ items: { id: string; name: string }[] }>(
@@ -91,7 +97,7 @@ export class AdminApi {
       sku,
       internalSku: sku,
       name,
-      type: 'RawMaterial',
+      type,
       categoryId: categories.items.find((c) => c.name === categoryName)!.id,
       baseUomId: units.items.find((u) => u.code === unitCode)!.id,
       purchaseUomId: null,

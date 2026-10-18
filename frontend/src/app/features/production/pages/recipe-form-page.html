@@ -1,0 +1,158 @@
+<app-page-header
+  [title]="
+    recipe()
+      ? 'Receta de ' + recipe()!.outputSku + ' · v' + recipe()!.recipeVersion
+      : 'Nueva receta'
+  "
+>
+  @if (recipe(); as recipe) {
+    <app-status-tag
+      [text]="recipe.isActive ? 'Activa' : 'Inactiva'"
+      [color]="recipe.isActive ? 'green' : 'grey'"
+    />
+  }
+</app-page-header>
+
+@if (!id() || recipe()) {
+  <div class="layout pan-has-action-bar">
+    @if (recipe(); as recipe) {
+      @if (!recipe.isActive) {
+        <p class="pan-card notice">
+          Esta versión está inactiva: se consulta pero no se edita. Las órdenes que la usan la
+          conservan.
+        </p>
+      } @else if (newVersion() && editable()) {
+        <p class="pan-card notice" role="note">
+          <mat-icon aria-hidden="true">info</mat-icon>
+          Esta versión ya se usó en órdenes de producción: guardar creará la versión
+          {{ recipe.recipeVersion + 1 }}.
+        </p>
+      }
+    }
+
+    <form id="recipe-form" class="layout" [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <section class="pan-card" aria-labelledby="recipe-data">
+        <h2 id="recipe-data">Producto y rendimiento</h2>
+        <div class="fields">
+          <app-item-picker
+            class="wide"
+            formControlName="output"
+            label="Producto (semiterminado o terminado)"
+            [types]="outputTypes"
+          />
+          <app-qty-input
+            formControlName="yieldQty"
+            label="Rendimiento"
+            [unit]="form.controls.output.value?.baseUomCode ?? null"
+          />
+          <mat-form-field class="wide">
+            <mat-label>Notas</mat-label>
+            <input matInput formControlName="notes" />
+            <mat-error>{{ controlError(form.controls.notes) }}</mat-error>
+          </mat-form-field>
+        </div>
+        <p class="muted hint">
+          El rendimiento es lo que produce la receta con las cantidades de abajo; las órdenes
+          escalan los componentes a lo que se planea producir.
+        </p>
+      </section>
+
+      <section class="pan-card" aria-labelledby="recipe-lines">
+        <h2 id="recipe-lines">Componentes</h2>
+        <app-lines-editor
+          [lines]="lines"
+          [newLine]="newLine"
+          addLabel="Agregar componente"
+          [readonly]="!editable()"
+        >
+          <ng-template appLineColumn="item" header="Componente" [appLineColumnOf]="lines" let-line>
+            <app-item-picker
+              [formControl]="line.controls.item"
+              label="Materia prima, insumo o semiterminado"
+              [types]="componentTypes"
+            />
+          </ng-template>
+          <ng-template
+            appLineColumn="quantity"
+            header="Cantidad"
+            width="12rem"
+            [appLineColumnOf]="lines"
+            let-line
+            let-i="index"
+          >
+            <app-qty-input
+              [formControl]="line.controls.quantity"
+              [unit]="line.controls.item.value?.baseUomCode ?? null"
+              [ariaLabel]="'Cantidad del componente ' + (i + 1)"
+            />
+          </ng-template>
+          <ng-template
+            appLineColumn="waste"
+            header="Merma"
+            width="9rem"
+            [appLineColumnOf]="lines"
+            let-line
+            let-i="index"
+          >
+            <app-qty-input
+              [formControl]="line.controls.wastePct"
+              unit="%"
+              [decimals]="2"
+              [max]="100"
+              allowZero
+              [ariaLabel]="'Merma del componente ' + (i + 1)"
+            />
+          </ng-template>
+        </app-lines-editor>
+      </section>
+    </form>
+
+    @if (recipe(); as recipe) {
+      <section class="pan-card" aria-labelledby="recipe-versions">
+        <h2 id="recipe-versions">Historial de versiones</h2>
+        <ul class="versions">
+          @for (version of recipe.versions; track version.id) {
+            <li [class.current]="version.id === recipe.id">
+              @if (version.id === recipe.id) {
+                <strong>v{{ version.recipeVersion }}</strong>
+              } @else {
+                <a [routerLink]="['/produccion/recetas', version.id]"
+                  >v{{ version.recipeVersion }}</a
+                >
+              }
+              <span class="muted">
+                {{ version.createdAt | date: 'dd/MM/yyyy HH:mm' }} ·
+                {{ version.isActive ? 'activa' : 'inactiva'
+                }}{{ version.isUsed ? ' · usada en órdenes' : '' }}
+              </span>
+            </li>
+          }
+        </ul>
+        <p class="muted">
+          Creada <app-stamp [at]="recipe.createdAt" [by]="recipe.createdByName" />
+          @if (recipe.updatedAt) {
+            · modificada <app-stamp [at]="recipe.updatedAt" [by]="recipe.updatedByName" />
+          }
+        </p>
+      </section>
+    }
+  </div>
+
+  @if (editable() || canToggle()) {
+    <div class="pan-action-bar">
+      @if (canToggle()) {
+        <button matButton type="button" [disabled]="busy()" (click)="toggleActive()">
+          {{ recipe()!.isActive ? 'Desactivar esta versión' : 'Activar esta versión' }}
+        </button>
+      }
+      @if (editable()) {
+        <a matButton routerLink="/produccion/recetas">Cancelar</a>
+        <button matButton="filled" type="submit" form="recipe-form" [disabled]="busy()">
+          {{ newVersion() ? 'Guardar versión ' + (recipe()!.recipeVersion + 1) : 'Guardar' }}
+        </button>
+      }
+    </div>
+  }
+} @else {
+  <p role="status">Cargando…</p>
+}

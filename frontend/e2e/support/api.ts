@@ -109,6 +109,41 @@ export class AdminApi {
     });
   }
 
+  /** Id of a location by code (also inactive ones and sub-warehouses). */
+  async locationId(code: string): Promise<string | null> {
+    const page = await this.get<{ items: { id: string; code: string }[] }>(
+      `locations?q=${encodeURIComponent(code)}&includeInactive=true&pageSize=100`,
+    );
+    return page.items.find((l) => l.code === code)?.id ?? null;
+  }
+
+  /** An active branch with this code (created the first time). */
+  async ensureBranch(code: string, name: string): Promise<string> {
+    const existing = await this.locationId(code);
+    if (existing) return existing;
+    const created = await this.post<{ id: string }>('locations', {
+      code,
+      name,
+      type: 'Branch',
+      address: null,
+      parentLocationId: null,
+    });
+    return created.id;
+  }
+
+  /** Cancels the drafts and counts in progress of a location, so a test can start a new one (RN-06). */
+  async cancelOpenCounts(locationId: string): Promise<void> {
+    for (const status of ['Draft', 'InProgress']) {
+      const page = await this.get<{ items: { id: string }[] }>(
+        `physical-counts?locationId=${locationId}&status=${status}&pageSize=100`,
+      );
+      for (const count of page.items) {
+        const { version } = await this.get<{ version: number }>(`physical-counts/${count.id}`);
+        await this.post(`physical-counts/${count.id}/cancel`, { version });
+      }
+    }
+  }
+
   async dispose(): Promise<void> {
     await this.context.dispose();
   }

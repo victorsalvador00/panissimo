@@ -1,0 +1,277 @@
+@if (count(); as count) {
+  <app-page-header [title]="'Conteo ' + count.folio">
+    <app-status-tag [value]="count.status" kind="PhysicalCountStatus" />
+  </app-page-header>
+
+  <p class="context muted">
+    {{ count.locationCode }} ·
+    {{ count.categoryId ? 'Conteo parcial por categoría' : 'Conteo completo' }}
+    @if (count.startedAt) {
+      · iniciado {{ count.startedAt | date: 'dd/MM/yyyy HH:mm' }}
+    }
+    @if (count.notes) {
+      · {{ count.notes }}
+    }
+  </p>
+
+  @switch (count.status) {
+    @case ('Draft') {
+      <section class="pan-card draft">
+        <p>
+          Al iniciar se toma la existencia de cada artículo de la ubicación. Después captura lo que
+          cuentes sin ver lo esperado; al final revisas las diferencias y cierras.
+        </p>
+        <div class="buttons">
+          <button matButton type="button" [disabled]="busy()" (click)="cancel()">
+            Cancelar conteo
+          </button>
+          <button matButton="filled" type="button" [disabled]="busy()" (click)="start()">
+            <mat-icon>play_arrow</mat-icon>
+            Iniciar conteo
+          </button>
+        </div>
+      </section>
+    }
+
+    @case ('InProgress') {
+      @if (view() === 'capture') {
+        <div class="toolbar">
+          <mat-form-field class="search">
+            <mat-label>Buscar artículo o lote</mat-label>
+            <input matInput type="search" [formControl]="search" />
+            <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+          </mat-form-field>
+          <mat-button-toggle-group
+            class="filter"
+            aria-label="Mostrar"
+            [value]="filter()"
+            (change)="filter.set($event.value)"
+          >
+            <mat-button-toggle value="all">Todas ({{ lines().length }})</mat-button-toggle>
+            <mat-button-toggle value="pending">Pendientes ({{ pending() }})</mat-button-toggle>
+            <mat-button-toggle value="counted">Contadas ({{ countedTotal() }})</mat-button-toggle>
+          </mat-button-toggle-group>
+          <span class="save-state" role="status">
+            @switch (autosave?.state()) {
+              @case ('pending') {
+                Sin guardar…
+              }
+              @case ('saving') {
+                Guardando…
+              }
+              @case ('saved') {
+                <mat-icon aria-hidden="true">cloud_done</mat-icon>
+                Guardado
+              }
+              @case ('error') {
+                <span class="error">No se pudo guardar.</span>
+                <button matButton type="button" (click)="retrySave()">Reintentar</button>
+              }
+            }
+          </span>
+        </div>
+
+        <div class="cards pan-capture pan-has-action-bar">
+          @for (line of visibleLines(); track line.id) {
+            <article class="pan-card line" [class.counted]="isCounted(line)">
+              <div class="item">
+                <strong>{{ line.sku }}</strong>
+                <span>{{ line.itemName }}</span>
+                @if (line.lotNumber) {
+                  <span class="muted">
+                    Lote {{ line.lotNumber }}
+                    @if (line.expirationDate) {
+                      · caduca {{ line.expirationDate | date: 'dd/MM/yyyy' }}
+                    }
+                  </span>
+                }
+              </div>
+              <app-qty-input
+                class="qty"
+                [formControl]="control(line)"
+                [unit]="line.baseUomCode"
+                allowZero
+                [ariaLabel]="
+                  'Contado de ' + line.sku + (line.lotNumber ? ' lote ' + line.lotNumber : '')
+                "
+              />
+            </article>
+          } @empty {
+            <p class="pan-card muted">No hay líneas con este filtro.</p>
+          }
+        </div>
+
+        <div class="pan-action-bar">
+          <button matButton type="button" [disabled]="busy()" (click)="addLine()">
+            <mat-icon>add</mat-icon>
+            Agregar artículo
+          </button>
+          <button matButton="filled" type="button" [disabled]="busy()" (click)="review()">
+            Revisar diferencias
+          </button>
+        </div>
+      } @else {
+        <section class="pan-card review pan-has-action-bar" aria-labelledby="review-title">
+          <div class="review-head">
+            <h2 id="review-title">Diferencias</h2>
+            <label class="only">
+              <input
+                type="checkbox"
+                [checked]="onlyDifferences()"
+                (change)="onlyDifferences.set($any($event.target).checked)"
+              />
+              Solo con diferencia ({{ differences() }})
+            </label>
+          </div>
+          @if (pending() > 0) {
+            <p class="warning" role="alert">
+              Faltan {{ pending() }} {{ pending() === 1 ? 'línea' : 'líneas' }} por contar.
+            </p>
+          }
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Artículo</th>
+                  <th scope="col" class="end">Al iniciar</th>
+                  <th scope="col" class="end">Contado</th>
+                  <th scope="col" class="end">Diferencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of reviewLines(); track row.line.id) {
+                  <tr>
+                    <td>
+                      <strong>{{ row.line.sku }}</strong> {{ row.line.itemName }}
+                      @if (row.line.lotNumber) {
+                        <span class="muted">· lote {{ row.line.lotNumber }}</span>
+                      }
+                    </td>
+                    <td class="end">{{ row.line.snapshotQty | qty: row.line.baseUomCode }}</td>
+                    <td class="end">
+                      {{
+                        row.counted === null
+                          ? 'Pendiente'
+                          : (row.counted | qty: row.line.baseUomCode)
+                      }}
+                    </td>
+                    <td
+                      class="end"
+                      [class.entry]="(row.difference ?? 0) > 0"
+                      [class.exit]="(row.difference ?? 0) < 0"
+                    >
+                      {{
+                        row.difference === null
+                          ? '—'
+                          : (row.difference > 0 ? '+' : '') +
+                            (row.difference | qty: row.line.baseUomCode)
+                      }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="pan-action-bar">
+          <button matButton type="button" (click)="view.set('capture')">Volver a capturar</button>
+          <button matButton type="button" [disabled]="busy()" (click)="cancel()">
+            Cancelar conteo
+          </button>
+          <button
+            matButton="filled"
+            type="button"
+            [disabled]="busy() || pending() > 0"
+            (click)="close()"
+          >
+            {{ pending() > 0 ? 'Faltan ' + pending() : 'Cerrar conteo' }}
+          </button>
+        </div>
+      }
+    }
+
+    @default {
+      <section class="pan-card" aria-labelledby="result-title">
+        <h2 id="result-title">
+          {{ count.status === 'Closed' ? 'Resultado' : 'Conteo cancelado' }}
+        </h2>
+        @if (count.closedAt) {
+          <p class="muted">Cerrado {{ count.closedAt | date: 'dd/MM/yyyy HH:mm' }}</p>
+        }
+        <p class="muted">Creado <app-stamp [at]="count.createdAt" [by]="count.createdByName" /></p>
+        @if (count.status === 'Closed') {
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Artículo</th>
+                  <th scope="col" class="end">Al iniciar</th>
+                  <th scope="col" class="end">Contado</th>
+                  <th scope="col" class="end">Diferencia</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of lines(); track line.id) {
+                  <tr>
+                    <td>
+                      <strong>{{ line.sku }}</strong> {{ line.itemName }}
+                      @if (line.lotNumber) {
+                        <span class="muted">· lote {{ line.lotNumber }}</span>
+                      }
+                    </td>
+                    <td class="end">{{ line.snapshotQty | qty: line.baseUomCode }}</td>
+                    <td class="end">{{ line.countedQty | qty: line.baseUomCode }}</td>
+                    <td
+                      class="end"
+                      [class.entry]="(line.difference ?? 0) > 0"
+                      [class.exit]="(line.difference ?? 0) < 0"
+                    >
+                      {{ (line.difference ?? 0) > 0 ? '+' : ''
+                      }}{{ line.difference | qty: line.baseUomCode }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (count.movements.length > 0) {
+            <h3>Ajustes registrados</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Artículo</th>
+                    <th scope="col">Lote</th>
+                    <th scope="col" class="end">Cantidad</th>
+                    <th scope="col" class="end">Importe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (movement of count.movements; track $index) {
+                    <tr>
+                      <td>{{ movement.sku }}</td>
+                      <td>{{ movement.lotNumber ?? '—' }}</td>
+                      <td
+                        class="end"
+                        [class.entry]="movement.quantity > 0"
+                        [class.exit]="movement.quantity < 0"
+                      >
+                        {{ movement.quantity > 0 ? '+' : '' }}{{ movement.quantity | qty }}
+                      </td>
+                      <td class="end">{{ movement.totalCost | mxn }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p>Sin diferencias: no se registraron ajustes.</p>
+          }
+        }
+      </section>
+    }
+  }
+} @else {
+  <p role="status">Cargando…</p>
+}

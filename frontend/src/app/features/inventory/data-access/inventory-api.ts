@@ -80,3 +80,74 @@ export class AdjustmentsApi {
     return this.http.post<InitialStockResult>('imports/initial-stock', form);
   }
 }
+
+export type PhysicalCountListItem = Schemas['PhysicalCountListItemDto'];
+export type PhysicalCount = Schemas['PhysicalCountDto'];
+export type PhysicalCountLine = Schemas['PhysicalCountLineDto'];
+export type ConsumptionListItem = Schemas['ConsumptionListItemDto'];
+export type Consumption = Schemas['ConsumptionDto'];
+
+/** Physical counts (`/physical-counts`, RN-06): draft → in progress (snapshot) → closed or cancelled. */
+@Injectable({ providedIn: 'root' })
+export class CountsApi {
+  private readonly http = inject(HttpClient);
+
+  list(query: ListQuery, filters: ParamValues = {}): Observable<Page<PhysicalCountListItem>> {
+    return this.http.get<Page<PhysicalCountListItem>>('physical-counts', {
+      params: toHttpParams(query, filters),
+    });
+  }
+
+  get(id: string): Observable<PhysicalCount> {
+    return this.http.get<PhysicalCount>(`physical-counts/${id}`);
+  }
+
+  create(request: Schemas['CreatePhysicalCountRequest']): Observable<PhysicalCount> {
+    return this.http.post<PhysicalCount>('physical-counts', request);
+  }
+
+  /** Draft: category and notes. In progress: notes and the counted quantities (autosave with its version). */
+  update(id: string, request: Schemas['UpdatePhysicalCountRequest']): Observable<PhysicalCount> {
+    return this.http.put<PhysicalCount>(`physical-counts/${id}`, request);
+  }
+
+  /** An item or lot that was not in the snapshot. */
+  addLine(id: string, request: Schemas['AddCountLineRequest']): Observable<PhysicalCount> {
+    return this.http.post<PhysicalCount>(`physical-counts/${id}/lines`, request);
+  }
+
+  /** Takes the snapshot of the stock; one count in progress per location. */
+  start(id: string, version: number): Observable<PhysicalCount> {
+    return this.http.post<PhysicalCount>(`physical-counts/${id}/start`, { version });
+  }
+
+  /** Posts counted − snapshot of each line; every line must be counted. */
+  close(id: string, version: number): Observable<PhysicalCount> {
+    return this.http.post<PhysicalCount>(`physical-counts/${id}/close`, { version });
+  }
+
+  cancel(id: string, version: number): Observable<PhysicalCount> {
+    return this.http.post<PhysicalCount>(`physical-counts/${id}/cancel`, { version });
+  }
+}
+
+/** Daily consumption of a branch (`/consumptions`, RN-09). */
+@Injectable({ providedIn: 'root' })
+export class ConsumptionsApi {
+  private readonly http = inject(HttpClient);
+
+  list(query: ListQuery, filters: ParamValues = {}): Observable<Page<ConsumptionListItem>> {
+    return this.http.get<Page<ConsumptionListItem>>('consumptions', {
+      params: toHttpParams(query, filters),
+    });
+  }
+
+  get(id: string): Observable<Consumption> {
+    return this.http.get<Consumption>(`consumptions/${id}`);
+  }
+
+  /** Posts at once, first to expire first unless a lot is chosen. */
+  create(request: Schemas['CreateConsumptionRequest']): Observable<Consumption> {
+    return this.http.post<Consumption>('consumptions', request);
+  }
+}

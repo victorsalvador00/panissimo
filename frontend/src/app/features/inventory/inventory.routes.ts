@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Inventory (frontend §7.3). F-07 adds counts and consumptions; F-22 the consumption analysis. */
+/** Inventory (frontend §7.3). F-22 adds the consumption analysis. */
 export const INVENTORY_ROUTES: Routes = [
   {
     path: 'existencias',
@@ -41,6 +41,51 @@ export const INVENTORY_ROUTES: Routes = [
         data: { breadcrumb: 'Ajuste' },
         loadComponent: () =>
           import('./pages/adjustment-detail-page').then((m) => m.AdjustmentDetailPage),
+      },
+    ],
+  },
+  {
+    path: 'conteos',
+    canActivate: [permissionGuard],
+    data: { permission: 'inventory.count', breadcrumb: 'Conteos' },
+    children: [
+      {
+        path: '',
+        title: 'Conteos · SGO Paníssimo',
+        loadComponent: () => import('./pages/counts-list-page').then((m) => m.CountsListPage),
+      },
+      {
+        path: ':id',
+        title: 'Conteo · SGO Paníssimo',
+        data: { breadcrumb: 'Conteo' },
+        loadComponent: () => import('./pages/count-page').then((m) => m.CountPage),
+      },
+    ],
+  },
+  {
+    path: 'consumos',
+    canActivate: [permissionGuard],
+    data: { permission: 'inventory.consumption', breadcrumb: 'Consumos' },
+    children: [
+      {
+        path: '',
+        title: 'Consumos · SGO Paníssimo',
+        loadComponent: () =>
+          import('./pages/consumptions-list-page').then((m) => m.ConsumptionsListPage),
+      },
+      {
+        path: 'nuevo',
+        title: 'Nuevo consumo · SGO Paníssimo',
+        data: { breadcrumb: 'Nuevo consumo' },
+        loadComponent: () =>
+          import('./pages/consumption-form-page').then((m) => m.ConsumptionFormPage),
+      },
+      {
+        path: ':id',
+        title: 'Consumo · SGO Paníssimo',
+        data: { breadcrumb: 'Consumo' },
+        loadComponent: () =>
+          import('./pages/consumption-detail-page').then((m) => m.ConsumptionDetailPage),
       },
     ],
   },

@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-06, inventario).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-07, conteo y consumo).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-06 terminadas (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-07 terminadas (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-07 (conteo físico a ciegas con autoguardado y consumo de sucursal) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-08 (traspasos directos con despacho y recepción) según `docs/specs/frontend.md` §11; cierra la fase 1 del frontend. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-07..F-24 y F-25 (vales internos, fase 2).
+- Frontend F-08..F-24 y F-25 (vales internos, fase 2).
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-07). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-08). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -73,7 +73,8 @@
 | 1 | F-04 Administración (usuarios, roles, bitácora, configuración) | ✅ | (ver `git log`) |
 | 1 | F-05 Catálogos (ubicaciones, categorías, unidades, áreas, artículos, CSV) | ✅ | (ver `git log`) |
 | 1 | F-06 Inventario (existencias, kardex, ajustes, existencias iniciales) | ✅ | (ver `git log`) |
-| 1 | F-07..F-08 | ⏳ | |
+| 1 | F-07 Conteo físico y consumo | ✅ | (ver `git log`) |
+| 1 | F-08 | ⏳ | |
 | 2 | F-09..F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
@@ -424,3 +425,14 @@
 ### Marca (2026-10-17)
 
 - Por indicación del usuario: `ico.png` como favicon y `logo.png` como logo del login y título de la barra superior. Los originales (varios MB) quedan en la raíz del repositorio; `frontend/scripts/brand-assets.py` (Pillow, MIT-CMU, herramienta local) genera `public/favicon.ico` (16-64 px, el ícono ancho se completa a cuadrado con su color de fondo), `public/brand/icon-180.png` e `icon-192.png` (apple-touch y PWA) y los logos en WebP (`logo-bar.webp` 4.6 KB para la barra de 48 px, `logo.webp` 66 KB para el login). Revisado en Chrome en claro y oscuro.
+
+### F-07 (2026-10-17)
+
+- **Conteos** (`/inventario/conteos`, `/:id`, RN-06): lista de la ubicación activa por estado y alta en diálogo (subalmacén si la ubicación los tiene, categoría opcional para un conteo parcial, notas). Detalle por estado: borrador (iniciar con confirmación, cancelar), **en curso** con captura a ciegas por tarjetas (no se muestra la existencia esperada), buscador fijo, filtros Todas/Pendientes/Contadas con su número, Enter pasa a la siguiente cantidad, "Agregar artículo" (artículo o lote que no estaba; lote nuevo con caducidad) y **revisión de diferencias** (al iniciar, contado, diferencia; "Solo con diferencia"; cerrar deshabilitado con "Faltan N"); cerrado con diferencias y ajustes registrados.
+- **Autoguardado** (`ui/count-autosave.ts`): 1 s después de la última tecla, al salir del campo y al ocultar la app (`visibilitychange`); los guardados van en serie, cada uno con la versión que devolvió el anterior; si uno falla conserva las cantidades y ofrece "Reintentar"; al salir de la página guarda lo pendiente. Indicador Sin guardar / Guardando / Guardado.
+- **Consumos** (`/inventario/consumos`, `/nuevo`, `/:id`, RN-09): solo con una sucursal como ubicación activa (subalmacén si los tiene); día de hoy o anterior; captura rápida artículo → cantidad → Enter (el mismo artículo sin lote elegido se suma); lote opcional por línea (si no, el que caduca primero); confirmación con resumen; lista por fechas y detalle con los movimientos. Los folios de conteos y consumos del kardex ya enlazan a su pantalla.
+- Helper `ui/stock-warehouses.ts` (subalmacenes donde el usuario mueve existencia) para conteos y consumos.
+- Probado en Chrome: CF-000001 en PLANTA-PT (categoría E2E): captura 38 y 25 con dos guardados en serie, recarga con lo capturado, revisión (−2 en lote L-A) y cierre con su ajuste de −2.
+- **E2E 4 en verde** (solo en 390 px; suite 16/16): conteo nuevo → iniciar → capturar → "Guardado" → recargar conserva → revisar → cancelar, sin scroll horizontal; consumo en la sucursal `SUC-E2E` (la crea si falta) capturando el mismo artículo dos veces (2 + 3 = 5), sin scroll horizontal y sin registrarlo. No mueve inventario.
+- Pruebas: 87 unitarias (autoguardado: espera de 1 s, último valor por línea, guardados en serie con versión, reintento). Sin paquetes nuevos.
+- Datos de prueba en la BD de desarrollo: CF-000001 cerrado (−2 de `E2E-GRANEL` lote L-A en PLANTA-PT), la sucursal `SUC-E2E` y conteos cancelados de las corridas E2E.

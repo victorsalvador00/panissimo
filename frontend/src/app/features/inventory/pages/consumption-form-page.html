@@ -1,0 +1,111 @@
+<app-page-header title="Nuevo consumo" />
+
+@if (location(); as location) {
+  @if (isBranch()) {
+    <form
+      id="consumption-form"
+      class="layout pan-has-action-bar"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      novalidate
+    >
+      <section class="pan-card" aria-labelledby="consumption-data">
+        <h2 id="consumption-data">{{ location.name }}</h2>
+        <div class="fields">
+          @if (warehouses().length > 0) {
+            <mat-form-field>
+              <mat-label>Subalmacén</mat-label>
+              <mat-select formControlName="warehouseId">
+                @for (warehouse of warehouses(); track warehouse.id) {
+                  <mat-option [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+                }
+              </mat-select>
+              <mat-error>{{ controlError(form.controls.warehouseId) }}</mat-error>
+            </mat-form-field>
+          }
+          <mat-form-field>
+            <mat-label>Día</mat-label>
+            <input matInput [matDatepicker]="day" [max]="today" formControlName="businessDate" />
+            <mat-datepicker-toggle matIconSuffix [for]="day" />
+            <mat-datepicker #day />
+            <mat-hint>Hoy o un día anterior.</mat-hint>
+            <mat-error>{{ controlError(form.controls.businessDate) }}</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Notas</mat-label>
+            <input matInput formControlName="notes" />
+          </mat-form-field>
+        </div>
+      </section>
+
+      <section class="pan-card quick pan-capture" aria-labelledby="consumption-capture">
+        <h2 id="consumption-capture">Captura</h2>
+        <div class="quick-row" [formGroup]="quick">
+          <app-item-picker class="item" formControlName="item" label="Artículo" />
+          <app-qty-input
+            class="qty"
+            formControlName="quantity"
+            label="Cantidad"
+            [unit]="quick.controls.item.value?.baseUomCode ?? null"
+            (entered)="add()"
+          />
+          <button matButton="tonal" type="button" class="add" (click)="add()">
+            <mat-icon>add</mat-icon>
+            Agregar
+          </button>
+        </div>
+        <p class="muted hint">Artículo → cantidad → Enter. Si repites un artículo, se suma.</p>
+      </section>
+
+      <section class="pan-card" aria-labelledby="consumption-lines">
+        <h2 id="consumption-lines">Artículos ({{ lines().length }})</h2>
+        @for (line of lines(); track line; let i = $index) {
+          <article class="line pan-capture">
+            <div class="line-item">
+              <strong>{{ line.item.sku }}</strong>
+              <span>{{ line.item.name }}</span>
+            </div>
+            <app-qty-input
+              class="qty"
+              [formControl]="line.quantity"
+              [unit]="line.item.baseUomCode"
+              [ariaLabel]="'Cantidad de ' + line.item.sku"
+            />
+            @if (line.item.tracksLots && stockLocationId(); as stockLocationId) {
+              <app-lot-select
+                class="lot"
+                [formControl]="line.lotId"
+                [locationId]="stockLocationId"
+                [itemId]="line.item.id"
+                [unit]="line.item.baseUomCode"
+              />
+            }
+            <button
+              matIconButton
+              type="button"
+              [attr.aria-label]="'Quitar ' + line.item.sku"
+              (click)="remove(line)"
+            >
+              <mat-icon>delete</mat-icon>
+            </button>
+          </article>
+        } @empty {
+          <p class="muted">Todavía no hay artículos.</p>
+        }
+      </section>
+    </form>
+
+    <div class="pan-action-bar">
+      <button matButton="filled" type="submit" form="consumption-form" [disabled]="saving()">
+        Registrar consumo
+      </button>
+    </div>
+  } @else {
+    <p class="pan-card">
+      Los consumos se registran solo en sucursales. Elige una sucursal como ubicación activa en la
+      barra superior.
+    </p>
+  }
+} @else {
+  <p class="pan-card">Elige una sucursal como ubicación activa en la barra superior.</p>
+}

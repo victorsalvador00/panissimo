@@ -229,8 +229,7 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
             scope.EnsureAccess(location);
             var itemIds = components.Keys.ToList();
             available = await UsableStockAsync(db, location, itemIds, clock.BusinessDate(), ct);
-            costs = await db.ItemLocationCosts.AsNoTracking().Where(c => c.LocationId == location && itemIds.Contains(c.ItemId))
-                .ToDictionaryAsync(c => c.ItemId, c => c.AverageCost, ct);
+            costs = await InventoryLocations.AverageCostsAsync(db, location, itemIds, ct);
         }
 
         var lines = recipe.Lines.Select(l =>

@@ -73,6 +73,28 @@ public class WarehouseTotalsTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Explosion_and_close_preview_cost_the_components_of_the_plant_warehouses()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var (plant, a, b) = await WithWarehousesAsync(admin, LocationType.Plant);
+        var flour = await factory.CreateItemAsync("HAR");
+        var dough = await factory.CreateItemAsync("MASA", ItemType.SemiFinished);
+        var recipe = (await (await admin.PostJsonAsync("/api/v1/recipes",
+            new CreateRecipeRequest(dough.Id, 10, null, [new RecipeLineRequest(flour.Id, 6, 0)]))).Content.ReadJsonAsync<RecipeDto>())!;
+        // 30 kg at $18 and 10 kg at $22: the plant's weighted average is $19.
+        await factory.AddStockAsync(a.Id, flour.Id, 30, 18m);
+        await factory.AddStockAsync(b.Id, flour.Id, 10, 22m);
+
+        var explosion = (await admin.GetJsonAsync<ExplosionDto>($"/api/v1/recipes/{recipe.Id}/explode?qty=10&locationId={plant.Id}"))!;
+        Assert.Equal((19m, 114m), (explosion.Lines.Single().AverageCost!.Value, explosion.EstimatedTotalCost!.Value));
+
+        var order = (await (await admin.PostJsonAsync("/api/v1/production-orders",
+            new CreateProductionOrderRequest(plant.Id, dough.Id, 10, Today, null, null, null))).Content.ReadJsonAsync<ProductionOrderDto>())!;
+        var preview = (await admin.GetJsonAsync<ClosePreviewDto>($"/api/v1/production-orders/{order.Id}/close-preview?qty=10"))!;
+        Assert.Equal((19m, 114m), (preview.Lines.Single().AverageCost, preview.EstimatedTotalCost));
+    }
+
+    [Fact]
     public async Task The_branch_suggestion_counts_every_warehouse_of_the_branch()
     {
         var admin = await factory.LoginAsAdminAsync();

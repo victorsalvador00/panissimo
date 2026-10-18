@@ -137,8 +137,7 @@ public sealed class ProductionCloseService(
         var components = await ComponentsAsync(componentIds, ct);
         var today = clock.BusinessDate();
         var available = await RecipeService.UsableStockAsync(db, order.LocationId, componentIds, today, ct);
-        var costs = await db.ItemLocationCosts.AsNoTracking().Where(c => c.LocationId == order.LocationId && componentIds.Contains(c.ItemId))
-            .ToDictionaryAsync(c => c.ItemId, c => c.AverageCost, ct);
+        var costs = await InventoryLocations.AverageCostsAsync(db, order.LocationId, componentIds, ct);
 
         var lines = recipe.Lines.Select(l =>
         {

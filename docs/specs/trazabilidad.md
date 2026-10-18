@@ -4,7 +4,9 @@
 >
 > **Implementación en dos tareas:** **B-28** (backend) y **F-26** (frontend), con una sesión por tarea, empezando en modo plan, como el resto del proyecto. Antes de B-28 revisa la sección 3.1: el cambio a la recepción de compras depende de si B-16 ya está implementada.
 >
-> Diagrama de referencia aprobado: "Trazabilidad MICHAS OP-000412" (artifact del proyecto). El ejemplo de la sección 9 reproduce ese caso.
+> Diagrama de referencia aprobado: "Trazabilidad MICHAS OP-000412", versión 2 (artifact del proyecto). El ejemplo de la sección 9 reproduce ese caso.
+>
+> **Interfaz:** el diseño del mapa y de la ficha emergente está en `docs/specs/trazabilidad-ui.md`, que reemplaza el punto 1 de §6.3 y agrega campos a la respuesta de §5.3 (su §8).
 
 ## 1. Objetivo
 
@@ -15,7 +17,7 @@ Responder, en una consulta y sin capturas adicionales, las dos preguntas de un r
 
 Cada paso muestra **fechas y cantidades**. El identificador de entrada puede ser un **lote**, una **orden de compra**, una **orden de producción**, un **traspaso** o una **remisión**.
 
-**Fuera de alcance:** costos en la consulta (se ven en cada documento), bloqueo automático de lotes o retiro de mercancía con un documento propio (ampliación a cotizar), notificaciones a sucursales y trazabilidad dentro de la sucursal más allá de consumo, mermas y existencia (no hay punto de venta).
+**Fuera de alcance:** bloqueo automático de lotes o retiro de mercancía con un documento propio (ampliación a cotizar), notificaciones a sucursales y trazabilidad dentro de la sucursal más allá de consumo, mermas y existencia (no hay punto de venta).
 
 ## 2. Cómo se forma la cadena
 
@@ -224,6 +226,7 @@ Antes de escribir código, confirma en el repositorio y anótalo en el plan:
 - Ids de nodo con prefijo por tipo (`lot:`, `cp:`, `tr:`…) para que no choquen.
 - Arista `Entered`: del lote a su `Stock` en la ubicación donde se creó. Las salidas (`Consumed`, `Dispatched`, `Shipped`) parten del `Stock` de la ubicación de origen. En la ruta del ejemplo: `Stock(PLANTA) → Transfer → Stock(SUC-02)`.
 - Las fechas van en UTC (`timestamptz`); `businessDate` en `date`.
+- Campos adicionales para la ficha emergente, incluidos los costos condicionados a permiso: `trazabilidad-ui.md` §8. Forman parte de B-28.
 - Avisos (`warnings`): `no_lots`, `truncated`, `unlotted_components` (hay consumos sin lote en la cadena) y `missing_receipt_link` (lote de compra sin `GoodsReceiptLine.LotId`, por ejemplo uno anterior al relleno de §3.1 sin número de lote coincidente).
 
 ### 5.4 Errores
@@ -290,15 +293,7 @@ Entrada en el menú de Inventario: "Trazabilidad". Ícono nuevo (por ejemplo `ac
 
 Encabezado con la entrada, la dirección (cambiable sin volver a buscar), los avisos de la respuesta y **"Exportar CSV"** (eventos y resumen, generados en el navegador con el helper de CSV existente, con BOM). Tres pestañas:
 
-1. **Mapa** (`app-trace-graph`, en `features/inventory/ui`): el mismo diseño del diagrama de referencia.
-   - **Capas por rango:** cada nodo se coloca en la columna de su camino más largo desde los orígenes; dentro de la columna se ordena por el promedio de la posición de sus padres (una pasada). Sin librerías de grafos: tarjetas HTML posicionadas y aristas en SVG (`path` cúbico de borde derecho a borde izquierdo) con la cantidad sobre la arista.
-   - **Compactación de la vista** (solo presentación, el JSON no cambia):
-     - Un `PurchaseReceipt` con un solo `Lot` se dibuja como una tarjeta: OC, fechas de OC y recepción, cantidad comprada, lote y lo consumido.
-     - El `Stock` de un lote de materia prima o semiterminado en la Planta se oculta y la arista va del lote al cierre. El `Stock` de un lote terminado sí se ve (columna "Almacenamiento").
-   - Los cierres de una misma OP van dentro de un recuadro con el folio y los datos de la OP (`groups`).
-   - Tarjetas por tipo con los datos de la sección 5.3; lotes con borde de acento; traspasos con discrepancia en naranja (mismo tono que `ReceivedWithDiscrepancies`).
-   - **Selección:** tocar una tarjeta resalta su cadena hacia atrás y hacia adelante, atenúa el resto, muestra las cantidades de materia prima y abre la ficha del nodo debajo del mapa, con enlace a su documento (`document-links.ts`).
-   - El mapa vive en un contenedor con desplazamiento horizontal propio; la página nunca se desplaza a lo ancho. Con `truncated`, los nodos sin expandir llevan "Ver más" que vuelve a consultar con ese lote como entrada.
+1. **Mapa** y **ficha emergente:** según `trazabilidad-ui.md` (carriles por etapa, cintas proporcionales a las piezas, selección por dirección, zoom y ficha detallada por tipo).
 2. **Resumen** (RN-108): tablas de orígenes, lotes terminados, ubicaciones (recibido, consumido, merma, **existencia actual** resaltada si > 0) y clientes; pérdida en tránsito. En celular es la **pestaña inicial** y cada fila es una tarjeta.
 3. **Bitácora:** eventos en orden cronológico (fecha y hora, documento con enlace, evento, artículo y lote, cantidad con unidad, ubicación), agrupados por etapa (Compras, Producción, Envío y recepción, Clientes).
 
@@ -319,8 +314,8 @@ Estados: skeleton mientras carga; vacío con `no_lots` ("Esta OC todavía no tie
 
 | ID | Tarea | Requiere | Decisiones | Criterio de aceptación |
 |---|---|---|---|---|
-| B-28 | Trazabilidad de lotes: `GoodsReceiptLine.LotId` (o solo verificación si se hizo en B-16), índices, verificaciones de §3.3, permiso `inventory.traceability`, `/traceability/*`, pruebas | B-12, B-16, B-17, B-19 | D-11 | §5.6 |
-| F-26 | Pantalla de trazabilidad (búsqueda, mapa, resumen, bitácora, CSV) y accesos directos | B-28, F-11, F-15, F-16, F-18 | — | §6.5 |
+| B-28 | Trazabilidad de lotes: `GoodsReceiptLine.LotId` (o solo verificación si se hizo en B-16), índices, verificaciones de §3.3, permiso `inventory.traceability`, `/traceability/*` con los campos de `trazabilidad-ui.md` §8, pruebas | B-12, B-16, B-17, B-19 | D-11 | §5.6 |
+| F-26 | Pantalla de trazabilidad (búsqueda, mapa y ficha emergente según `trazabilidad-ui.md`, resumen, bitácora, CSV) y accesos directos | B-28, F-11, F-15, F-16, F-18 | — | §6.5 |
 
 Si la implementación va antes de B-19 (remisiones), B-28 puede hacerse sin la parte de clientes: deja `CustomerShipment` y `Customer` fuera del recorrido y agrégalos en B-19 con su prueba. Anótalo en `docs/AVANCE.md`.
 
@@ -336,7 +331,7 @@ Aplicar al cerrar B-28, en el mismo commit:
   - §4.8 `AppSetting`: `traceability.max_nodes` (entero 100–10,000, default 2,000).
   - §8: D-11 "¿Qué roles consultan la trazabilidad? ¿Las sucursales ven la cadena completa?" Propuesta: los cuatro roles anteriores; las sucursales no.
 - **`backend.md`**: índices de §3.2 en §4; endpoints de §5.3 en §8.2 (bloque Inventario); B-28 en §13; pruebas en §11.
-- **`frontend.md`**: rutas en §7.3; `app-trace-graph` en §8; E2E 17 en §9; F-26 en §11.
+- **`frontend.md`**: rutas en §7.3; `app-trace-graph`, `app-trace-card` y `app-trace-detail` en §8; tokens `--pan-trace-*` en §4.1; E2E 17 en §9; F-26 en §11.
 - **Semilla:** agrega el permiso y, **solo la primera vez que el permiso aparece**, lo asigna a los roles de D-11 por `system_key`, para no pisar ajustes que el cliente haya hecho a sus roles.
 
 ## 9. Escenario de referencia

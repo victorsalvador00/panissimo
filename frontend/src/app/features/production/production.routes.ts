@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Production (frontend §7.4). F-10 onward adds orders, closes and the plan. */
+/** Production (frontend §7.4). F-11 onward adds the closes, the import and the plan. */
 export const PRODUCTION_ROUTES: Routes = [
   {
     path: 'recetas',
@@ -25,6 +25,38 @@ export const PRODUCTION_ROUTES: Routes = [
         title: 'Receta · SGO Paníssimo',
         data: { breadcrumb: 'Receta' },
         loadComponent: () => import('./pages/recipe-form-page').then((m) => m.RecipeFormPage),
+      },
+    ],
+  },
+  {
+    path: 'ordenes',
+    canActivate: [permissionGuard],
+    data: { permission: 'production.view', breadcrumb: 'Órdenes' },
+    children: [
+      {
+        path: '',
+        title: 'Órdenes de producción · SGO Paníssimo',
+        loadComponent: () => import('./pages/orders-list-page').then((m) => m.OrdersListPage),
+      },
+      {
+        path: 'nueva',
+        title: 'Nueva orden · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'production.orders.manage', breadcrumb: 'Nueva orden' },
+        loadComponent: () => import('./pages/order-form-page').then((m) => m.OrderFormPage),
+      },
+      {
+        path: ':id',
+        title: 'Orden de producción · SGO Paníssimo',
+        data: { breadcrumb: 'Orden' },
+        loadComponent: () => import('./pages/order-detail-page').then((m) => m.OrderDetailPage),
+      },
+      {
+        path: ':id/editar',
+        title: 'Editar orden · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'production.orders.manage', breadcrumb: 'Editar orden' },
+        loadComponent: () => import('./pages/order-form-page').then((m) => m.OrderFormPage),
       },
     ],
   },

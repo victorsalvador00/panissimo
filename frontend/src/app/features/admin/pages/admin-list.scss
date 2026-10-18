@@ -17,17 +17,6 @@
   }
 }
 
-.row-link {
-  color: var(--mat-sys-primary);
-  font-weight: 600;
-  text-decoration: none;
-
-  &:hover,
-  &:focus-visible {
-    text-decoration: underline;
-  }
-}
-
 .muted {
   color: var(--mat-sys-on-surface-variant);
 }

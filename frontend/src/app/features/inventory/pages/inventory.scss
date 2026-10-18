@@ -56,17 +56,6 @@
   color: var(--pan-status-red-fg);
 }
 
-.row-link {
-  color: var(--mat-sys-primary);
-  font-weight: 600;
-  text-decoration: none;
-
-  &:hover,
-  &:focus-visible {
-    text-decoration: underline;
-  }
-}
-
 .entry {
   color: var(--pan-status-green-fg);
   font-weight: 600;

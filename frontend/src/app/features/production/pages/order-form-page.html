@@ -1,0 +1,159 @@
+<app-page-header
+  [title]="order() ? 'Editar orden ' + order()!.folio : 'Nueva orden de producción'"
+/>
+
+@if (!id() || order()) {
+  <form
+    id="order-form"
+    class="layout pan-has-action-bar"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    novalidate
+  >
+    <section class="pan-card" aria-labelledby="order-data">
+      <h2 id="order-data">Datos de la orden</h2>
+      <div class="fields">
+        <mat-form-field>
+          <mat-label>Planta</mat-label>
+          <mat-select formControlName="locationId">
+            @for (plant of plants(); track plant.id) {
+              <mat-option [value]="plant.id">{{ plant.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-error>{{ controlError(form.controls.locationId) }}</mat-error>
+        </mat-form-field>
+        <app-item-picker
+          class="wide"
+          formControlName="output"
+          label="Producto"
+          [types]="outputTypes"
+        />
+        @if (noRecipe()) {
+          <p class="wide warning" role="alert">
+            <mat-icon aria-hidden="true">warning</mat-icon>
+            {{ form.controls.output.value?.sku }} no tiene receta activa: créala antes de programar
+            la orden.
+            @if (canManageRecipes) {
+              <a routerLink="/produccion/recetas/nueva">Crear receta</a>
+            }
+          </p>
+        } @else if (recipe.hasValue() && recipe.value(); as active) {
+          <p class="wide muted">
+            Receta v{{ active.recipeVersion }}: rinde
+            {{ active.yieldQty | qty: active.outputUomCode }}.
+            <a [routerLink]="['/produccion/recetas', active.id]">Ver receta</a>
+          </p>
+        }
+        <app-qty-input
+          formControlName="plannedQty"
+          label="Cantidad a producir"
+          [unit]="form.controls.output.value?.baseUomCode ?? null"
+        />
+        <mat-form-field>
+          <mat-label>Fecha</mat-label>
+          <input matInput [matDatepicker]="date" formControlName="scheduledDate" />
+          <mat-datepicker-toggle matIconSuffix [for]="date" />
+          <mat-datepicker #date />
+          <mat-error>{{ controlError(form.controls.scheduledDate) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Área</mat-label>
+          <mat-select formControlName="productionAreaId">
+            <mat-option [value]="null">Sin área</mat-option>
+            @for (area of areas.value(); track area.id) {
+              <mat-option [value]="area.id">{{ area.name }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>Por omisión, la del producto.</mat-hint>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Turno</mat-label>
+          <mat-select formControlName="shift">
+            <mat-option [value]="null">Sin turno</mat-option>
+            @for (option of shifts; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field class="wide">
+          <mat-label>Notas</mat-label>
+          <input matInput formControlName="notes" />
+          <mat-error>{{ controlError(form.controls.notes) }}</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section class="pan-card" aria-labelledby="order-explosion" aria-live="polite">
+      <h2 id="order-explosion">Componentes y disponibilidad</h2>
+      @if (explosion.value(); as e) {
+        @if (e.canProduce === false) {
+          <p class="warning">
+            <mat-icon aria-hidden="true">warning</mat-icon>
+            Hay faltantes en la planta para producir
+            {{ e.quantity | qty: form.controls.output.value?.baseUomCode }}. Puedes guardar la
+            orden; el cierre no podrá consumir lo que falte.
+          </p>
+        }
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Componente</th>
+                <th scope="col" class="end">Merma</th>
+                <th scope="col" class="end">Teórico</th>
+                <th scope="col" class="end">Disponible</th>
+                <th scope="col" class="end">Faltante</th>
+                <th scope="col" class="end">Costo estimado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of e.lines; track line.componentItemId) {
+                <tr>
+                  <td>
+                    <strong>{{ line.sku }}</strong> {{ line.name }}
+                    @if (line.hasRecipe) {
+                      <span class="muted">· semiterminado con receta</span>
+                    }
+                  </td>
+                  <td class="end">{{ line.wastePct }} %</td>
+                  <td class="end">{{ line.theoreticalQty | qty: line.baseUomCode }}</td>
+                  <td class="end">{{ line.available | qty: line.baseUomCode }}</td>
+                  <td class="end" [class.exit]="(line.shortage ?? 0) > 0">
+                    {{ (line.shortage ?? 0) > 0 ? (line.shortage | qty: line.baseUomCode) : '—' }}
+                  </td>
+                  <td class="end">{{ line.estimatedCost | mxn }}</td>
+                </tr>
+              }
+            </tbody>
+            @if (e.estimatedTotalCost !== null) {
+              <tfoot>
+                <tr>
+                  <th scope="row" colspan="5" class="end">
+                    Costo estimado ({{ e.estimatedUnitCost | mxn }} por
+                    {{ form.controls.output.value?.baseUomCode }})
+                  </th>
+                  <td class="end">
+                    <strong>{{ e.estimatedTotalCost | mxn }}</strong>
+                  </td>
+                </tr>
+              </tfoot>
+            }
+          </table>
+        </div>
+      } @else if (explosion.isLoading()) {
+        <p class="muted" role="status">Calculando…</p>
+      } @else {
+        <p class="muted">Elige el producto y la cantidad para ver lo que se consumirá.</p>
+      }
+    </section>
+  </form>
+
+  <div class="pan-action-bar">
+    <button matButton type="button" (click)="back()">Cancelar</button>
+    <button matButton="filled" type="submit" form="order-form" [disabled]="saving() || noRecipe()">
+      Guardar borrador
+    </button>
+  </div>
+} @else {
+  <p role="status">Cargando…</p>
+}

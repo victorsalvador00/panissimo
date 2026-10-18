@@ -19,7 +19,13 @@ const ROUTES: Record<string, string> = {
 };
 
 /** Screens already built (they grow task by task, frontend §11). */
-const AVAILABLE = new Set(['Adjustment', 'PhysicalCount', 'Consumption', 'Transfer']);
+const AVAILABLE = new Set([
+  'Adjustment',
+  'PhysicalCount',
+  'Consumption',
+  'Transfer',
+  'ProductionOrder',
+]);
 
 export function documentLink(docType: string, id: string): string[] | null {
   const route = ROUTES[docType];

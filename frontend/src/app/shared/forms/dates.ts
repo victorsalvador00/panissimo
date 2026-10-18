@@ -5,6 +5,13 @@ export function toIsoDate(date: Date | null | undefined): string | null {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/** Local date of a `yyyy-MM-dd` (DateOnly of the API), without the UTC shift of `new Date(iso)`. */
+export function fromIsoDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 /** Start of the local day as an instant, for `from` filters. */
 export function startOfDayIso(date: Date | null | undefined): string | null {
   if (!date) return null;

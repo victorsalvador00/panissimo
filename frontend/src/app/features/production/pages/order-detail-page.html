@@ -1,0 +1,260 @@
+@if (order(); as o) {
+  <app-page-header [title]="'Orden ' + o.folio">
+    <app-status-tag [value]="o.status" kind="ProductionOrderStatus" />
+  </app-page-header>
+
+  <div class="layout" [class.pan-has-action-bar]="actions().length > 0">
+    <section class="pan-card head">
+      <dl class="data">
+        <dt>Producto</dt>
+        <dd>
+          <strong>{{ o.sku }}</strong> {{ o.itemName }}
+        </dd>
+        <dt>Receta</dt>
+        <dd>
+          <a [routerLink]="['/produccion/recetas', o.recipeId]">v{{ o.recipeVersion }}</a>
+        </dd>
+        <dt>Planta</dt>
+        <dd>{{ o.locationCode }}</dd>
+        <dt>Fecha</dt>
+        <dd>{{ o.scheduledDate | date: 'dd/MM/yyyy' }}</dd>
+        <dt>Área y turno</dt>
+        <dd>
+          {{ o.productionAreaName ?? 'Sin área' }} ·
+          {{ o.shift ? (o.shift | statusLabel: 'Shift') : 'sin turno' }}
+        </dd>
+        <dt>Origen</dt>
+        <dd>
+          {{ o.source | statusLabel: 'ProductionOrderSource' }}
+          @if (o.importId) {
+            ·
+            <a
+              routerLink="/produccion/ordenes"
+              [queryParams]="{ importId: o.importId, tab: 'All' }"
+            >
+              {{ o.importFolio ?? 'ver la importación' }}
+            </a>
+          }
+        </dd>
+        @if (o.notes) {
+          <dt>Notas</dt>
+          <dd>{{ o.notes }}</dd>
+        }
+        <dt>Creada</dt>
+        <dd><app-stamp [at]="o.createdAt" [by]="o.createdByName" /></dd>
+        @if (o.releasedAt) {
+          <dt>Liberada</dt>
+          <dd><app-stamp [at]="o.releasedAt" [by]="o.releasedByName" /></dd>
+        }
+      </dl>
+      <div class="progress">
+        <app-progress-meter
+          [done]="o.producedQty"
+          [total]="o.plannedQty"
+          [unit]="o.baseUomCode"
+          label="Producido de lo planeado"
+        />
+        <p class="muted">
+          {{ o.closeCount }} {{ o.closeCount === 1 ? 'cierre' : 'cierres' }}
+          @if (o.pendingQty > 0 && open()) {
+            · faltan {{ o.pendingQty | qty: o.baseUomCode }}
+          }
+        </p>
+        @if (o.exceedsTolerance) {
+          <p class="over">Lo producido supera la tolerancia de lo planeado.</p>
+        }
+      </div>
+    </section>
+
+    @if (o.status === 'Completed') {
+      <section class="pan-card" aria-labelledby="order-result">
+        <h2 id="order-result">Resultado</h2>
+        <dl class="data">
+          <dt>Producido</dt>
+          <dd>
+            {{ o.producedQty | qty: o.baseUomCode }} de {{ o.plannedQty | qty: o.baseUomCode }}
+            planeado
+          </dd>
+          @if (o.shortfallReason) {
+            <dt>Motivo del faltante</dt>
+            <dd>
+              {{ o.shortfallReason | statusLabel: 'ShortfallReason' }}
+              @if (o.shortfallNotes) {
+                · {{ o.shortfallNotes }}
+              }
+            </dd>
+          }
+          <dt>Costo total</dt>
+          <dd>{{ o.totalCost | mxn }}</dd>
+          <dt>Costo unitario</dt>
+          <dd>{{ o.unitCost | mxn }} por {{ o.baseUomCode }}</dd>
+          <dt>Merma total</dt>
+          <dd>{{ wasteTotal() | mxn }}</dd>
+          @if (o.completedAt) {
+            <dt>Completada</dt>
+            <dd><app-stamp [at]="o.completedAt" [by]="o.completedByName" /></dd>
+          }
+        </dl>
+      </section>
+    }
+
+    <section class="pan-card">
+      <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms">
+        <mat-tab label="Componentes">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Componente</th>
+                  <th scope="col" class="end">Teórico</th>
+                  <th scope="col" class="end">Real acumulado</th>
+                  <th scope="col" class="end">Merma</th>
+                  @if (open()) {
+                    <th scope="col" class="end">Disponible</th>
+                    <th scope="col" class="end">Faltante</th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of o.lines; track line.id) {
+                  <tr>
+                    <td>
+                      <strong>{{ line.sku }}</strong> {{ line.name }}
+                      <span class="muted">· {{ line.type | statusLabel: 'ItemType' }}</span>
+                    </td>
+                    <td class="end">{{ line.theoreticalQty | qty: line.baseUomCode }}</td>
+                    <td class="end">{{ line.actualQty | qty: line.baseUomCode }}</td>
+                    <td class="end">
+                      {{ waste(line) === null ? '—' : (waste(line) | qty: line.baseUomCode) }}
+                    </td>
+                    @if (open()) {
+                      <td class="end">{{ line.available | qty: line.baseUomCode }}</td>
+                      <td class="end" [class.exit]="(line.shortage ?? 0) > 0">
+                        {{
+                          (line.shortage ?? 0) > 0 ? (line.shortage | qty: line.baseUomCode) : '—'
+                        }}
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </mat-tab>
+
+        <mat-tab [label]="'Cierres (' + o.closeCount + ')'">
+          @if (closes.value().length > 0) {
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Folio</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">Fecha</th>
+                    <th scope="col" class="end">Producido</th>
+                    <th scope="col">Lote</th>
+                    <th scope="col" class="end">Costo unitario</th>
+                    <th scope="col" class="end">Merma</th>
+                    <th scope="col">Registró</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (close of closes.value(); track close.id) {
+                    <tr>
+                      <td>{{ close.folio }}</td>
+                      <td>{{ close.kind | statusLabel: 'ProductionCloseKind' }}</td>
+                      <td>{{ close.closedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                      <td class="end">{{ close.producedQty | qty: close.baseUomCode }}</td>
+                      <td>{{ close.outputLotNumber ?? '—' }}</td>
+                      <td class="end">{{ close.unitCost | mxn }}</td>
+                      <td class="end">{{ close.wasteCost | mxn }}</td>
+                      <td>{{ close.closedByName ?? '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="muted empty">Todavía no hay cierres.</p>
+          }
+        </mat-tab>
+
+        <mat-tab [label]="'Pedidos (' + o.demands.length + ')'">
+          @if (o.demands.length > 0) {
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Pedido</th>
+                    <th scope="col">Tipo</th>
+                    <th scope="col">Para</th>
+                    <th scope="col">Requerido</th>
+                    <th scope="col" class="end">Cantidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (demand of o.demands; track demand.demandLineId) {
+                    <tr>
+                      <td>
+                        @if (demandLink(demand.demandType, demand.documentId); as link) {
+                          <a [routerLink]="link">{{ demand.folio }}</a>
+                        } @else {
+                          {{ demand.folio }}
+                        }
+                      </td>
+                      <td>{{ demand.demandType | statusLabel: 'DemandType' }}</td>
+                      <td>{{ demand.partyName }}</td>
+                      <td>{{ demand.requiredDate | date: 'dd/MM/yyyy' }}</td>
+                      <td class="end">{{ demand.quantity | qty: o.baseUomCode }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="muted empty">Esta orden no atiende pedidos.</p>
+          }
+        </mat-tab>
+
+        <mat-tab label="Historial">
+          <ng-template matTabContent>
+            <app-audit-panel [entityId]="o.id" />
+          </ng-template>
+        </mat-tab>
+      </mat-tab-group>
+    </section>
+  </div>
+
+  @if (actions().length > 0) {
+    <div class="pan-action-bar">
+      @if (has('cancel')) {
+        <button matButton type="button" [disabled]="busy()" (click)="cancel(o)">
+          Cancelar orden
+        </button>
+      }
+      @if (has('edit')) {
+        <a matButton="tonal" routerLink="editar">
+          <mat-icon>edit</mat-icon>
+          Editar
+        </a>
+      }
+      @if (has('release')) {
+        <button matButton="filled" type="button" [disabled]="busy()" (click)="release(o)">
+          Liberar
+        </button>
+      }
+      @if (has('closePartial')) {
+        <a matButton="tonal" routerLink="cerrar" [queryParams]="{ tipo: 'parcial' }">
+          Cierre parcial
+        </a>
+      }
+      @if (has('closeFinal')) {
+        <a matButton="filled" routerLink="cerrar" [queryParams]="{ tipo: 'final' }">
+          Cierre final
+        </a>
+      }
+    </div>
+  }
+} @else if (resource.isLoading()) {
+  <p role="status">Cargando…</p>
+}

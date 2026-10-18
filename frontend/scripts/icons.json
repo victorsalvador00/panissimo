@@ -10,6 +10,7 @@
   "calculate",
   "category",
   "chevron_right",
+  "close",
   "cloud_done",
   "construction",
   "content_copy",
@@ -61,5 +62,6 @@
   "tune",
   "upload_file",
   "visibility",
-  "visibility_off"
+  "visibility_off",
+  "warning"
 ]

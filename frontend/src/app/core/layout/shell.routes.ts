@@ -79,6 +79,12 @@ export const SHELL_ROUTES: Routes = [
           import('../../features/logistics/logistics.routes').then((m) => m.LOGISTICS_ROUTES),
       },
       {
+        path: 'compras',
+        data: { breadcrumb: 'Compras' },
+        loadChildren: () =>
+          import('../../features/purchasing/purchasing.routes').then((m) => m.PURCHASING_ROUTES),
+      },
+      {
         path: 'admin',
         data: { breadcrumb: 'Administración' },
         loadChildren: () => import('../../features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),

@@ -19,6 +19,7 @@
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
 - Frontend F-15..F-24.
+- **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
@@ -62,6 +63,7 @@
 | 4 | B-26d Totales por ubicación | ✅ | (ver `git log`) |
 | 4 | B-21 Requerimiento de materia prima | ✅ | (ver `git log`) |
 | 5 | B-22..B-25 Tablero, costos y análisis, fotos, endurecimiento | ⏳ | |
+| + | B-28 Trazabilidad de lotes (`docs/specs/trazabilidad.md`) | ⏳ | |
 
 ## Frontend
 
@@ -85,6 +87,7 @@
 | 3 | F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
+| + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
 
 ## Notas por tarea
 
@@ -354,6 +357,8 @@
 ## Pendientes y decisiones abiertas
 
 - D-01..D-09 decididas el 2026-10-17 (dominio §8); retrabajo en B-27 y B-26. D-10 abierta (no bloquea: semilla y capacitación).
+- D-11 (trazabilidad: qué roles la consultan y si las sucursales ven la cadena completa) abierta con propuesta en `docs/specs/trazabilidad.md` §8; se registra en `dominio.md` §8 al hacer B-28.
+- `docs/specs/trazabilidad.md` numeraba sus tareas B-26 y F-25, que ya existían (subalmacenes y vales internos): se renumeraron a **B-28** y **F-26** (los siguientes consecutivos), a pedido del usuario. D-11, RN-100..RN-109 y la E2E 17 no chocan con nada.
 - Falta la lista real de sucursales para `deploy/seed/locations.csv` (D-01).
 
 ### F-01 (2026-10-17)

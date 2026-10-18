@@ -20,6 +20,10 @@ export type ProductionOrderTab = ApiEnum<'ProductionOrderTab'>;
 export type ProductionCloseListItem = Schemas['ProductionCloseListItemDto'];
 export type ProductionClose = Schemas['ProductionCloseDto'];
 export type ClosePreview = Schemas['ClosePreviewDto'];
+export type ImportPreview = Schemas['ImportPreviewDto'];
+export type ImportResult = Schemas['ImportResultDto'];
+export type OrderImport = Schemas['ProductionOrderImportDto'];
+export type OrderImportListItem = Schemas['ProductionOrderImportListItemDto'];
 
 /** Versioned recipes (`/recipes`, RN-10). */
 @Injectable({ providedIn: 'root' })
@@ -135,5 +139,41 @@ export class ProductionClosesApi {
 
   get(id: string): Observable<ProductionClose> {
     return this.http.get<ProductionClose>(`production-closes/${id}`);
+  }
+}
+
+/** Production orders from Excel (`/production-order-imports`, RN-90..RN-95): all or nothing, warnings confirmed. */
+@Injectable({ providedIn: 'root' })
+export class OrderImportsApi {
+  private readonly http = inject(HttpClient);
+
+  template(): Observable<Blob> {
+    return this.http.get('production-order-imports/template', { responseType: 'blob' });
+  }
+
+  /** Validates without saving: errors by row and column, warnings and the orders to create. */
+  validate(file: File): Observable<ImportPreview> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<ImportPreview>('production-order-imports/validate', form);
+  }
+
+  /** Revalidates and creates the orders; 400 with `rowErrors`, 422 when the warnings were not confirmed. */
+  import(file: File, confirmWarnings: boolean, releaseOnImport: boolean): Observable<ImportResult> {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('confirmWarnings', String(confirmWarnings));
+    form.append('releaseOnImport', String(releaseOnImport));
+    return this.http.post<ImportResult>('production-order-imports', form);
+  }
+
+  list(query: ListQuery): Observable<Page<OrderImportListItem>> {
+    return this.http.get<Page<OrderImportListItem>>('production-order-imports', {
+      params: toHttpParams(query),
+    });
+  }
+
+  get(id: string): Observable<OrderImport> {
+    return this.http.get<OrderImport>(`production-order-imports/${id}`);
   }
 }

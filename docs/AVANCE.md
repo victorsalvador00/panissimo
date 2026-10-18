@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-11, cierres de producción).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-12, importación de OP).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-11 terminadas (fase 1 completa) (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-12 terminadas (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-12 (importación de OP desde Excel con `app-xlsx-import` e historial) según `docs/specs/frontend.md` §11; F-25 (vales internos) también es de la fase 2. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-25 (★ vales internos entre subalmacenes), que cierra la fase 2 del frontend; después la fase 3 desde F-13 (proveedores) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-12..F-24 y F-25 (vales internos, fase 2).
+- Frontend F-25 (vales internos, fase 2) y F-13..F-24.
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-12). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-25). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -78,7 +78,8 @@
 | 2 | F-09 Recetas | ✅ | (ver `git log`) |
 | 2 | F-10 Órdenes de producción | ✅ | (ver `git log`) |
 | 2 | F-11 Cierres de producción | ✅ | (ver `git log`) |
-| 2 | F-12, F-25 (vales internos) | ⏳ | |
+| 2 | F-12 Importación de OP desde Excel | ✅ | (ver `git log`) |
+| 2 | F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
@@ -483,3 +484,12 @@
 - **Corrección de backend (B-26d):** la explosión (RN-12) y la vista previa del cierre costeaban con el costo promedio de la planta misma, que es 0 cuando la existencia está en sus subalmacenes. Ahora usan `InventoryLocations.AverageCostsAsync` (promedio ponderado por existencia de la planta y sus subalmacenes, como el renglón total de Existencias). Prueba de integración `Explosion_and_close_preview_cost_the_components_of_the_plant_warehouses`. Backend: 230 unitarias y 150 de integración en verde.
 - **E2E 7 en verde** (suite 19/19): liberar → cierre parcial de 10 kg a 1024 px (consumo 6 kg) → cierre parcial de 5 kg a 390 px sin scroll horizontal (subalmacenes recordados) → cierre final de 3 kg con motivo "Falta de insumo" → Terminada con 3 cierres → los lotes `{folio}-01..03` en Existencias. **Mueve inventario**: mete 20 kg de `E2E-HARINA` en PLANTA-MP y produce 18 kg de `E2E-MASA-L` (artículo con lotes, vida útil 3 días) por corrida.
 - Pruebas: 104 unitarias (tipo de cierre, motivo, tolerancia, costos y merma). Sin paquetes nuevos.
+
+### F-12 (2026-10-17)
+
+- **`app-xlsx-import`** (`shared/components/xlsx-import`, §7.4.4): importación de Excel en 3 pasos validada en el servidor. 1) "Descargar plantilla" (la del backend, `downloadBlob` nuevo en `shared/data-access/csv.ts`) y archivo `.xlsx` de hasta 5 MB (botón o arrastrar y soltar), que se envía a `validate`; 2) revisión: con errores, tabla filtrable (fila, columna, mensaje) y solo "Elegir otro archivo"; sin errores, el contenido proyectado `[preview]` y los avisos con la casilla **"Entiendo los avisos y quiero continuar"** (`canImport`: los errores bloquean y los avisos exigen la casilla); 3) resultado proyectado `[result]`. El archivo queda en memoria para reenviarlo (el servidor revalida; un 400 con `rowErrors` regresa a la revisión).
+- **Importar OP** (`/produccion/importar`, RN-90..RN-95): "N filas → M órdenes", tabla de órdenes a crear (filas, fecha, producto, cantidad, área y turno, planta, receta), **"Liberar las órdenes al importar"** solo con `production.orders.manage`; resultado con folio `IMP-…`, órdenes creadas, "Ver órdenes" (lista filtrada por la importación) y "Ver la importación"; botón "Historial".
+- **Historial** (`/produccion/importaciones`, `/:id`): fecha, archivo, filas, órdenes, liberadas y quién; detalle con huella SHA-256 y sus OP con su estado actual. El origen "Importación" del detalle de OP y el kardex enlazan a la importación.
+- Fixtures `e2e/fixtures/ordenes-con-errores.xlsx` y `ordenes-validas.xlsx` generados por `frontend/scripts/e2e-fixtures.py` (**openpyxl 3.1.5, MIT, herramienta local** como Pillow; no es dependencia del proyecto; fechas 2030 para no caducar).
+- **E2E 8 en verde** (suite 20/20): archivo con errores → tabla de 3 errores y sin botón de importar; archivo válido con columna desconocida → 3 filas → 2 órdenes, importar deshabilitado hasta marcar la casilla → "2 órdenes creadas en borrador" → "Ver órdenes" muestra 2. Pasa también en la segunda corrida (aviso de archivo ya importado y de OP existentes). No mueve inventario; cada corrida deja 2 OP en borrador de `E2E-MASA` para el 30 y 31/12/2030.
+- Pruebas: 108 unitarias (`app-xlsx-import`: errores bloquean, avisos exigen casilla, solo `.xlsx`). Sin paquetes npm nuevos.

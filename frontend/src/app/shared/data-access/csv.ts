@@ -64,7 +64,12 @@ export function downloadText(
   text: string,
   type = 'text/csv;charset=utf-8',
 ): void {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+  downloadBlob(fileName, new Blob([text], { type }));
+}
+
+/** Saves a file the backend generated (an Excel template…). */
+export function downloadBlob(fileName: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = fileName;

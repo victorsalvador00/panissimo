@@ -1,0 +1,131 @@
+@switch (step()) {
+  @case ('file') {
+    <section class="pan-card step" aria-labelledby="xlsx-step-file">
+      <h2 id="xlsx-step-file">1. Archivo</h2>
+      <p>Descarga la plantilla, llénala en Excel y elige el archivo (.xlsx, máximo 5 MB).</p>
+      <button matButton="tonal" type="button" (click)="downloadTemplate()">
+        <mat-icon>download</mat-icon>
+        Descargar plantilla
+      </button>
+      <div
+        class="drop"
+        [class.dragging]="dragging()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="dragging.set(false)"
+        (drop)="onDrop($event)"
+      >
+        <input
+          #fileInput
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          class="pan-sr-only"
+          tabindex="-1"
+          aria-hidden="true"
+          (change)="choose(fileInput)"
+        />
+        <mat-icon class="drop-icon" aria-hidden="true">upload_file</mat-icon>
+        <button matButton="filled" type="button" [disabled]="busy()" (click)="fileInput.click()">
+          Elegir archivo de Excel
+        </button>
+        <span class="muted hint">o arrástralo aquí</span>
+      </div>
+      @if (busy()) {
+        <p role="status">Revisando {{ file()?.name }}…</p>
+      }
+      @if (failure(); as failure) {
+        <p class="error" role="alert">{{ failure }}</p>
+      }
+    </section>
+  }
+
+  @case ('review') {
+    @if (preview(); as p) {
+      <section class="pan-card step" aria-labelledby="xlsx-step-review">
+        <h2 id="xlsx-step-review">2. Revisión de {{ file()?.name }}</h2>
+        @if (p.errors.length > 0) {
+          <p class="error" role="alert">
+            {{ p.errors.length }} {{ p.errors.length === 1 ? 'error' : 'errores' }}: corrige el
+            archivo y vuelve a elegirlo. No se importó nada.
+          </p>
+          <mat-form-field class="filter">
+            <mat-label>Filtrar errores</mat-label>
+            <input
+              matInput
+              type="search"
+              [value]="errorFilter()"
+              (input)="errorFilter.set($any($event.target).value)"
+            />
+          </mat-form-field>
+          <div class="table-wrap">
+            <table aria-label="Errores del archivo">
+              <thead>
+                <tr>
+                  <th scope="col">Fila</th>
+                  <th scope="col">Columna</th>
+                  <th scope="col">Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (error of errors(); track $index) {
+                  <tr>
+                    <td>{{ error.row }}</td>
+                    <td>{{ error.column ?? '—' }}</td>
+                    <td>{{ error.message }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <ng-content select="[preview]" />
+          @if (p.warnings.length > 0) {
+            <div class="warnings" role="alert">
+              <h3>Avisos</h3>
+              <ul>
+                @for (warning of p.warnings; track $index) {
+                  <li>
+                    @if (warning.row) {
+                      Fila {{ warning.row }}:
+                    }
+                    {{ warning.message }}
+                  </li>
+                }
+              </ul>
+              <mat-checkbox [checked]="acknowledged()" (change)="acknowledged.set($event.checked)">
+                Entiendo los avisos y quiero continuar
+              </mat-checkbox>
+            </div>
+          }
+        }
+        @if (failure(); as failure) {
+          <p class="error" role="alert">{{ failure }}</p>
+        }
+        <div class="buttons">
+          <button matButton type="button" [disabled]="busy()" (click)="restart()">
+            Elegir otro archivo
+          </button>
+          @if (p.errors.length === 0) {
+            <button
+              matButton="filled"
+              type="button"
+              [disabled]="busy() || !ready()"
+              (click)="send()"
+            >
+              {{ busy() ? 'Importando…' : submitLabel() }}
+            </button>
+          }
+        </div>
+      </section>
+    }
+  }
+
+  @case ('done') {
+    <section class="pan-card step" aria-labelledby="xlsx-step-done">
+      <h2 id="xlsx-step-done">3. Resultado</h2>
+      <ng-content select="[result]" />
+      <div class="buttons">
+        <button matButton type="button" (click)="restart()">Importar otro archivo</button>
+      </div>
+    </section>
+  }
+}

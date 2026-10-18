@@ -28,10 +28,7 @@
           {{ o.source | statusLabel: 'ProductionOrderSource' }}
           @if (o.importId) {
             ·
-            <a
-              routerLink="/produccion/ordenes"
-              [queryParams]="{ importId: o.importId, tab: 'All' }"
-            >
+            <a [routerLink]="['/produccion/importaciones', o.importId]">
               {{ o.importFolio ?? 'ver la importación' }}
             </a>
           }

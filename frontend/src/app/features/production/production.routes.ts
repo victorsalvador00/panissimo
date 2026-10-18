@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Production (frontend §7.4). F-12 onward adds the import and the plan. */
+/** Production (frontend §7.4). F-19 adds the plan and F-21 the summary. */
 export const PRODUCTION_ROUTES: Routes = [
   {
     path: 'recetas',
@@ -82,6 +82,31 @@ export const PRODUCTION_ROUTES: Routes = [
         title: 'Cierre · SGO Paníssimo',
         data: { breadcrumb: 'Cierre' },
         loadComponent: () => import('./pages/close-detail-page').then((m) => m.CloseDetailPage),
+      },
+    ],
+  },
+  {
+    path: 'importar',
+    title: 'Importar órdenes · SGO Paníssimo',
+    canActivate: [permissionGuard],
+    data: { permission: 'production.orders.import', breadcrumb: 'Importar órdenes' },
+    loadComponent: () => import('./pages/orders-import-page').then((m) => m.OrdersImportPage),
+  },
+  {
+    path: 'importaciones',
+    canActivate: [permissionGuard],
+    data: { permission: 'production.view', breadcrumb: 'Importaciones' },
+    children: [
+      {
+        path: '',
+        title: 'Importaciones de órdenes · SGO Paníssimo',
+        loadComponent: () => import('./pages/imports-list-page').then((m) => m.ImportsListPage),
+      },
+      {
+        path: ':id',
+        title: 'Importación · SGO Paníssimo',
+        data: { breadcrumb: 'Importación' },
+        loadComponent: () => import('./pages/import-detail-page').then((m) => m.ImportDetailPage),
       },
     ],
   },

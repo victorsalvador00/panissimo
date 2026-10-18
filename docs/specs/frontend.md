@@ -29,6 +29,7 @@ SPA para operar Paníssimo desde computadora, tableta y celular:
 | Calidad | `angular-eslint`, Prettier | MIT |
 | Herramienta local de íconos | Python `fonttools` + `brotli` (`pip install fonttools brotli`) | MIT |
 | Herramienta local de logo y favicon | Python `pillow` (`pip install pillow`), solo para `scripts/brand-assets.py` | MIT-CMU |
+| Herramienta local de fixtures Excel de las E2E | Python `openpyxl` (`pip install openpyxl`), solo para `scripts/e2e-fixtures.py` | MIT |
 
 Node ≥ 24.15 (lo exige Angular 22). Antes de agregar un paquete npm, verifica su licencia en la versión exacta y menciónala en el resumen de la tarea.
 

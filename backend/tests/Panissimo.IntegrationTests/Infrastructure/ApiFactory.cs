@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Panissimo.Application.Common;
 using Panissimo.Application.Security;
 using Panissimo.Domain.Security;
 using Panissimo.Infrastructure.Identity;
@@ -20,6 +21,12 @@ namespace Panissimo.IntegrationTests.Infrastructure;
 /// </summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    /// <summary>
+    /// Today's business date, as the server computes it (Mexico City). Never UTC: after 6 pm in Mexico UTC is
+    /// already the next day, and expiry or "past date" rules would disagree with the server.
+    /// </summary>
+    public static DateOnly Today => BusinessCalendar.ToBusinessDate(DateTimeOffset.UtcNow);
+
     public const string AdminEmail = "admin@panissimo.test";
     public const string AdminPassword = "Administrador2026";
     public const string DefaultPassword = "Contrasena2026";

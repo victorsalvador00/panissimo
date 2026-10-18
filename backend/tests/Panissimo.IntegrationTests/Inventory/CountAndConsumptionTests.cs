@@ -10,8 +10,7 @@ namespace Panissimo.IntegrationTests.Inventory;
 [Collection(ApiCollection.Name)]
 public class CountAndConsumptionTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTime.UtcNow,
-        TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City")));
+    private static DateOnly Today => ApiFactory.Today;
 
     /// <summary>A branch of its own so counts of other tests (one in progress per location) do not interfere.</summary>
     private async Task<Guid> NewBranchAsync(HttpClient admin)

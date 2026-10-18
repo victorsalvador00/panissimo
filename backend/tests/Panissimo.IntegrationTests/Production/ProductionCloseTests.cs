@@ -15,8 +15,7 @@ namespace Panissimo.IntegrationTests.Production;
 [Collection(ApiCollection.Name)]
 public class ProductionCloseTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTime.UtcNow,
-        TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City")));
+    private static DateOnly Today => ApiFactory.Today;
 
     private sealed record Setup(Guid Plant, Item Bread, Item Flour, Item Bag, ProductionOrderDto Order);
 

@@ -18,8 +18,7 @@ namespace Panissimo.IntegrationTests.Inventory;
 [Collection(ApiCollection.Name)]
 public class StockAndAdjustmentTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTime.UtcNow,
-        TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City")));
+    private static DateOnly Today => ApiFactory.Today;
 
     private static AdjustmentLineRequest Line(Guid itemId, decimal qty, decimal? cost = null, string? lot = null, DateOnly? expiration = null) =>
         new(itemId, null, lot, expiration, qty, cost, null);
@@ -194,7 +193,7 @@ public class StockAndAdjustmentTests(ApiFactory factory)
         var admin = await factory.LoginAsAdminAsync();
         var plant = await factory.LocationIdAsync("PLANTA");
         var bread = await factory.CreateItemAsync("CONCHA", ItemType.FinishedGood, "pza", tracksLots: true, shelfLifeDays: 3);
-        await factory.AddStockAsync(plant, bread.Id, 10, 4m, "L-1", DateOnly.FromDateTime(DateTime.UtcNow).AddDays(2));
+        await factory.AddStockAsync(plant, bread.Id, 10, 4m, "L-1", ApiFactory.Today.AddDays(2));
 
         var response = await admin.PostJsonAsync("/api/v1/adjustments", new CreateAdjustmentRequest(plant, AdjustmentReason.CustomerReturn,
             "Rechazo de Cafeterías", [new AdjustmentLineRequest(bread.Id, null, "L-1", null, 12, null, "Remisión RM-000010", 5, AdjustmentReason.Damaged)]));

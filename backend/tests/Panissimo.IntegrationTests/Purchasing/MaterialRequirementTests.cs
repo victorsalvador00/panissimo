@@ -11,7 +11,7 @@ namespace Panissimo.IntegrationTests.Purchasing;
 [Collection(ApiCollection.Name)]
 public class MaterialRequirementTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
+    private static DateOnly Today => ApiFactory.Today;
 
     private static async Task<T> OkAsync<T>(Task<HttpResponseMessage> call)
     {

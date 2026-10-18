@@ -15,7 +15,7 @@ namespace Panissimo.IntegrationTests.Inventory;
 [Collection(ApiCollection.Name)]
 public class WarehouseTotalsTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
+    private static DateOnly Today => ApiFactory.Today;
     private static string Code(string prefix) => $"{prefix}{Guid.NewGuid():N}"[..(prefix.Length + 5)].ToUpperInvariant();
 
     private static async Task<LocationDto> LocationAsync(HttpClient admin, CreateLocationRequest request) =>

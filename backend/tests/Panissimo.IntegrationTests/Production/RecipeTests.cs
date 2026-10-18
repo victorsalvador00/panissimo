@@ -12,8 +12,7 @@ namespace Panissimo.IntegrationTests.Production;
 [Collection(ApiCollection.Name)]
 public class RecipeTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTime.UtcNow,
-        TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City")));
+    private static DateOnly Today => ApiFactory.Today;
 
     private async Task<(Item Bread, Item Flour, Item Bag, RecipeDto Recipe)> BreadRecipeAsync(HttpClient admin)
     {

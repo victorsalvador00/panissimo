@@ -11,7 +11,7 @@ namespace Panissimo.IntegrationTests.Logistics;
 [Collection(ApiCollection.Name)]
 public class BranchOrderTests(ApiFactory factory)
 {
-    private static DateOnly Tomorrow => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(2);
+    private static DateOnly Tomorrow => ApiFactory.Today.AddDays(2);
 
     private async Task<HttpClient> UserAsync(string role, string location)
     {

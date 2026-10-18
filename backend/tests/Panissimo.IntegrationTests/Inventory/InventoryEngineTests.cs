@@ -137,7 +137,7 @@ public class InventoryEngineTests(ApiFactory factory)
     {
         var plant = await factory.LocationIdAsync("PLANTA");
         var item = await factory.CreateItemAsync("PAN", ItemType.FinishedGood, "pza", tracksLots: true);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = ApiFactory.Today;
         await factory.AddStockAsync(plant, item.Id, 10, 2, "VENCIDO", today.AddDays(-2));
         await factory.AddStockAsync(plant, item.Id, 5, 2, "MANANA", today.AddDays(1));
         await factory.AddStockAsync(plant, item.Id, 5, 2, "SEMANA", today.AddDays(7));

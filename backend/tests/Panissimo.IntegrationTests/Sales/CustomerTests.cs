@@ -13,7 +13,7 @@ public class CustomerTests(ApiFactory factory)
 {
     private const string Letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    private static DateOnly InTwoDays => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(2);
+    private static DateOnly InTwoDays => ApiFactory.Today.AddDays(2);
 
     private static string NewCode() => $"CLI-{Guid.NewGuid():N}"[..12].ToUpperInvariant();
 

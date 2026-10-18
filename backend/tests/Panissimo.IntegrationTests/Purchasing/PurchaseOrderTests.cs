@@ -17,7 +17,7 @@ public class PurchaseOrderTests(ApiFactory factory)
 {
     private const string Letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-    private static DateOnly InAWeek => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(7);
+    private static DateOnly InAWeek => ApiFactory.Today.AddDays(7);
 
     private static string NewTaxId() =>
         string.Concat(Enumerable.Range(0, 3).Select(_ => Letters[Random.Shared.Next(Letters.Length)])) + "980312"

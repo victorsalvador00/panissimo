@@ -14,8 +14,7 @@ namespace Panissimo.IntegrationTests.Production;
 [Collection(ApiCollection.Name)]
 public class ProductionOrderTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTime.UtcNow,
-        TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City")));
+    private static DateOnly Today => ApiFactory.Today;
 
     /// <summary>A finished good in pieces with its default area and an active recipe.</summary>
     private async Task<(Item Bread, Item Flour, Guid AreaId, RecipeDto Recipe)> ProductAsync(HttpClient admin)

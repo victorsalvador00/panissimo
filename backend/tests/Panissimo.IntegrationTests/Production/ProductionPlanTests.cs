@@ -19,7 +19,7 @@ namespace Panissimo.IntegrationTests.Production;
 [Collection(ApiCollection.Name)]
 public class ProductionPlanTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
+    private static DateOnly Today => ApiFactory.Today;
 
     private async Task<Item> ProducedAsync(HttpClient admin, string prefix, ItemType type = ItemType.FinishedGood,
         ItemPresentation? presentation = null, Guid? componentId = null, decimal componentQty = 1)

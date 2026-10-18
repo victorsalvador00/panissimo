@@ -48,7 +48,7 @@ public class InternalTransferTests(ApiFactory factory)
         var admin = await factory.LoginAsAdminAsync();
         var (_, storeroom, showcase) = await BranchAsync(admin);
         var butter = await factory.CreateItemAsync("MAN", tracksLots: true, shelfLifeDays: 30);
-        await factory.AddStockAsync(storeroom.Id, butter.Id, 20, 55m, "L-1", DateOnly.FromDateTime(DateTime.UtcNow).AddDays(20));
+        await factory.AddStockAsync(storeroom.Id, butter.Id, 20, 55m, "L-1", ApiFactory.Today.AddDays(20));
 
         var voucher = await CreateAsync(admin, storeroom.Id, showcase.Id, butter.Id, 12);
         Assert.Equal((TransferKind.Internal, TransferStatus.Draft), (voucher.Kind, voucher.Status));

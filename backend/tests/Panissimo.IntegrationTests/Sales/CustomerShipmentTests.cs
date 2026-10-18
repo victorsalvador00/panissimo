@@ -16,7 +16,7 @@ namespace Panissimo.IntegrationTests.Sales;
 [Collection(ApiCollection.Name)]
 public class CustomerShipmentTests(ApiFactory factory)
 {
-    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
+    private static DateOnly Today => ApiFactory.Today;
 
     private async Task<(Guid Plant, Item Item, CustomerOrderDto Order)> ConfirmedOrderAsync(HttpClient admin, decimal quantity, bool tracksLots = false)
     {

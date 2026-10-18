@@ -1,0 +1,63 @@
+<app-page-header title="Usuarios">
+  <a matButton="filled" routerLink="nuevo">
+    <mat-icon>person_add</mat-icon>
+    Nuevo usuario
+  </a>
+</app-page-header>
+
+<div class="filters">
+  <mat-form-field class="search">
+    <mat-label>Buscar por nombre o correo</mat-label>
+    <input matInput [formControl]="search" type="search" />
+    <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Estado</mat-label>
+    <mat-select [value]="status()" (valueChange)="setStatus($event)">
+      <mat-option value="active">Activos</mat-option>
+      <mat-option value="inactive">Inactivos</mat-option>
+      <mat-option value="all">Todos</mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Rol</mat-label>
+    <mat-select [value]="roleId()" (valueChange)="setRole($event)">
+      <mat-option [value]="null">Todos</mat-option>
+      @for (role of roles.value(); track role.id) {
+        <mat-option [value]="role.id">{{ role.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<app-data-table
+  label="Usuarios"
+  [rows]="rows()"
+  [total]="total()"
+  [query]="query()"
+  [loading]="users.isLoading()"
+  emptyMessage="No hay usuarios con estos filtros."
+  (queryChange)="query.set($event)"
+>
+  <ng-template appCell="fullName" header="Nombre" sortable [appCellOf]="rows()" let-user>
+    <a class="row-link" [routerLink]="user.id">{{ user.fullName }}</a>
+  </ng-template>
+  <ng-template appCell="email" header="Correo" sortable [appCellOf]="rows()" let-user>
+    {{ user.email }}
+  </ng-template>
+  <ng-template appCell="roles" header="Roles" [appCellOf]="rows()" let-user>
+    {{ user.roles.join(', ') }}
+  </ng-template>
+  <ng-template appCell="locations" header="Ubicaciones" [appCellOf]="rows()" let-user>
+    {{ user.locationCodes.join(', ') || '—' }}
+  </ng-template>
+  <ng-template appCell="isActive" header="Estado" sortable [appCellOf]="rows()" let-user>
+    @if (!user.isActive) {
+      <app-status-tag text="Inactivo" color="grey" />
+    } @else if (user.isLockedOut) {
+      <app-status-tag text="Bloqueado" color="red" />
+    } @else {
+      <app-status-tag text="Activo" color="green" />
+    }
+  </ng-template>
+</app-data-table>

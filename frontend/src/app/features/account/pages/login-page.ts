@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
+import { safeReturnUrl } from '../../../core/auth/guards';
 import { toProblem } from '../../../core/http/problem-details';
 import { ThemeMenu } from '../../../core/theme/theme-menu';
 import { controlError } from '../../../shared/forms/control-error';
@@ -60,11 +61,4 @@ export class LoginPage {
       this.submitting.set(false);
     }
   }
-}
-
-/** Only paths of this app: never another site (`//host`) nor the login itself. */
-export function safeReturnUrl(url: string | undefined): string {
-  return url && url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/login')
-    ? url
-    : '/';
 }

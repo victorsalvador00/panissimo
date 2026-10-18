@@ -54,6 +54,11 @@ export const SHELL_ROUTES: Routes = [
             (m) => m.ComponentsDemoPage,
           ),
       },
+      {
+        path: 'admin',
+        data: { breadcrumb: 'Administración' },
+        loadChildren: () => import('../../features/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
+      },
       // Each feature adds its routes with loadChildren and data.permission (permissionGuard) from F-04 on.
       {
         path: '**',

@@ -35,7 +35,7 @@ describe('BreadcrumbsService', () => {
     await TestBed.inject(Router).navigateByUrl('/inventario/ajustes/a1');
     expect(TestBed.inject(BreadcrumbsService).crumbs()).toEqual([
       { label: 'Inicio', url: '/' },
-      { label: 'Inventario', url: '/inventario' },
+      { label: 'Inventario', url: null },
       { label: 'Ajustes', url: '/inventario/ajustes' },
       { label: 'Detalle', url: null },
     ]);

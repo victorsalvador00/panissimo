@@ -1,0 +1,92 @@
+<app-page-header title="Bitácora" />
+
+<form class="filters" [formGroup]="filters" novalidate>
+  <mat-form-field>
+    <mat-label>Entidad</mat-label>
+    <mat-select formControlName="entityType">
+      <mat-option [value]="null">Todas</mat-option>
+      @for (option of entityOptions; track option.value) {
+        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  @if (canPickUser) {
+    <app-lookup-picker
+      formControlName="user"
+      label="Usuario"
+      [search]="searchUsers"
+      [displayWith]="userName"
+      [describeWith]="userEmail"
+    />
+  }
+  <mat-form-field>
+    <mat-label>Desde</mat-label>
+    <input matInput [matDatepicker]="fromPicker" formControlName="from" />
+    <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+    <mat-datepicker #fromPicker />
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Hasta</mat-label>
+    <input matInput [matDatepicker]="toPicker" formControlName="to" />
+    <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+    <mat-datepicker #toPicker />
+  </mat-form-field>
+  <div class="clear">
+    <button matButton type="button" (click)="clear()">Limpiar filtros</button>
+  </div>
+</form>
+
+<app-data-table
+  label="Bitácora de cambios"
+  [rows]="rows()"
+  [total]="total()"
+  [query]="query()"
+  [loading]="log.isLoading()"
+  emptyMessage="No hay cambios con estos filtros."
+  (queryChange)="query.set($event)"
+>
+  <ng-template appCell="occurredAt" header="Fecha" [appCellOf]="rows()" let-entry>
+    {{ entry.occurredAt | date: 'dd/MM/yyyy HH:mm' }}
+  </ng-template>
+  <ng-template appCell="user" header="Usuario" [appCellOf]="rows()" let-entry>
+    {{ entry.userName ?? 'Sistema' }}
+  </ng-template>
+  <ng-template appCell="action" header="Acción" [appCellOf]="rows()" let-entry>
+    {{ actions[entry.action] ?? entry.action }}
+  </ng-template>
+  <ng-template appCell="entity" header="Entidad" [appCellOf]="rows()" let-entry>
+    {{ entities[entry.entityType] ?? entry.entityType }}
+  </ng-template>
+  <ng-template appCell="entityId" header="Registro" [appCellOf]="rows()" let-entry>
+    <span class="muted record" [title]="entry.entityId">{{ entry.entityId }}</span>
+  </ng-template>
+  <ng-template appRowDetail [appRowDetailOf]="rows()" let-entry>
+    @if (changes(entry); as rows) {
+      @if (rows.length > 0) {
+        <table class="changes">
+          <thead>
+            <tr>
+              <th scope="col">Campo</th>
+              <th scope="col">Antes</th>
+              <th scope="col">Después</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows; track $index) {
+              <tr>
+                <td>{{ row.field }}</td>
+                <td>{{ row.before }}</td>
+                <td>{{ row.after }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="muted">Sin detalle de campos.</p>
+      }
+    }
+    @if (entry.ipAddress) {
+      <p class="muted">IP: {{ entry.ipAddress }}</p>
+    }
+  </ng-template>
+</app-data-table>

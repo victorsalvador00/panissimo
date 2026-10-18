@@ -21,7 +21,7 @@ public sealed class LocationsController(ILocationService locations) : Controller
 
     /// <summary>Ubicaciones activas (todas, no solo las tuyas) para selectores: destino de traspasos, pedidos y ventas.</summary>
     [HttpGet("lookup")]
-    [RequirePermission(Permissions.LocationsView, Permissions.LogisticsView, Permissions.SalesView)]
+    [RequirePermission(Permissions.LocationsView, Permissions.LogisticsView, Permissions.SalesView, Permissions.SecurityUsersManage)]
     public Task<IReadOnlyList<LocationLookupDto>> Lookup(CancellationToken ct) => locations.LookupAsync(ct);
 
     /// <summary>Subalmacenes activos de una planta o sucursal a tu alcance, y si puedes mover inventario en cada uno (B-26).</summary>

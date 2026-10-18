@@ -1,0 +1,77 @@
+<app-page-header [title]="role()?.name ?? 'Nuevo rol'" />
+
+<div class="layout pan-has-action-bar">
+  <form id="role-form" class="main" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    @if (locked()) {
+      <p class="note" role="note">
+        El rol Administrador siempre tiene todos los permisos y no se puede modificar.
+      </p>
+    }
+    <section class="pan-card" aria-labelledby="role-data">
+      <h2 id="role-data">Datos</h2>
+      <div class="fields">
+        <mat-form-field>
+          <mat-label>Nombre</mat-label>
+          <input matInput formControlName="name" autocomplete="off" />
+          <mat-error>{{ controlError(form.controls.name) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Descripción</mat-label>
+          <input matInput formControlName="description" autocomplete="off" />
+          <mat-error>{{ controlError(form.controls.description) }}</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section class="pan-card" aria-labelledby="role-permissions">
+      <h2 id="role-permissions">Permisos</h2>
+      @if (controlError(form.controls.permissions); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+      <div class="matrix">
+        @for (group of groups.value(); track group.module) {
+          <fieldset class="module">
+            <legend>
+              <mat-checkbox
+                [checked]="moduleState(group) === 'all'"
+                [indeterminate]="moduleState(group) === 'some'"
+                [disabled]="locked()"
+                (change)="toggleModule(group, $event.checked)"
+              >
+                <strong>{{ group.module }}</strong>
+              </mat-checkbox>
+            </legend>
+            @for (permission of group.permissions; track permission.code) {
+              <mat-checkbox
+                class="permission"
+                [checked]="grantedSet().has(permission.code)"
+                [disabled]="locked()"
+                (change)="toggle(permission.code, $event.checked)"
+              >
+                {{ permission.description }}
+              </mat-checkbox>
+            }
+          </fieldset>
+        }
+      </div>
+    </section>
+  </form>
+
+  @if (role(); as role) {
+    @if (canSeeAudit()) {
+      <aside class="side">
+        <section class="pan-card">
+          <app-audit-panel [entityId]="role.id" />
+        </section>
+      </aside>
+    }
+  }
+</div>
+
+@if (!locked()) {
+  <div class="pan-action-bar">
+    <button matButton="filled" type="submit" form="role-form" [disabled]="saving()">
+      {{ role() ? 'Guardar' : 'Crear rol' }}
+    </button>
+  </div>
+}

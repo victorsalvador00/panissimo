@@ -1,4 +1,4 @@
-import { safeReturnUrl } from './login-page';
+import { safeReturnUrl } from './guards';
 
 describe('safeReturnUrl', () => {
   it('keeps paths of the app', () => {

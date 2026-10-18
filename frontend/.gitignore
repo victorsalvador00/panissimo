@@ -45,3 +45,8 @@ Thumbs.db
 
 # Python (icon subset script)
 __pycache__/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/

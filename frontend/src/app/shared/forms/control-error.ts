@@ -6,6 +6,7 @@ export function controlError(control: AbstractControl | null): string | null {
   if (!control?.errors || !(control.touched || control.dirty)) return null;
   const errors = control.errors;
   if (typeof errors['server'] === 'string') return errors['server'];
+  if (typeof errors['message'] === 'string') return errors['message'];
   if (errors['required']) return 'Este campo es obligatorio.';
   if (errors['email']) return 'Escribe un correo válido.';
   if (errors['maxlength'])
@@ -23,5 +24,10 @@ export function controlError(control: AbstractControl | null): string | null {
     return digits === 0 ? 'Solo se aceptan cantidades enteras.' : `Máximo ${digits} decimales.`;
   }
   if (errors['notFromList']) return 'Elige una opción de la lista.';
+  if (errors['passwordPolicy']) return 'Mínimo 10 caracteres, con mayúscula, minúscula y número.';
+  if (errors['min'])
+    return `No puede ser menor que ${formatQty((errors['min'] as { min: number }).min)}.`;
+  if (errors['max'])
+    return `No puede ser mayor que ${formatQty((errors['max'] as { max: number }).max)}.`;
   return 'Valor no válido.';
 }

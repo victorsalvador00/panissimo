@@ -1,0 +1,22 @@
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.module {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 8px 12px 12px;
+  border: 1px solid var(--pan-row-divider);
+  border-radius: 12px;
+
+  legend {
+    padding: 0 4px;
+  }
+}
+
+.permission {
+  margin-left: 12px;
+}

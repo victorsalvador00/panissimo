@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-03, layout y componentes compartidos).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-04, administración).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-03 terminadas (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-04 terminadas (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-04 (administración: usuarios, roles, bitácora, configuración) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-05 (catálogos: ubicaciones, categorías, unidades, áreas, artículos con mín/máx e importación CSV) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-04..F-24 y F-25 (vales internos, fase 2).
+- Frontend F-05..F-24 y F-25 (vales internos, fase 2).
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-04). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-05). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -70,7 +70,8 @@
 | 1 | F-01 Proyecto, tema, locale, íconos, shell | ✅ | (ver `git log`) |
 | 1 | F-02 Sesión, interceptores, guardas, login, perfil | ✅ | (ver `git log`) |
 | 1 | F-03 Layout, estilos y componentes compartidos | ✅ | (ver `git log`) |
-| 1 | F-04..F-08 | ⏳ | |
+| 1 | F-04 Administración (usuarios, roles, bitácora, configuración) | ✅ | (ver `git log`) |
+| 1 | F-05..F-08 | ⏳ | |
 | 2 | F-09..F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
@@ -386,3 +387,13 @@
 - `/demo/componentes` [settings.manage] con todos los componentes y datos de ejemplo. Revisada en Chrome en claro y oscuro, escritorio y 390 px (sin scroll horizontal; drawer, tarjetas y barra de acción fija).
 - 58 pruebas unitarias (formatos y etiquetas, adaptador de fechas, migas, `qty-input`, `lookup-picker`, `lines-editor`, `data-table`, conflictos 409 en el interceptor, más las de F-01/F-02). Sin paquetes nuevos.
 - Pendientes para tareas posteriores: `app-item-photo` (F-23) y existencia en `item-picker`; `app-audit-panel`, `app-progress-meter`, `app-stock-level`, `app-csv-import`, `app-xlsx-import`, `app-shift-select` y `lot-split` llegan con las tareas que los usan (no estaban en el alcance de F-03).
+
+### F-04 (2026-10-17)
+
+- `features/admin` (`admin.routes.ts`, carga diferida bajo `/admin`; cada ruta con su permiso): usuarios (lista con búsqueda, estado y rol; alta con contraseña temporal y generador; edición de nombre, roles, ubicaciones y ubicación default; activar/desactivar con confirmación; restablecer contraseña en diálogo con generador y copiar), roles (lista y matriz de permisos por módulo con casilla por módulo; Administrador de solo lectura), bitácora (filtros por entidad, usuario y fechas; detalle con campo, antes y después) y configuración (formulario armado desde `/settings` con límites y decimales; guarda solo lo cambiado con su versión).
+- Compartidos nuevos: `app-audit-panel` (historial de un registro, 10 y "Ver más"; en el detalle de usuario y de rol si hay `security.audit.view`), `shared/data-access/audit.ts` (etiquetas de entidades y campos, oculta los campos internos de Identity), generador y política de contraseñas (`shared/forms/password.ts`, 10+ con mayúscula, minúscula y número, sin caracteres confundibles), `requiredList(mensaje)`. `app-status-tag` acepta texto y color propios (estado de usuario). Las migas de una ruta agrupadora sin página propia (`/admin`) ya no son enlace. `guestGuard` respeta `returnUrl` si ya hay sesión.
+- Backend (B-04, ajuste): `GET /roles` también con `security.users.manage` y `/locations/lookup` también con `security.users.manage`, para que quien administra usuarios pueda llenar su formulario (crear o editar roles sigue requiriendo `security.roles.manage`). Prueba de integración en `AdministrationTests`. `appsettings.Development.json`: `RateLimiting:LoginPermitLimit = 60` solo en desarrollo (producción sigue en 10 por minuto), para que la suite E2E no choque con el límite.
+- E2E (Playwright, frontend §9): `playwright.config.ts` con proyectos escritorio y celular (390 px) sobre el Chrome instalado (sin descargar navegadores), `npm run e2e`. **E2E 1 en verde (8/8):** credenciales inválidas, menú completo del admin, el encargado de sucursal solo ve General, Inventario y Logística y `/admin/usuarios` lo manda a `/sin-acceso`, la sesión sobrevive a recargar. Prepara el usuario `e2e.encargado@panissimo.test` por API (lo crea o le renueva la contraseña temporal); no mueve inventario.
+- Corregido al probar en Chrome: un `<form (ngSubmit)>` sin `[formGroup]` recargaba la página en vez de guardar (configuración, diálogo de motivo y de contraseña); ahora todos llevan su directiva.
+- Pruebas: 66 unitarias en verde. Aparte se corrigieron 18 archivos de pruebas de integración que calculaban "hoy" en UTC: después de las 18:00 en México fallaban dos (FEFO con lote "vencido" y plan con fecha pasada); ahora usan `ApiFactory.Today` (fecha de negocio de la Ciudad de México, igual que el servidor). Backend: 230 unitarias y 148 de integración en verde.
+- Paquete nuevo: `@playwright/test` 1.64.1 Apache-2.0 (dev; trae `playwright-core` 1.64.1 Apache-2.0).

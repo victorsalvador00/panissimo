@@ -1,0 +1,136 @@
+<app-page-header [title]="user()?.fullName ?? 'Nuevo usuario'">
+  @if (user(); as user) {
+    <button matButton="tonal" type="button" (click)="resetPassword()">
+      <mat-icon>key</mat-icon>
+      Restablecer contraseña
+    </button>
+    <button matButton="tonal" type="button" (click)="toggleActive()">
+      <mat-icon>{{ user.isActive ? 'person_off' : 'person_check' }}</mat-icon>
+      {{ user.isActive ? 'Desactivar' : 'Activar' }}
+    </button>
+  }
+</app-page-header>
+
+<div class="layout pan-has-action-bar">
+  <form id="user-form" class="main" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <section class="pan-card" aria-labelledby="user-data">
+      <div class="section-head">
+        <h2 id="user-data">Datos</h2>
+        @if (user(); as user) {
+          @if (!user.isActive) {
+            <app-status-tag text="Inactivo" color="grey" />
+          } @else if (user.isLockedOut) {
+            <app-status-tag text="Bloqueado" color="red" />
+          } @else {
+            <app-status-tag text="Activo" color="green" />
+          }
+        }
+      </div>
+      <div class="fields">
+        <mat-form-field>
+          <mat-label>Correo</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="off" />
+          <mat-error>{{ controlError(form.controls.email) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Nombre</mat-label>
+          <input matInput formControlName="fullName" autocomplete="off" />
+          <mat-error>{{ controlError(form.controls.fullName) }}</mat-error>
+        </mat-form-field>
+        @if (isNew()) {
+          <mat-form-field>
+            <mat-label>Contraseña temporal</mat-label>
+            <input
+              matInput
+              [type]="passwordVisible() ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="new-password"
+            />
+            <button
+              matIconButton
+              matSuffix
+              type="button"
+              [attr.aria-label]="passwordVisible() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              (click)="passwordVisible.set(!passwordVisible())"
+            >
+              <mat-icon>{{ passwordVisible() ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <mat-hint>Mínimo 10 caracteres, con mayúscula, minúscula y número.</mat-hint>
+            <mat-error>{{ controlError(form.controls.password) }}</mat-error>
+          </mat-form-field>
+          <div>
+            <button matButton="tonal" type="button" (click)="generatePassword()">
+              <mat-icon>autorenew</mat-icon>
+              Generar contraseña
+            </button>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="pan-card" aria-labelledby="user-roles">
+      <h2 id="user-roles">Roles</h2>
+      <mat-selection-list formControlName="roleIds" aria-labelledby="user-roles">
+        @for (role of roles.value(); track role.id) {
+          <mat-list-option [value]="role.id" togglePosition="before">
+            <span matListItemTitle>{{ role.name }}</span>
+            <span matListItemLine>{{ role.description }}</span>
+          </mat-list-option>
+        }
+      </mat-selection-list>
+      @if (controlError(form.controls.roleIds); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+    </section>
+
+    <section class="pan-card" aria-labelledby="user-locations">
+      <h2 id="user-locations">Ubicaciones</h2>
+      <mat-selection-list formControlName="locationIds" aria-labelledby="user-locations">
+        @for (location of locations.value(); track location.id) {
+          <mat-list-option [value]="location.id" togglePosition="before">
+            {{ locationLabel(location) }}
+          </mat-list-option>
+        }
+      </mat-selection-list>
+      @if (controlError(form.controls.locationIds); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+      <mat-form-field class="default-location">
+        <mat-label>Ubicación default</mat-label>
+        <mat-select formControlName="defaultLocationId">
+          <mat-option [value]="null">La primera asignada</mat-option>
+          @for (location of defaultOptions(); track location.id) {
+            <mat-option [value]="location.id">{{ location.name }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Con la que abre el sistema; cada quien puede cambiar la activa.</mat-hint>
+      </mat-form-field>
+    </section>
+  </form>
+
+  @if (user(); as user) {
+    <aside class="side">
+      <section class="pan-card">
+        <dl class="stamps">
+          <dt>Creado</dt>
+          <dd><app-stamp [at]="user.createdAt" [by]="user.createdByName" /></dd>
+          @if (user.updatedAt) {
+            <dt>Modificado</dt>
+            <dd><app-stamp [at]="user.updatedAt" [by]="user.updatedByName" /></dd>
+          }
+        </dl>
+      </section>
+      @if (canSeeAudit()) {
+        <section class="pan-card">
+          <app-audit-panel [entityId]="user.id" />
+        </section>
+      }
+    </aside>
+  }
+</div>
+
+<div class="pan-action-bar">
+  <button matButton="filled" type="submit" form="user-form" [disabled]="saving()">
+    {{ isNew() ? 'Crear usuario' : 'Guardar' }}
+  </button>
+</div>

@@ -70,21 +70,24 @@ public sealed class UsersController(IUserService users) : ControllerBase
 [ApiController]
 [Route("roles")]
 [Tags("Roles y permisos")]
-[RequirePermission(Permissions.SecurityRolesManage)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 public sealed class RolesController(IRoleService roles) : ControllerBase
 {
+    /// <summary>Lista de roles. También la ve quien administra usuarios, para asignarlos.</summary>
     [HttpGet]
+    [RequirePermission(Permissions.SecurityRolesManage, Permissions.SecurityUsersManage)]
     public Task<PagedResult<RoleListItemDto>> List([FromQuery] PageQuery query, CancellationToken ct) =>
         roles.ListAsync(query, ct);
 
     [HttpGet("{id:guid}")]
+    [RequirePermission(Permissions.SecurityRolesManage)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public Task<RoleDto> Get(Guid id, CancellationToken ct) => roles.GetAsync(id, ct);
 
     /// <summary>Crea un rol. Solo puedes otorgar permisos que tú tienes.</summary>
     [HttpPost]
+    [RequirePermission(Permissions.SecurityRolesManage)]
     [ProducesResponseType<RoleDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<RoleDto>> Create(CreateRoleRequest request, CancellationToken ct)
@@ -95,6 +98,7 @@ public sealed class RolesController(IRoleService roles) : ControllerBase
 
     /// <summary>Edita un rol. El rol Administrador conserva siempre todos los permisos.</summary>
     [HttpPut("{id:guid}")]
+    [RequirePermission(Permissions.SecurityRolesManage)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]

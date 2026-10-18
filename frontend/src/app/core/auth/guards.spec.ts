@@ -4,6 +4,7 @@ import {
   Router,
   RouterStateSnapshot,
   UrlTree,
+  convertToParamMap,
   provideRouter,
 } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
@@ -26,7 +27,7 @@ function signInWith(permissions: string[]): void {
 }
 
 function route(data: Record<string, unknown>): ActivatedRouteSnapshot {
-  return { data } as unknown as ActivatedRouteSnapshot;
+  return { data, queryParamMap: convertToParamMap({}) } as unknown as ActivatedRouteSnapshot;
 }
 
 const state = { url: '/inventario/existencias' } as RouterStateSnapshot;
@@ -47,10 +48,17 @@ describe('guards', () => {
     expect(run(authGuard)).toBe(true);
   });
 
-  it('guestGuard keeps signed-in users out of the login', () => {
+  it('guestGuard keeps signed-in users out of the login, towards their return url', () => {
     expect(run(guestGuard)).toBe(true);
     signInWith([]);
     expect(serialize(run(guestGuard))).toBe('/');
+    const withReturn = {
+      data: {},
+      queryParamMap: convertToParamMap({ returnUrl: '/admin/usuarios' }),
+    };
+    expect(
+      serialize(TestBed.runInInjectionContext(() => guestGuard(withReturn as never, state))),
+    ).toBe('/admin/usuarios');
   });
 
   it('permissionGuard accepts the permission or any of the list', () => {

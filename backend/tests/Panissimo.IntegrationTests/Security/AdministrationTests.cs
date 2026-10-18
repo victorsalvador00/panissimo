@@ -119,6 +119,13 @@ public class AdministrationTests(ApiFactory factory)
             managerEmail, "Gestor", ApiFactory.DefaultPassword, [role!.Id], [suc01], null));
         var manager = await factory.LoginAsync(managerEmail);
 
+        // The user form needs the roles and the locations to choose from; managing roles stays out.
+        Assert.Equal(HttpStatusCode.OK, (await manager.GetAsync("/api/v1/roles")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await manager.GetAsync("/api/v1/locations/lookup")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await manager.GetAsync($"/api/v1/roles/{role.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await manager.PostJsonAsync("/api/v1/roles",
+            new CreateRoleRequest("Otro", "x", [Permissions.InventoryView]))).StatusCode);
+
         // Grant a role with permissions the manager lacks.
         var escalate = await manager.PostJsonAsync("/api/v1/users", new CreateUserRequest(
             ApiFactory.UniqueEmail("x"), "X", ApiFactory.DefaultPassword, [await RoleIdAsync(SystemRoles.AdministratorKey)], [suc01], null));

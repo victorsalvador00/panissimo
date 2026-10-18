@@ -1,7 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { EnumName, enumLabel, statusTone } from '../../pipes/labels';
+import { EnumName, StatusTone, enumLabel, statusTone } from '../../pipes/labels';
 
-/** Status label with the color of the status (frontend §4.2); the greens carry a check drawn with CSS. */
+/**
+ * Status label with the color of the status (frontend §4.2); the greens carry a check drawn with CSS. For an API status
+ * give `value` and `kind`; for a state that is not an API enum (active user) give `text` and `color`.
+ */
 @Component({
   selector: 'app-status-tag',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,10 +47,16 @@ import { EnumName, enumLabel, statusTone } from '../../pipes/labels';
 })
 export class StatusTag {
   /** The status value as the API sends it (`Dispatched`). */
-  readonly value = input.required<string | null | undefined>();
+  readonly value = input<string | null | undefined>();
   /** The API enum of the value, for its label (`TransferStatus`). */
-  readonly kind = input.required<EnumName>();
+  readonly kind = input<EnumName>();
+  /** Own text and color, instead of `value` and `kind`. */
+  readonly text = input<string>();
+  readonly color = input<StatusTone>();
 
-  protected readonly label = computed(() => enumLabel(this.kind(), this.value() as never));
-  protected readonly tone = computed(() => statusTone(this.value()));
+  protected readonly label = computed(() => {
+    const kind = this.kind();
+    return this.text() ?? (kind ? enumLabel(kind, this.value() as never) : (this.value() ?? ''));
+  });
+  protected readonly tone = computed(() => this.color() ?? statusTone(this.value()));
 }

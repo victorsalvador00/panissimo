@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, Injectable, inject } from '@angular
 import {
   AbstractControl,
   FormControl,
+  FormGroup,
   ReactiveFormsModule,
   ValidationErrors,
   Validators,
@@ -40,7 +41,7 @@ const maxLength = 500;
   ],
   template: `
     <h2 mat-dialog-title>{{ data.title }}</h2>
-    <form (ngSubmit)="save()">
+    <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
         @if (data.message) {
           <p>{{ data.message }}</p>
@@ -72,6 +73,8 @@ export class ReasonDialog {
     nonNullable: true,
     validators: [Validators.required, Validators.maxLength(maxLength), notBlank],
   });
+  /** The form directive handles the submit (a bare <form> would reload the page). */
+  protected readonly form = new FormGroup({ reason: this.reason });
 
   protected error(): string | null {
     return controlError(this.reason);

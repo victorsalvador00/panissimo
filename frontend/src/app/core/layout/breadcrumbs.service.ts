@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRouteSnapshot, NavigationEnd, Router } from '@angular/router';
+import { ActivatedRouteSnapshot, NavigationEnd, Route, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
 
 export interface Crumb {
@@ -51,8 +51,18 @@ export function buildCrumbs(root: ActivatedRouteSnapshot): Crumb[] {
   for (let route: ActivatedRouteSnapshot | null = root; route; route = route.firstChild) {
     segments.push(...route.url.map((segment) => segment.path));
     const label = route.routeConfig?.data?.[BREADCRUMB] as string | undefined;
-    if (label && segments.length > 0) crumbs.push({ label, url: '/' + segments.join('/') });
+    if (label && segments.length > 0)
+      crumbs.push({ label, url: hasPage(route.routeConfig) ? '/' + segments.join('/') : null });
   }
   crumbs[crumbs.length - 1] = { ...crumbs[crumbs.length - 1], url: null };
   return crumbs;
+}
+
+/** A grouping route without a page of its own (`/admin`) is a crumb without a link. */
+function hasPage(config: Route | null): boolean {
+  if (!config) return false;
+  if (config.component || config.loadComponent) return true;
+  return !!config.children?.some(
+    (child) => child.path === '' && (child.component || child.loadComponent),
+  );
 }

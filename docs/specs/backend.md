@@ -234,7 +234,7 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 | Método | Ruta | Permiso |
 |---|---|---|
 | GET / POST / PUT | `/locations`, `/locations/{id}` | [locations.view] / [locations.manage] |
-| GET | `/locations/lookup` — ubicaciones activas (id, código, nombre, tipo) | [locations.view] o [logistics.view] o [sales.view] |
+| GET | `/locations/lookup` — ubicaciones activas (id, código, nombre, tipo) | [locations.view] o [logistics.view] o [sales.view] o [security.users.manage] |
 | GET / POST / PUT | `/production-areas`, `/production-areas/{id}` | [production.view] o [catalog.view] / [production.areas.manage] |
 | GET / POST / PUT | `/units-of-measure` | [catalog.view] / [catalog.manage] |
 | GET / POST / PUT | `/item-categories` | [catalog.view] o [inventory.view] / [catalog.manage] |
@@ -334,7 +334,7 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 | Método | Ruta | Permiso |
 |---|---|---|
 | GET / POST / PUT | `/users`, `/users/{id}`; POST `/users/{id}/reset-password`, `/activate`, `/deactivate` | [security.users.manage] |
-| GET / POST / PUT | `/roles`, `/roles/{id}` | [security.roles.manage] |
+| GET / POST / PUT | `/roles`, `/roles/{id}` | [security.roles.manage]; la lista (GET `/roles`) también con [security.users.manage] para asignar roles |
 | GET | `/permissions` | [security.roles.manage] |
 | GET | `/audit-log?entityType&entityId&userId&from&to` | [security.audit.view] |
 | GET / PUT | `/settings` — lista tipada (clave, etiqueta, tipo, límites, decimales, valor, `version`); PUT parcial con `version` por parámetro | [settings.manage] |

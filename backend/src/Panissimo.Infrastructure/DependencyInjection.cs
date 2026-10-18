@@ -24,6 +24,16 @@ namespace Panissimo.Infrastructure;
 
 public static class DependencyInjection
 {
+    /// <summary>
+    /// No Kerberos: with GSS encryption left on "prefer", Npgsql probes it on new connections and logs a missing
+    /// libgssapi_krb5 in the aspnet image. A connection string that sets it explicitly keeps its value.
+    /// </summary>
+    public static string WithoutKerberos(string connectionString) =>
+        connectionString.Contains("GSS Encryption Mode", StringComparison.OrdinalIgnoreCase)
+        || connectionString.Contains("GssEncryptionMode", StringComparison.OrdinalIgnoreCase)
+            ? connectionString
+            : new NpgsqlConnectionStringBuilder(connectionString) { GssEncryptionMode = GssEncryptionMode.Disable }.ConnectionString;
+
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSingleton(_ =>
@@ -35,7 +45,7 @@ public static class DependencyInjection
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new InvalidOperationException(
                     "Missing connection string 'Default'. Set PAN__ConnectionStrings__Default.");
-            return NpgsqlDataSource.Create(connectionString);
+            return NpgsqlDataSource.Create(WithoutKerberos(connectionString));
         });
         services.AddSingleton<IClock, SystemClock>();
 

@@ -174,7 +174,10 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
                        LotNumber = lot == null ? null : lot.LotNumber,
                    };
 
-        var page = await rows.ToPagedResultAsync(query, ct);
+        // Counted over the movements alone: the joins are required references (the lot one is left), so they never change
+        // the total, and without them the count of a whole plant's history stays a single scan (docs/rendimiento.md).
+        var total = await movements.CountAsync(ct);
+        var page = new PagedResult<KardexRow>(await rows.Skip(query.Skip).Take(query.PageSize).ToListAsync(ct), query.Page, query.PageSize, total);
 
         // Running balance, as a kardex is read, when looking at one item in one location.
         var balances = new Dictionary<Guid, decimal>();

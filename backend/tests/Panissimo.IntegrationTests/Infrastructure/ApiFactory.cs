@@ -35,6 +35,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public string ConnectionString => _postgres.GetConnectionString();
 
+    /// <summary>The container itself (its logs carry the auto_explain plans of the volume test).</summary>
+    public PostgreSqlContainer Postgres => _postgres;
+
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();

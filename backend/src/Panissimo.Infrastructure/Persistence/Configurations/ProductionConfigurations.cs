@@ -103,6 +103,8 @@ internal sealed class ProductionCloseConfiguration : IEntityTypeConfiguration<Pr
         // RN-66: one close per sequence of an order.
         builder.HasIndex(c => new { c.ProductionOrderId, c.Sequence }).IsUnique();
         builder.HasIndex(c => c.BusinessDate);
+        // The close list sorts by closing time by default (docs/rendimiento.md).
+        builder.HasIndex(c => c.ClosedAt);
         builder.HasOne<ProductionOrder>().WithMany().HasForeignKey(c => c.ProductionOrderId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Lot>().WithMany().HasForeignKey(c => c.OutputLotId).OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(c => c.Lines).WithOne().HasForeignKey(l => l.ProductionCloseId).OnDelete(DeleteBehavior.Cascade);

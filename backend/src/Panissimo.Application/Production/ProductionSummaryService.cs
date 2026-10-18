@@ -76,40 +76,59 @@ public sealed class ProductionSummaryService(IAppDbContext db, ILocationScope sc
         scope.EnsureAccess(query.LocationId);
         var (start, end, groupBy) = (query.From, query.To, query.GroupBy);
 
+        // Everything is grouped in the database by the chosen key and the unit: a year has ~80,000 closes
+        // (docs/rendimiento.md). The flags turn into CASE expressions of the GROUP BY.
+        var (byArea, byItem, byDay) = (groupBy == ProductionSummaryGroupBy.Area, groupBy == ProductionSummaryGroupBy.Item,
+            groupBy == ProductionSummaryGroupBy.Day);
+
         // Planned: orders scheduled in the range, not cancelled.
         var planned = await (from o in db.ProductionOrders.AsNoTracking()
                              join i in db.Items on o.OutputItemId equals i.Id
                              join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                              where o.LocationId == query.LocationId && o.ScheduledDate >= start && o.ScheduledDate <= end
                                    && o.Status != ProductionOrderStatus.Cancelled
-                             select new { o.ProductionAreaId, o.OutputItemId, o.ScheduledDate, Uom = u.Code, o.PlannedQty })
+                             group o by new
+                             {
+                                 Key = byArea ? o.ProductionAreaId : byItem ? (Guid?)o.OutputItemId : null,
+                                 Date = byDay ? (DateOnly?)o.ScheduledDate : null,
+                                 Uom = u.Code,
+                             } into g
+                             select new { g.Key.Key, g.Key.Date, g.Key.Uom, Orders = g.Count(), Qty = g.Sum(o => o.PlannedQty) })
             .ToListAsync(ct);
 
-        // Produced: closes of the range, whatever the date of their order.
-        var closes = await (from c in db.ProductionCloses.AsNoTracking()
-                            join o in db.ProductionOrders on c.ProductionOrderId equals o.Id
-                            join i in db.Items on o.OutputItemId equals i.Id
-                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
-                            where o.LocationId == query.LocationId && c.BusinessDate >= start && c.BusinessDate <= end
-                            select new
-                            {
-                                o.ProductionAreaId, o.OutputItemId, c.BusinessDate, Uom = u.Code, c.ProducedQty, c.TotalCost,
-                                Waste = c.Lines.Sum(l => l.WasteQty * l.UnitCost),
-                            })
+        // Produced: closes of the range, whatever the date of their order; their waste in pesos (RN-13) from the lines.
+        var produced = await (from c in db.ProductionCloses.AsNoTracking()
+                              join o in db.ProductionOrders on c.ProductionOrderId equals o.Id
+                              join i in db.Items on o.OutputItemId equals i.Id
+                              join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
+                              where o.LocationId == query.LocationId && c.BusinessDate >= start && c.BusinessDate <= end
+                              group c by new
+                              {
+                                  Key = byArea ? o.ProductionAreaId : byItem ? (Guid?)o.OutputItemId : null,
+                                  Date = byDay ? (DateOnly?)c.BusinessDate : null,
+                                  Uom = u.Code,
+                              } into g
+                              select new { g.Key.Key, g.Key.Date, g.Key.Uom, Qty = g.Sum(c => c.ProducedQty), Cost = g.Sum(c => c.TotalCost) })
             .ToListAsync(ct);
-        // Each close rounds its waste, as its own detail shows it.
-        closes = [.. closes.Select(c => c with { Waste = InventoryMath.Round(c.Waste) })];
+        var waste = await (from c in db.ProductionCloses.AsNoTracking()
+                           join o in db.ProductionOrders on c.ProductionOrderId equals o.Id
+                           join i in db.Items on o.OutputItemId equals i.Id
+                           join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
+                           from l in c.Lines
+                           where o.LocationId == query.LocationId && c.BusinessDate >= start && c.BusinessDate <= end && l.WasteQty != 0
+                           group l by new
+                           {
+                               Key = byArea ? o.ProductionAreaId : byItem ? (Guid?)o.OutputItemId : null,
+                               Date = byDay ? (DateOnly?)c.BusinessDate : null,
+                               Uom = u.Code,
+                           } into g
+                           select new { g.Key.Key, g.Key.Date, g.Key.Uom, Waste = g.Sum(l => l.WasteQty * l.UnitCost) })
+            .ToListAsync(ct);
 
-        GroupKey Key(Guid? area, Guid item, DateOnly date, string uom) => groupBy switch
-        {
-            ProductionSummaryGroupBy.Area => new GroupKey(area, null, uom),
-            ProductionSummaryGroupBy.Item => new GroupKey(item, null, uom),
-            _ => new GroupKey(null, date, uom),
-        };
-        var plannedBy = planned.GroupBy(p => Key(p.ProductionAreaId, p.OutputItemId, p.ScheduledDate, p.Uom))
-            .ToDictionary(g => g.Key, g => (Orders: g.Count(), Qty: g.Sum(p => p.PlannedQty)));
-        var producedBy = closes.GroupBy(c => Key(c.ProductionAreaId, c.OutputItemId, c.BusinessDate, c.Uom))
-            .ToDictionary(g => g.Key, g => (Qty: g.Sum(c => c.ProducedQty), Cost: g.Sum(c => c.TotalCost), Waste: g.Sum(c => c.Waste)));
+        var plannedBy = planned.ToDictionary(p => new GroupKey(p.Key, p.Date, p.Uom), p => (p.Orders, p.Qty));
+        var wasteBy = waste.ToDictionary(w => new GroupKey(w.Key, w.Date, w.Uom), w => w.Waste);
+        var producedBy = produced.ToDictionary(d => new GroupKey(d.Key, d.Date, d.Uom),
+            d => (d.Qty, d.Cost, Waste: wasteBy.GetValueOrDefault(new GroupKey(d.Key, d.Date, d.Uom))));
 
         var keys = plannedBy.Keys.Union(producedBy.Keys).ToList();
         var labels = await LabelsAsync(groupBy, keys, ct);
@@ -128,7 +147,7 @@ public sealed class ProductionSummaryService(IAppDbContext db, ILocationScope sc
             .Select(x => x.Row)
             .ToList();
         return new ProductionSummaryDto(query.LocationId, start, end, groupBy, rows,
-            InventoryMath.Round(closes.Sum(c => c.TotalCost)), InventoryMath.Round(closes.Sum(c => c.Waste)));
+            InventoryMath.Round(produced.Sum(d => d.Cost)), InventoryMath.Round(waste.Sum(w => w.Waste)));
     }
 
     /// <summary>Area (name, sort order) or item (name, SKU) of each key.</summary>

@@ -1711,6 +1711,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.HasIndex("BusinessDate")
                         .HasDatabaseName("ix_production_close_business_date");
 
+                    b.HasIndex("ClosedAt")
+                        .HasDatabaseName("ix_production_close_closed_at");
+
                     b.HasIndex("Folio")
                         .IsUnique()
                         .HasDatabaseName("ix_production_close_folio");

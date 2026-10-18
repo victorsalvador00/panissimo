@@ -1,4 +1,6 @@
-# Production reverse proxy and static files (frontend §10).
+# Production reverse proxy and static files (frontend §10, backend §12).
+# PAN_DOMAIN: the public name; Caddy gets and renews its HTTPS certificate.
+
 {$PAN_DOMAIN} {
 	encode zstd gzip
 
@@ -8,6 +10,21 @@
 	handle /health/* {
 		reverse_proxy api:8080
 	}
+
+	# Without the Angular build (an image built without it, or /srv mounted empty) every page is the maintenance one.
+	@nobuild not file {
+		root /srv
+		try_files /index.html
+	}
+	handle @nobuild {
+		root * /etc/caddy/maintenance
+		rewrite * /index.html
+		header Cache-Control "no-store"
+		file_server {
+			status 503
+		}
+	}
+
 	handle {
 		root * /srv
 		# Angular names its bundles name-HASH.js / .css: cache them forever.
@@ -25,5 +42,6 @@
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
 	}
 }

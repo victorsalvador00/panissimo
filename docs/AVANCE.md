@@ -1,23 +1,22 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (B-24, fotos de artículos).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (B-25, endurecimiento y despliegue: backend completo).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
 
 **Dónde quedamos**
-- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5: B-22, B-23 y B-24 terminadas.
-- Pruebas en verde: 269 unitarias y 159 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
-- Migraciones hasta `AddItemPhotos` (B-24).
+- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5 completa (B-22..B-25): **backend terminado**.
+- Pruebas en verde: 270 unitarias y 159 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- Migraciones hasta `AddCloseListIndex` (B-25).
 - Backend fases 1-4 completas. Frontend: F-01..F-20 y F-25 terminadas (fases 1 a 4; proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** backend de la fase 5: **B-25** (endurecimiento y despliegue). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
+**Siguiente:** frontend de la fase 5: **F-21** (tablero y resumen de producción, usa B-22), F-22 (costos de receta y análisis de consumo, B-23), F-23 (fotos, B-24) y F-24 (pulido). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
 
 **Después**
-- Fase 5: B-25 endurecimiento y despliegue.
 - Frontend F-21..F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
@@ -26,7 +25,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/backend.md` §13 (B-25). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-21). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -65,7 +64,7 @@
 | 5 | B-22 Tablero y resumen de producción | ✅ | (ver `git log`) |
 | 5 | B-23 Costo de receta y análisis de consumo | ✅ | (ver `git log`) |
 | 5 | B-24 Fotos de artículos | ✅ | (ver `git log`) |
-| 5 | B-25 Endurecimiento y despliegue | ⏳ | |
+| 5 | B-25 Endurecimiento y despliegue | ✅ | (ver `git log`) |
 | + | B-28 Trazabilidad de lotes (`docs/specs/trazabilidad.md`) | ⏳ | |
 
 ## Frontend
@@ -623,3 +622,22 @@
 - **Corrección general:** una carga mayor al límite del endpoint llegaba como 400 con el texto en inglés de ASP.NET ("Failed to read the request form…"); ahora es **413** `payload_too_large` en español con el límite en KB (también para los Excel y CSV). Y la plantilla de importación de OP documentaba su respuesta como `FileContentResult`; ahora, como la foto, es binaria en OpenAPI.
 - Pruebas: unitarias del lector de encabezados (PNG, JPEG, las tres variantes de WebP, texto, truncados, GIF), de la validación y de la revisión; integración `ItemPhotoTests`: carga, revisión en los tres DTO, miniatura y completa con ETag y 304, reemplazo (cambia la revisión y el tipo, el ETag viejo ya no coincide), borrado; tipo, dimensiones, falta, peso y 413; permisos (encargado de sucursal ve pero no cambia; sin sesión 401). Backend: 269 unitarias y 159 de integración. Sin paquetes nuevos.
 - Frontend: tipos regenerados, etiqueta de `ItemPhotoSize` y `photoRevision` en las opciones de artículo que se arman a mano (null hasta F-23).
+
+### B-25 (2026-10-18)
+
+- **Volumen y `EXPLAIN`** (`docs/rendimiento.md`): `Fixtures/volume.sql` genera un año de producción (27,000 OP, 79,029 cierres, 237,087 líneas, 316,156 movimientos; 79,030 de la harina) y `VolumeTests` (solo con `PAN_PERF_VOLUME=1`, en su propio contenedor) mide por la API y captura los planes reales con `auto_explain`. **Criterio cumplido:** kardex de la harina 39 ms, lista de OP 12 ms, plan 24 ms (límites 300/300/1000).
+- **Mejoras que salieron de los planes:**
+  - Índice `production_close(closed_at)` (migración `AddCloseListIndex`): lista de cierres 97 → 28 ms.
+  - Resumen de producción agrupado en la BD (antes una subconsulta de merma por cierre y 79,000 filas agrupadas en .NET): 656 → 94 ms en un año.
+  - Conteo del kardex sobre los movimientos filtrados, sin las uniones: kardex de toda la planta 50 → 26 ms.
+  - Los índices mínimos de backend §4 ya existían todos.
+- **Despliegue:**
+  - `deploy/docker-compose.yml` (producción: `api`, `web` con Caddy y `migrate` en el perfil `tools`) y `deploy/docker-compose.demo.yml` (overlay con Postgres en contenedor y respaldos).
+  - `deploy/Caddyfile` con **página de mantenimiento** (`deploy/maintenance/index.html`, 503) cuando falta el build.
+  - `deploy/README.md` (instalación, actualización, demo, variables, respaldos, diagnóstico) y `PAN_DOMAIN` en `.env.example`. El `Dockerfile` con el target `migrator` (bundle `linux-x64`/`linux-arm64`) ya existía desde B-01.
+- **Verificado de punta a punta:** se construyeron las tres imágenes y, con el overlay de demo sobre una BD vacía y valores de prueba generados al momento, corrió `migrate` (25 migraciones), `api --seed`, `up -d`, `/health/ready` *Healthy*, SPA por Caddy e inicio de sesión por `/api`. Los logs quedaron sin errores después de dos correcciones:
+  - Npgsql intentaba cifrado GSS (Kerberos) y la imagen `aspnet` no tiene `libgssapi_krb5`: ahora la cadena de conexión lo desactiva salvo que la configuración lo pida (`DependencyInjection.WithoutKerberos`, con prueba unitaria).
+  - El health check abría conexiones por fuera del data source: ahora usa el mismo pool.
+- **Licencias** (`docs/licencias.md`): 128 paquetes NuGet y 442 de npm revisados en su versión exacta; ninguno de pago ni prohibido. `SixLabors.Fonts` 1.0.0 llega solo como transitivo de ClosedXML y es Apache-2.0.
+- Pruebas: backend 270 unitarias y 159 de integración en verde. Sin paquetes nuevos.
+- **Backend completo** (B-01..B-27). Queda registrada la ampliación de trazabilidad (B-28).

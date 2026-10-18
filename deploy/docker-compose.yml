@@ -1,0 +1,70 @@
+# Production (DigitalOcean Droplet + DigitalOcean Managed Postgres), backend §12. Images are built on the server.
+# Steps (deploy/README.md):
+#   docker compose build
+#   docker compose run --rm migrate              # migration bundle, before starting a new version
+#   docker compose run --rm api --seed           # first time only (roles, plant, branches, admin)
+#   docker compose up -d
+# Variables are read from deploy/.env (copy .env.example). The demo overlay (docker-compose.demo.yml) adds a local Postgres.
+
+name: panissimo
+
+x-api-environment: &api-environment
+  ASPNETCORE_ENVIRONMENT: Production
+  PAN__ConnectionStrings__Default: ${PAN__ConnectionStrings__Default:?Set PAN__ConnectionStrings__Default in deploy/.env}
+  PAN__Jwt__Key: ${PAN__Jwt__Key:?Set PAN__Jwt__Key in deploy/.env (at least 32 bytes)}
+  PAN__Jwt__Issuer: ${PAN__Jwt__Issuer:-panissimo}
+  PAN__Jwt__Audience: ${PAN__Jwt__Audience:-panissimo}
+  PAN__Seed__AdminEmail: ${PAN__Seed__AdminEmail:-}
+  PAN__Seed__AdminPassword: ${PAN__Seed__AdminPassword:-}
+  PAN__Seed__LocationsCsv: /seed/locations.csv
+  PAN__RateLimiting__LoginPermitLimit: ${PAN__RateLimiting__LoginPermitLimit:-10}
+
+services:
+  api:
+    build:
+      context: ../backend
+      target: runtime
+    image: panissimo-api
+    environment: *api-environment
+    volumes:
+      - ./seed:/seed:ro
+    restart: unless-stopped
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  web:
+    build:
+      context: ../frontend
+    image: panissimo-web
+    environment:
+      PAN_DOMAIN: ${PAN_DOMAIN:?Set PAN_DOMAIN in deploy/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./maintenance:/etc/caddy/maintenance:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+    logging: *logging
+
+  # EF Core migration bundle; never at API startup in production (backend §4).
+  migrate:
+    build:
+      context: ../backend
+      target: migrator
+    image: panissimo-migrate
+    environment:
+      PAN__ConnectionStrings__Default: ${PAN__ConnectionStrings__Default:?Set PAN__ConnectionStrings__Default in deploy/.env}
+    profiles: ["tools"]
+
+volumes:
+  caddy_data:
+  caddy_config:

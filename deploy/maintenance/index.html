@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content="60" />
+    <title>SGO Paníssimo · En mantenimiento</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f3f7f1;
+        --fg: #1b2a1d;
+        --muted: #4b5d4e;
+        --accent: #2e7d32;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0e1420;
+          --fg: #e6ecf5;
+          --muted: #9aa8bd;
+          --accent: #4fc3f7;
+        }
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        box-sizing: border-box;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.5 system-ui, sans-serif;
+        text-align: center;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.5rem;
+        color: var(--accent);
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>SGO Paníssimo está en mantenimiento</h1>
+      <p>Estamos actualizando el sistema. La página se recarga sola en un minuto.</p>
+    </main>
+  </body>
+</html>

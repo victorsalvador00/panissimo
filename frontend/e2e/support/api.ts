@@ -92,7 +92,7 @@ export class AdminApi {
     name: string,
     categoryName: string,
     unitCode: string,
-    type: 'RawMaterial' | 'Supply' | 'SemiFinished' = 'RawMaterial',
+    type: 'RawMaterial' | 'Supply' | 'SemiFinished' | 'FinishedGood' = 'RawMaterial',
     lots: { tracksLots: boolean; shelfLifeDays: number | null } = { tracksLots: false, shelfLifeDays: null },
   ): Promise<void> {
     const found = await this.get<{ id: string }[]>(`items/lookup?q=${encodeURIComponent(sku)}`);
@@ -114,7 +114,7 @@ export class AdminApi {
       shelfLifeDays: lots.shelfLifeDays,
       storageCondition: 'Ambient',
       taxRate: 0,
-      presentation: null,
+      presentation: type === 'FinishedGood' ? 'Bulk' : null,
       bulkItemId: null,
       unitsPerPackage: null,
       productionAreaId: null,

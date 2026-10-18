@@ -20,7 +20,7 @@ import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { controlError } from '../../../shared/forms/control-error';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { Supplier, SuppliersApi } from '../data-access/purchasing-api';
-import { rfcValidator } from '../ui/rfc';
+import { rfcValidator } from '../../../shared/forms/rfc';
 import { SupplierItems } from '../ui/supplier-items';
 
 /**

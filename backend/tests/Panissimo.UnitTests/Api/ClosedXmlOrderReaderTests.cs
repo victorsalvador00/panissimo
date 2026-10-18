@@ -75,7 +75,7 @@ public class ClosedXmlOrderReaderTests
         using var workbook = new XLWorkbook(new MemoryStream(_reader.CreateTemplate()));
 
         Assert.Equal(["OP", "Instrucciones"], workbook.Worksheets.Select(w => w.Name));
-        Assert.Equal(["fecha", "sku_interno", "cantidad", "area", "turno", "ubicacion", "notas"],
+        Assert.Equal(["fecha", "sku", "cantidad", "area", "turno", "ubicacion", "notas"],
             Enumerable.Range(1, 7).Select(c => workbook.Worksheet("OP").Cell(1, c).GetString()));
         Assert.Single(workbook.Worksheet("OP").DataValidations);
     }

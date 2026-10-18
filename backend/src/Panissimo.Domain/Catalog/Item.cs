@@ -28,7 +28,6 @@ public enum StorageCondition
 /// <summary>Editable data of an item; shared by the API, the CSV import and the entity.</summary>
 public sealed record ItemDefinition(
     string Sku,
-    string InternalSku,
     string Name,
     ItemType Type,
     Guid CategoryId,
@@ -58,9 +57,6 @@ public static partial class ItemRules
 
     public static string NormalizeSku(string sku) => sku.Trim().ToUpperInvariant();
 
-    /// <summary>D-07: Paníssimo's own SKU, stored in upper case like the system SKU.</summary>
-    public static string NormalizeInternalSku(string internalSku) => NormalizeSku(internalSku);
-
     /// <summary>Produced with a production order and may have a default area.</summary>
     public static bool IsProduced(ItemType type) => type is ItemType.SemiFinished or ItemType.FinishedGood;
 
@@ -76,15 +72,6 @@ public static partial class ItemRules
             errors.Add(("sku", $"El SKU admite máximo {SkuMaxLength} caracteres."));
         else if (!SkuPattern().IsMatch(sku))
             errors.Add(("sku", "El SKU solo admite letras, números, punto, guion y guion bajo, sin espacios."));
-
-        // D-07: required and unique (the uniqueness is checked by the service).
-        var internalSku = NormalizeInternalSku(item.InternalSku ?? "");
-        if (internalSku.Length == 0)
-            errors.Add(("internalSku", "El SKU interno es obligatorio."));
-        else if (internalSku.Length > SkuMaxLength)
-            errors.Add(("internalSku", $"El SKU interno admite máximo {SkuMaxLength} caracteres."));
-        else if (!SkuPattern().IsMatch(internalSku))
-            errors.Add(("internalSku", "El SKU interno solo admite letras, números, punto, guion y guion bajo, sin espacios."));
 
         var name = item.Name?.Trim() ?? "";
         if (name.Length == 0)
@@ -152,10 +139,8 @@ public class Item : AuditableEntity, IVersioned
         IsActive = true;
     }
 
+    /// <summary>D-07: Paníssimo's own code (e.g. SKU0001); unique. The OP import identifies products by it.</summary>
     public string Sku { get; private set; } = null!;
-
-    /// <summary>D-07: Paníssimo's internal SKU (e.g. SKU0001); required and unique. The OP import identifies products only by it.</summary>
-    public string InternalSku { get; private set; } = null!;
 
     public string Name { get; private set; } = null!;
     public ItemType Type { get; private set; }
@@ -204,7 +189,6 @@ public class Item : AuditableEntity, IVersioned
             throw new BusinessRuleException("invalid_item", errors[0].Message);
 
         Sku = ItemRules.NormalizeSku(d.Sku);
-        InternalSku = ItemRules.NormalizeInternalSku(d.InternalSku);
         Name = d.Name.Trim();
         Type = d.Type;
         CategoryId = d.CategoryId;

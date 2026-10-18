@@ -103,7 +103,6 @@ export class AdminApi {
     const units = await this.get<{ items: { id: string; code: string }[] }>('units-of-measure?pageSize=100');
     await this.post('items', {
       sku,
-      internalSku: sku,
       name,
       type,
       categoryId: categories.items.find((c) => c.name === categoryName)!.id,

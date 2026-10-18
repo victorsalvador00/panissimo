@@ -15134,8 +15134,7 @@ export interface components {
     };
     /**
      * @example {
-     *       "sku": "TRENZA-EMB",
-     *       "internalSku": "SKU0042",
+     *       "sku": "SKU0042",
      *       "name": "Trenza embolsada 6 pzas",
      *       "type": "FinishedGood",
      *       "categoryId": "0199a1b2-0000-7000-8000-0000000000c1",
@@ -15156,7 +15155,6 @@ export interface components {
      */
     CreateItemRequest: {
       sku: string;
-      internalSku: string;
       name: string;
       type: components['schemas']['ItemType'];
       /** Format: uuid */
@@ -16229,7 +16227,6 @@ export interface components {
       /** Format: uuid */
       id: string;
       sku: string;
-      internalSku: string;
       name: string;
       type: components['schemas']['ItemType'];
       /** Format: uuid */
@@ -16277,13 +16274,11 @@ export interface components {
       created: number;
       /** Format: int32 */
       updated: number;
-      skipped: components['schemas']['ImportError'][];
     };
     ItemListItemDto: {
       /** Format: uuid */
       id: string;
       sku: string;
-      internalSku: string;
       name: string;
       type: components['schemas']['ItemType'];
       presentation: null | components['schemas']['ItemPresentation'];
@@ -18562,8 +18557,7 @@ export interface components {
     /**
      * @example {
      *       "version": 1234,
-     *       "sku": "HAR-001",
-     *       "internalSku": "SKU0007",
+     *       "sku": "SKU0007",
      *       "name": "Harina de trigo",
      *       "type": "RawMaterial",
      *       "categoryId": "0199a1b2-0000-7000-8000-0000000000c1",
@@ -18587,7 +18581,6 @@ export interface components {
       /** Format: uint32 */
       version: number;
       sku: string;
-      internalSku: string;
       name: string;
       type: components['schemas']['ItemType'];
       /** Format: uuid */

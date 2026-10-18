@@ -11,7 +11,7 @@ from pathlib import Path
 from openpyxl import Workbook
 
 FIXTURES = Path(__file__).resolve().parent.parent / "e2e" / "fixtures"
-HEADERS = ["fecha", "sku_interno", "cantidad", "area", "turno", "ubicacion", "notas"]
+HEADERS = ["fecha", "sku", "cantidad", "area", "turno", "ubicacion", "notas"]
 
 
 def workbook(path: Path, headers: list[str], rows: list[list[object]]) -> None:
@@ -25,7 +25,7 @@ def workbook(path: Path, headers: list[str], rows: list[list[object]]) -> None:
     print(path.name)
 
 
-# E2E 8: a date in the past, an unknown internal SKU and a negative quantity (RN-90, RN-91).
+# E2E 8: a date in the past, an unknown SKU and a negative quantity (RN-90, RN-91).
 workbook(
     FIXTURES / "ordenes-con-errores.xlsx",
     HEADERS,

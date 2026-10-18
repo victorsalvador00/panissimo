@@ -61,8 +61,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         if (query.BulkItemId is { } bulkItemId)
             items = items.Where(i => i.BulkItemId == bulkItemId);
         if (query.SearchTerm() is { } term)
-            items = items.Where(i => i.Sku.ToLower().Contains(term) || i.Name.ToLower().Contains(term)
-                                     || i.InternalSku.ToLower().Contains(term));
+            items = items.Where(i => i.Sku.ToLower().Contains(term) || i.Name.ToLower().Contains(term));
 
         var page = await items.ApplySort(query.Sort, SortColumns, "name").ToPagedResultAsync(query, ct);
 
@@ -77,7 +76,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         var photos = await db.ItemPhotos.Where(p => itemIds.Contains(p.ItemId)).Select(p => new { p.ItemId, p.Revision }).ToDictionaryAsync(p => p.ItemId, p => p.Revision, ct);
 
         return new PagedResult<ItemListItemDto>(
-            page.Items.Select(i => new ItemListItemDto(i.Id, i.Sku, i.InternalSku, i.Name, i.Type, i.Presentation, i.CategoryId,
+            page.Items.Select(i => new ItemListItemDto(i.Id, i.Sku, i.Name, i.Type, i.Presentation, i.CategoryId,
                 categories[i.CategoryId], uoms[i.BaseUomId], i.ProductionAreaId,
                 i.ProductionAreaId is { } a ? areas.GetValueOrDefault(a) : null, i.TracksLots, i.StorageCondition, i.IsActive,
                 photos.TryGetValue(i.Id, out var revision) ? revision : null)).ToList(),
@@ -100,8 +99,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
             var term = query.Q.Trim().ToLower();
-            items = items.Where(i => i.Sku.ToLower().Contains(term) || i.Name.ToLower().Contains(term)
-                                     || i.InternalSku.ToLower().Contains(term));
+            items = items.Where(i => i.Sku.ToLower().Contains(term) || i.Name.ToLower().Contains(term));
         }
 
         var limit = Math.Clamp(query.Limit, 1, ItemLookupQuery.MaxResults);
@@ -209,11 +207,6 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         if (await db.Items.AnyAsync(i => i.Sku == sku && i.Id != currentId, ct))
             errors["sku"] = [$"El SKU '{sku}' ya existe."];
 
-        // D-07: an internal SKU identifies one item.
-        var internalSku = ItemRules.NormalizeInternalSku(d.InternalSku);
-        if (await db.Items.AnyAsync(i => i.InternalSku == internalSku && i.Id != currentId, ct))
-            errors["internalSku"] = [$"El SKU interno '{internalSku}' ya lo usa otro artículo."];
-
         if (!await db.ItemCategories.AnyAsync(c => c.Id == d.CategoryId && (c.IsActive || c.Id == currentCategoryId), ct))
             errors["categoryId"] = ["La categoría no existe o está inactiva."];
 
@@ -257,7 +250,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         var names = await userDirectory.GetNamesAsync([i.CreatedBy, i.UpdatedBy], ct);
         var photoRevision = await db.ItemPhotos.Where(p => p.ItemId == i.Id).Select(p => (long?)p.Revision).SingleOrDefaultAsync(ct);
 
-        return new ItemDto(i.Id, i.Sku, i.InternalSku, i.Name, i.Type, i.CategoryId, i.BaseUomId, baseUomCode, i.PurchaseUomId,
+        return new ItemDto(i.Id, i.Sku, i.Name, i.Type, i.CategoryId, i.BaseUomId, baseUomCode, i.PurchaseUomId,
             i.PurchaseToBaseFactor, i.TracksLots, i.ShelfLifeDays, i.StorageCondition, i.TaxRate, i.Presentation,
             i.BulkItemId, bulk?.Sku, bulk?.Name, i.UnitsPerPackage, i.ProductionAreaId, i.ProductionMultiple, i.UnitWeightGrams,
             i.IsActive, i.CreatedAt, names.Of(i.CreatedBy), i.UpdatedAt, names.Of(i.UpdatedBy), i.Version, photoRevision);

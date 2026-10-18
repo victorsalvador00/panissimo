@@ -183,7 +183,7 @@ public class ProductionPlanTests(ApiFactory factory)
             var category = await db.ItemCategories.FirstAsync();
             var pieces = await db.UnitsOfMeasure.Where(u => u.Code == "pza").Select(u => u.Id).SingleAsync();
             var tag = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
-            var items = Enumerable.Range(0, 300).Select(i => new Item(new ItemDefinition($"PERF-{tag}-{i:000}", $"IPERF-{tag}-{i:000}", $"Producto {i}",
+            var items = Enumerable.Range(0, 300).Select(i => new Item(new ItemDefinition($"PERF-{tag}-{i:000}", $"Producto {i}",
                 ItemType.FinishedGood, category.Id, pieces, null, null, false, null, StorageCondition.Ambient, 0m, ItemPresentation.Bulk,
                 ProductionMultiple: 12))).ToList();
             db.Items.AddRange(items);

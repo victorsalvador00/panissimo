@@ -25,9 +25,9 @@ SELECT category, 'Volumen ' || to_char(now(), 'YYYYMMDDHH24MISS'), true, now() F
 CREATE TEMP TABLE vol_material ON COMMIT DROP AS
 SELECT n, gen_random_uuid() AS id, (10 + n % 30)::numeric AS cost FROM generate_series(1, 40) AS n;
 
-INSERT INTO catalog.item (id, sku, internal_sku, name, type, category_id, base_uom_id, purchase_to_base_factor, tracks_lots,
+INSERT INTO catalog.item (id, sku, name, type, category_id, base_uom_id, purchase_to_base_factor, tracks_lots,
                           storage_condition, tax_rate, production_multiple, is_active, created_at)
-SELECT m.id, 'VOL-MP-' || lpad(m.n::text, 2, '0'), 'IVOL-MP-' || lpad(m.n::text, 2, '0'),
+SELECT m.id, 'VOL-MP-' || lpad(m.n::text, 2, '0'),
        CASE m.n WHEN 1 THEN 'Harina volumen' ELSE 'Materia prima volumen ' || m.n END,
        'RawMaterial', c.category, c.kg, 1, false, 'Ambient', 0, 1, true, now()
 FROM vol_material m, vol_ctx c;
@@ -41,9 +41,9 @@ SELECT n, gen_random_uuid() AS id, gen_random_uuid() AS recipe_id,
        2 + n % 39 AS material_b, 2 + (n + 13) % 39 AS material_c
 FROM generate_series(0, 299) AS n;
 
-INSERT INTO catalog.item (id, sku, internal_sku, name, type, category_id, base_uom_id, purchase_to_base_factor, tracks_lots,
+INSERT INTO catalog.item (id, sku, name, type, category_id, base_uom_id, purchase_to_base_factor, tracks_lots,
                           storage_condition, tax_rate, presentation, production_area_id, production_multiple, is_active, created_at)
-SELECT p.id, 'VOL-PT-' || lpad(p.n::text, 3, '0'), 'IVOL-PT-' || lpad(p.n::text, 3, '0'), 'Producto volumen ' || p.n,
+SELECT p.id, 'VOL-PT-' || lpad(p.n::text, 3, '0'), 'Producto volumen ' || p.n,
        'FinishedGood', c.category, c.pza, 1, false, 'Ambient', 0, 'Bulk', p.area_id, 1, true, now()
 FROM vol_product p, vol_ctx c;
 

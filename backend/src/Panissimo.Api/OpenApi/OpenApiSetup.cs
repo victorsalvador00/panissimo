@@ -48,7 +48,7 @@ public static class OpenApiSetup
         [typeof(CreateProductionAreaRequest)] = """{ "code": "HOJ-NOC", "name": "Hojaldre Noche", "sortOrder": 120 }""",
         [typeof(UpdateProductionAreaRequest)] = """{ "version": 1234, "name": "Hojaldre Noche", "sortOrder": 120, "isActive": true }""",
         [typeof(CreateItemRequest)] = """
-            { "sku": "TRENZA-EMB", "internalSku": "SKU0042", "name": "Trenza embolsada 6 pzas", "type": "FinishedGood",
+            { "sku": "SKU0042", "name": "Trenza embolsada 6 pzas", "type": "FinishedGood",
               "categoryId": "0199a1b2-0000-7000-8000-0000000000c1", "baseUomId": "0199a1b2-0000-7000-8000-0000000000b5",
               "purchaseUomId": null, "purchaseToBaseFactor": null, "tracksLots": true, "shelfLifeDays": 5,
               "storageCondition": "Ambient", "taxRate": 0, "presentation": "Packaged",
@@ -56,7 +56,7 @@ public static class OpenApiSetup
               "productionAreaId": "0199a1b2-0000-7000-8000-0000000000e1", "productionMultiple": 6, "unitWeightGrams": 85 }
             """,
         [typeof(UpdateItemRequest)] = """
-            { "version": 1234, "sku": "HAR-001", "internalSku": "SKU0007", "name": "Harina de trigo", "type": "RawMaterial",
+            { "version": 1234, "sku": "SKU0007", "name": "Harina de trigo", "type": "RawMaterial",
               "categoryId": "0199a1b2-0000-7000-8000-0000000000c1", "baseUomId": "0199a1b2-0000-7000-8000-0000000000b1",
               "purchaseUomId": "0199a1b2-0000-7000-8000-0000000000b7", "purchaseToBaseFactor": 44, "tracksLots": true,
               "shelfLifeDays": 180, "storageCondition": "Ambient", "taxRate": 0, "presentation": null, "bulkItemId": null,

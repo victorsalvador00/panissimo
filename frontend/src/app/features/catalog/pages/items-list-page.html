@@ -91,9 +91,6 @@
   <ng-template appCell="sku" header="SKU" sortable [appCellOf]="rows()" let-item>
     <a class="row-link" [routerLink]="item.id">{{ item.sku }}</a>
   </ng-template>
-  <ng-template appCell="internalSku" header="SKU interno" [appCellOf]="rows()" let-item>
-    {{ item.internalSku }}
-  </ng-template>
   <ng-template appCell="name" header="Nombre" sortable [appCellOf]="rows()" let-item>
     {{ item.name }}
   </ng-template>

@@ -14,8 +14,8 @@ describe('csv', () => {
   });
 
   it('detects the semicolon of Excel in Spanish and keeps empty fields', () => {
-    const doc = parseCsv('sku;sku_interno;nombre\nX;;Sin interno\n');
-    expect(doc.rows).toEqual([['X', '', 'Sin interno']]);
+    const doc = parseCsv('sku;area;nombre\nX;;Sin área\n');
+    expect(doc.rows).toEqual([['X', '', 'Sin área']]);
   });
 
   it('accepts line breaks inside quotes and ignores blank lines', () => {

@@ -136,7 +136,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 **ItemCategory**: `Name` (único), `IsActive`.
 
 **Item**
-- `Sku` (único, se guarda en mayúsculas), `InternalSku` (**SKU interno** de Paníssimo, ej. `SKU0001`; **obligatorio y único**, en mayúsculas; es el único identificador que acepta la importación de OP, D-07), `Name`, `Type` (`RawMaterial | Supply | SemiFinished | FinishedGood`), `CategoryId`.
+- `Sku` (el código de Paníssimo, ej. `SKU0001`; **obligatorio y único**, se guarda en mayúsculas; es el identificador que usan la importación de OP y la de artículos, D-07), `Name`, `Type` (`RawMaterial | Supply | SemiFinished | FinishedGood`), `CategoryId`.
 - `BaseUomId`: unidad en la que se lleva el inventario.
 - `PurchaseUomId` (opcional) + `PurchaseToBaseFactor` (> 0; ej. bulto → 44 kg). Si no hay unidad de compra, el factor es 1.
 - `TracksLots` (bool), `ShelfLifeDays` (opcional, ≥ 0), `StorageCondition` (`Ambient | Refrigerated | Frozen`).
@@ -362,7 +362,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   | Columna | Obligatoria | Regla |
   |---|---|---|
   | `fecha` | Sí | Fecha programada (celda de fecha o texto `dd/mm/aaaa`). No pasada |
-  | `sku_interno` | Sí | `InternalSku` (D-07; no el SKU del sistema) de un artículo activo `SemiFinished` o `FinishedGood` con receta activa |
+  | `sku` | Sí | `Sku` (D-07) de un artículo activo `SemiFinished` o `FinishedGood` con receta activa |
   | `cantidad` | Sí | > 0, hasta 4 decimales (entero si es `pza`) |
   | `area` | No | Código o nombre de un área activa. Vacío = área del artículo |
   | `turno` | No | `Día`, `Tarde` o `Noche`. Vacío = sin turno |
@@ -374,7 +374,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - **RN-92 (agrupación)**: filas con el mismo `(fecha, sku, area, turno, ubicacion)` se suman en una sola OP. La vista previa muestra "N filas → M órdenes".
 - **RN-93 (avisos)**: requieren confirmación del usuario, no son errores: archivo con el mismo SHA-256 que una importación anterior, y OP no cancelada existente del mismo producto, fecha, área y turno.
 - **RN-94 (resultado)**: crea un `ProductionOrderImport` y sus OP en `Draft` con `Source = Import`. Con **"Liberar al importar"** (y permiso de gestionar OP) las crea en `Released`. Todo en una transacción.
-- **RN-95 (Matriz Maestra)**: las hojas de la Matriz Maestra del cliente no se importan directamente (usan SKU internos `SKU0001…`). El cliente copia `fecha`, `sku` y `cantidad` a la plantilla (D-07).
+- **RN-95 (Matriz Maestra)**: las hojas de la Matriz Maestra del cliente no se importan directamente (usan los SKU `SKU0001…` en otra disposición). El cliente copia `fecha`, `sku` y `cantidad` a la plantilla (D-07).
 
 ### Logística
 
@@ -513,7 +513,7 @@ Cada decisión tenía una **propuesta**; las reglas de la sección 5 se escribie
 | D-04 | ¿Los semiterminados se producen con su propia OP o en cascada? | Su propia OP (un nivel), con generación asistida desde el plan | Confirmada | B-20, B-21 |
 | D-05 | ¿El empaquetado es un SKU distinto? ¿Quién pide qué presentación? | SKU distinto con su receta. **Sucursales y clientes pueden pedir granel y empaquetado** (sucursales también insumos); nunca semiterminados ni materias primas | Decidida, **cambia** la propuesta | B-05, B-17, B-18, B-27 |
 | D-06 | ¿Precios por cliente en pedido y remisión? | Opcionales e informativos (sin CFDI ni cobranza) | Confirmada | B-18 |
-| D-07 | ¿El Excel de OP sale de la Matriz Maestra? ¿Con qué SKU? | Plantilla propia; cada artículo tiene un **SKU interno** (el de Paníssimo), **obligatorio y único** en el catálogo, y la importación de OP lo identifica **solo** por él (columna `sku_interno`), nunca por el SKU del sistema. En el CSV de artículos, un renglón sin SKU interno se **omite** y se informa el motivo | Decidida, **cambia** la propuesta | B-13, B-27 |
+| D-07 | ¿El Excel de OP sale de la Matriz Maestra? ¿Con qué SKU? | Plantilla propia; cada artículo tiene **un solo SKU** (el código de Paníssimo), **obligatorio y único** en el catálogo, y la importación de OP lo identifica por él (columna `sku`). El 2026-10-18 el usuario eliminó el SKU interno separado: su valor pasó a ser el SKU (migración `RemoveInternalSku`) | Decidida, **cambia** la propuesta | B-13, B-27 |
 | D-08 | ¿Cómo se registran devoluciones y rechazos de clientes? | Ajuste de entrada que además permite capturar, por línea, qué parte es **merma** con su propio motivo | Decidida, **amplía** la propuesta | B-27 |
 | D-09 | ¿Cuántos clientes y puntos de entrega? ¿Quién confirma y quién despacha? | 20 a 100 clientes. Confirma Ventas a clientes; despacha Almacén planta o Distribución | Confirmada | B-18, B-19 |
 | D-10 | ¿Cuántos usuarios por rol? | Se define antes del arranque (semilla de demo y capacitación) | Abierta, no bloquea | B-04, B-25 |

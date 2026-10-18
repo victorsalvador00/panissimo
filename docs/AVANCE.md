@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-26, pantalla de trazabilidad: plan completo).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (un solo SKU por artículo, D-07).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-18)
@@ -8,7 +8,7 @@
 **Dónde quedamos**
 - **Plan completo:** backend B-01..B-28 y frontend F-01..F-26 terminados y en `main`, incluida la ampliación de trazabilidad (B-28 y F-26).
 - Pruebas en verde: backend 282 unitarias y 167 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers); frontend 187 unitarias, lint y build; E2E: suite completa 45 en verde y 22 omitidas por diseño (escritorio y celular); la E2E 7 falló una vez por el botón de ayuda (corregido abajo) y se volvió a correr en verde con las que usan barra de acciones.
-- Migraciones hasta `AddTraceability` (B-28).
+- Migraciones hasta `RemoveInternalSku` (D-07, un solo SKU).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las migraciones vigentes.
 
 **Decisiones:** D-01..D-11 en `docs/specs/dominio.md` §8. D-11 (roles de la trazabilidad) decidida con el usuario el 2026-10-18. D-10 sigue abierta (no bloquea). El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
@@ -828,3 +828,15 @@
   - **Contraste de lo atenuado:** lo que la selección atenúa lleva la clase `dimmed` y axe lo excluye. Es contenido incidental fuera de la cadena (WCAG 1.4.3); lo resaltado y la ficha sí se revisan.
   - **Alerta de caducidad en la tarjeta:** usa el default de `inventory.expiry_alert_days` (3), porque el grafo no trae el parámetro.
 - Sin paquetes nuevos.
+
+### D-07: un solo SKU por artículo (2026-10-18)
+
+- **Cambio pedido por el usuario:** el artículo deja de tener SKU y SKU interno; queda solo `Sku`, que hace todo lo que hacía el SKU interno.
+- **Backend:**
+  - `Item`, `ItemDefinition`, DTOs, `ItemRules` (sin `NormalizeInternalSku`), búsqueda y validación de unicidad sin `InternalSku`.
+  - Importación de OP: la columna `sku_interno` pasa a `sku` (plantilla e instrucciones incluidas). Archivos viejos con `sku_interno` fallan por columna obligatoria faltante (decisión del usuario).
+  - CSV de artículos: sin columna `sku_interno` ni filas omitidas; `ItemImportResult` pierde `Skipped`.
+  - Migración `RemoveInternalSku`: copia `internal_sku` a `sku` (decisión del usuario; el SKU anterior se pierde), reconstruye `ix_item_sku` alrededor del `UPDATE` para que los valores cruzados entre artículos no choquen y borra la columna. `Down` repone `internal_sku` con el SKU actual. Probada en la BD local, con dos artículos de SKU cruzados, hacia arriba y hacia abajo.
+- **Frontend:** formulario sin el campo (la nota "El código de Paníssimo; la importación de OP lo usa." pasa al SKU), lista sin la columna, guía del CSV, ayuda, tipos regenerados y fixtures E2E (CSV y los dos `.xlsx`, regenerados con `scripts/e2e-fixtures.py`). La etiqueta de auditoría `InternalSku` se conserva para el historial anterior.
+- **Plantilla CSV de artículos** (`items-import-page.ts`): las filas de ejemplo todavía traían el SKU interno en la 2.ª posición y corrían todas las columnas. Ahora usan como SKU el antiguo código (`MP-001`, `PT-010`, `PT-011`) y el empaquetado apunta a `PT-010`. `items-import-page.spec.ts` revisa que cada fila tenga un valor por columna, que solo existan `sku` y `sku_granel` y que el `sku_granel` exista en la plantilla.
+- **Pruebas:** backend 282 unitarias en verde; frontend 190 unitarias, lint y build en verde. **Integración y E2E no se corrieron:** Docker no está instalado en esta máquina (Testcontainers). Correrlas antes de dar por cerrado.

@@ -22,7 +22,7 @@ const ITEM_FORM: HelpTopic = {
   summary:
     'Alta y edición de un artículo: materia prima, insumo, semiterminado o producto terminado, con sus unidades, lotes, impuestos y presentación.',
   steps: [
-    'Captura el SKU (el que ven sucursales y clientes) y el SKU interno (el de producción y la importación de órdenes).',
+    'Captura el SKU: el código de Paníssimo, único, que identifica al artículo en todo el sistema y en la importación de órdenes.',
     'Elige el tipo, la categoría y la unidad base. La unidad de compra y su factor solo aplican a lo que se compra.',
     'Indica si lleva lotes y su vida útil en días: con lotes, cada entrada pide número de lote y las salidas van por FEFO.',
     'Para producto terminado elige la presentación: a granel (sucursales) o empaquetado (clientes), ligado a su versión a granel.',
@@ -462,7 +462,7 @@ export const HELP: Readonly<Record<string, HelpTopic>> = {
     title: 'Importar órdenes',
     summary: 'Crea órdenes de producción desde un Excel: primero se valida y luego se confirma.',
     steps: [
-      'Descarga la plantilla y llena fecha, SKU interno, cantidad, área y turno.',
+      'Descarga la plantilla y llena fecha, SKU, cantidad, área y turno.',
       'Súbela: los errores bloquean; los avisos deben aceptarse con la casilla.',
       'Confirma para crear las órdenes agrupadas.',
     ],

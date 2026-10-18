@@ -12,7 +12,6 @@ const page = <T>(items: T[]) => ({ items, page: 1, pageSize: 100, total: items.l
 const bulk: Schemas['ItemDto'] = {
   id: 'bulk-1',
   sku: 'CONCHA-G',
-  internalSku: 'PT-010',
   name: 'Concha a granel',
   type: 'FinishedGood',
   categoryId: 'cat-1',

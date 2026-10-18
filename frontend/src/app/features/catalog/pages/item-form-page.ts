@@ -142,7 +142,6 @@ export class ItemFormPage {
 
   protected readonly form = new FormGroup({
     sku: skuControl(),
-    internalSku: skuControl(),
     name: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(200)],
@@ -231,7 +230,6 @@ export class ItemFormPage {
     const v = this.form.getRawValue();
     const definition = {
       sku: v.sku.trim().toUpperCase(),
-      internalSku: v.internalSku.trim().toUpperCase(),
       name: v.name.trim(),
       type: v.type!,
       categoryId: v.categoryId!,
@@ -290,7 +288,6 @@ export class ItemFormPage {
     this.breadcrumbs.setCurrent(item.sku);
     this.form.reset({
       sku: item.sku,
-      internalSku: item.internalSku,
       name: item.name,
       type: item.type,
       categoryId: item.categoryId,

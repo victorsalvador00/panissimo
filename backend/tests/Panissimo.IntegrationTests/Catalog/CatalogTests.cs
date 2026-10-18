@@ -30,7 +30,7 @@ public class CatalogTests(ApiFactory factory)
     }
 
     private static CreateItemRequest FinishedGood(Refs refs, string sku, ItemPresentation presentation, Guid? bulkItemId = null) =>
-        new(sku, $"I{sku}", $"Producto {sku}", ItemType.FinishedGood, refs.CategoryId, refs.Pza, null, null, true, 3, StorageCondition.Ambient, 0m,
+        new(sku, $"Producto {sku}", ItemType.FinishedGood, refs.CategoryId, refs.Pza, null, null, true, 3, StorageCondition.Ambient, 0m,
             presentation, bulkItemId, presentation == ItemPresentation.Packaged ? 6 : null, refs.Area.Id, 12, 85);
 
     [Fact]
@@ -54,7 +54,7 @@ public class CatalogTests(ApiFactory factory)
         Assert.Equal([packaged.Id], versions!.Items.Select(i => i.Id));
 
         // A bulk item with packaged versions cannot stop being bulk.
-        var change = await admin.PutJsonAsync($"/api/v1/items/{bulk.Id}", new UpdateItemRequest(bulk.Version, bulk.Sku, bulk.InternalSku, bulk.Name,
+        var change = await admin.PutJsonAsync($"/api/v1/items/{bulk.Id}", new UpdateItemRequest(bulk.Version, bulk.Sku, bulk.Name,
             ItemType.FinishedGood, refs.CategoryId, refs.Pza, null, null, true, 3, StorageCondition.Ambient, 0m,
             ItemPresentation.Packaged, null, null, refs.Area.Id, 12, 85, true));
         Assert.Equal(HttpStatusCode.BadRequest, change.StatusCode);
@@ -78,15 +78,15 @@ public class CatalogTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, fractional.StatusCode);
         Assert.Contains("productionMultiple", await fractional.Content.ReadAsStringAsync());
 
-        // D-07: the internal SKU is required and unique.
-        var withoutInternal = await admin.PostJsonAsync("/api/v1/items",
-            FinishedGood(refs, Unique("CONCHA"), ItemPresentation.Bulk) with { InternalSku = " " });
-        Assert.Equal(HttpStatusCode.BadRequest, withoutInternal.StatusCode);
-        Assert.Contains("internalSku", await withoutInternal.Content.ReadAsStringAsync());
+        // D-07: the SKU is required and unique.
+        var withoutSku = await admin.PostJsonAsync("/api/v1/items",
+            FinishedGood(refs, Unique("CONCHA"), ItemPresentation.Bulk) with { Sku = " " });
+        Assert.Equal(HttpStatusCode.BadRequest, withoutSku.StatusCode);
+        Assert.Contains("sku", await withoutSku.Content.ReadAsStringAsync());
         var repeated = await admin.PostJsonAsync("/api/v1/items",
-            FinishedGood(refs, Unique("CONCHA"), ItemPresentation.Bulk) with { InternalSku = packaged.InternalSku });
+            FinishedGood(refs, Unique("CONCHA"), ItemPresentation.Bulk) with { Sku = packaged.Sku.ToLowerInvariant() });
         Assert.Equal(HttpStatusCode.BadRequest, repeated.StatusCode);
-        Assert.Contains("internalSku", await repeated.Content.ReadAsStringAsync());
+        Assert.Contains("ya existe", await repeated.Content.ReadAsStringAsync());
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public class CatalogTests(ApiFactory factory)
             .Content.ReadJsonAsync<ItemDto>();
         await factory.AddStockAsync(await factory.LocationIdAsync("PLANTA"), item!.Id, 10, 3);
 
-        var change = await admin.PutJsonAsync($"/api/v1/items/{item.Id}", new UpdateItemRequest(item.Version, item.Sku, item.InternalSku, item.Name,
+        var change = await admin.PutJsonAsync($"/api/v1/items/{item.Id}", new UpdateItemRequest(item.Version, item.Sku, item.Name,
             ItemType.FinishedGood, refs.CategoryId, refs.Pza, null, null, true, 3, StorageCondition.Ambient, 0m,
             ItemPresentation.Bulk, null, null, refs.Area.Id, 12, 85, true));
 
@@ -170,13 +170,13 @@ public class CatalogTests(ApiFactory factory)
         var refs = await RefsAsync(admin);
         var ok = Unique("OK");
         var csv = $"""
-            sku,nombre,tipo,categoria,unidad_base,presentacion,sku_granel,area,multiplo_op,sku_interno
-            {ok},Pan correcto,terminado,{refs.CategoryName},pza,granel,,BIZ-DIA,12,{Unique("I")}
-            {Unique("A")},Sin presentación,terminado,{refs.CategoryName},pza,,,,,{Unique("I")}
-            {Unique("B")},Área inexistente,terminado,{refs.CategoryName},pza,granel,,NO-EXISTE,,{Unique("I")}
-            {Unique("C")},Insumo con área,insumo,{refs.CategoryName},pza,,,BIZ-DIA,,{Unique("I")}
-            {Unique("D")},Ligado a inexistente,terminado,{refs.CategoryName},pza,empaquetado,NOEXISTE,,,{Unique("I")}
-            {Unique("E")},Categoría mala,terminado,No Existe,pza,granel,,,,{Unique("I")}
+            sku,nombre,tipo,categoria,unidad_base,presentacion,sku_granel,area,multiplo_op
+            {ok},Pan correcto,terminado,{refs.CategoryName},pza,granel,,BIZ-DIA,12
+            {Unique("A")},Sin presentación,terminado,{refs.CategoryName},pza,,,,
+            {Unique("B")},Área inexistente,terminado,{refs.CategoryName},pza,granel,,NO-EXISTE,
+            {Unique("C")},Insumo con área,insumo,{refs.CategoryName},pza,,,BIZ-DIA,
+            {Unique("D")},Ligado a inexistente,terminado,{refs.CategoryName},pza,empaquetado,NOEXISTE,,
+            {Unique("E")},Categoría mala,terminado,No Existe,pza,granel,,,
             """;
 
         var response = await PostCsvAsync(admin, csv);
@@ -203,16 +203,16 @@ public class CatalogTests(ApiFactory factory)
         var refs = await RefsAsync(admin);
         var trenza = Unique("TRENZA");
         var csv = $"""
-            sku;nombre;tipo;categoria;unidad_base;unidad_compra;factor_compra;maneja_lotes;vida_util_dias;iva;presentacion;sku_granel;piezas_por_paquete;area;multiplo_op;gramaje_g;sku_interno
-            {trenza}-EMB;Trenza embolsada;terminado;{refs.CategoryName};pza;;;sí;5;0;Empaquetado;{trenza};6;Empaque;6;;I{trenza}-EMB
-            {trenza};Trenza;Terminado;{refs.CategoryName};pza;;;si;3;0;granel;;;Bizcocho Día;30;85.5;I{trenza}
-            {trenza}-HAR;Harina;materia prima;{refs.CategoryName};kg;bulto;44;no;;0;;;;;;;I{trenza}-HAR
+            sku;nombre;tipo;categoria;unidad_base;unidad_compra;factor_compra;maneja_lotes;vida_util_dias;iva;presentacion;sku_granel;piezas_por_paquete;area;multiplo_op;gramaje_g
+            {trenza}-EMB;Trenza embolsada;terminado;{refs.CategoryName};pza;;;sí;5;0;Empaquetado;{trenza};6;Empaque;6;
+            {trenza};Trenza;Terminado;{refs.CategoryName};pza;;;si;3;0;granel;;;Bizcocho Día;30;85.5
+            {trenza}-HAR;Harina;materia prima;{refs.CategoryName};kg;bulto;44;no;;0;;;;;;
             """;
 
         var first = await PostCsvAsync(admin, csv);
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         var firstResult = (await first.Content.ReadJsonAsync<ItemImportResult>())!;
-        Assert.Equal((3, 0, 0), (firstResult.Created, firstResult.Updated, firstResult.Skipped.Count));
+        Assert.Equal((3, 0), (firstResult.Created, firstResult.Updated));
 
         var bulk = (await admin.GetJsonAsync<List<ItemLookupDto>>($"/api/v1/items/lookup?q={trenza}&presentation=Bulk"))!.Single();
         var packagedId = (await admin.GetJsonAsync<List<ItemLookupDto>>($"/api/v1/items/lookup?q={trenza}-EMB"))!.Single().Id;
@@ -247,35 +247,5 @@ public class CatalogTests(ApiFactory factory)
         file.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
         var form = new MultipartFormDataContent { { file, "file", "articulos.csv" } };
         return client.PostAsync("/api/v1/imports/items", form);
-    }
-
-    [Fact]
-    public async Task Csv_rows_without_internal_sku_are_skipped_with_their_reason()
-    {
-        var admin = await factory.LoginAsAdminAsync();
-        var refs = await RefsAsync(admin);
-        var (withCode, withoutCode) = (Unique("CON"), Unique("SIN"));
-        var csv = $"""
-            sku,nombre,tipo,categoria,unidad_base,presentacion,sku_interno
-            {withCode},Con código,terminado,{refs.CategoryName},pza,granel,{Unique("I")}
-            {withoutCode},Sin código,terminado,{refs.CategoryName},pza,granel,
-            """;
-
-        var response = await PostCsvAsync(admin, csv);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = (await response.Content.ReadJsonAsync<ItemImportResult>())!;
-        Assert.Equal(1, result.Created);
-        var skipped = Assert.Single(result.Skipped);
-        Assert.Equal((3, "sku_interno"), (skipped.Row, skipped.Column));
-        Assert.Contains("falta el SKU interno", skipped.Message);
-        Assert.Empty((await admin.GetJsonAsync<List<ItemLookupDto>>($"/api/v1/items/lookup?q={withoutCode}"))!);
-
-        var noColumn = await PostCsvAsync(admin, $"""
-            sku,nombre,tipo,categoria,unidad_base,presentacion
-            {Unique("X")},Sin columna,terminado,{refs.CategoryName},pza,granel
-            """);
-        var noColumnResult = (await noColumn.Content.ReadJsonAsync<ItemImportResult>())!;
-        Assert.Equal(0, noColumnResult.Created);
-        Assert.Contains("columna sku_interno", Assert.Single(noColumnResult.Skipped).Message);
     }
 }

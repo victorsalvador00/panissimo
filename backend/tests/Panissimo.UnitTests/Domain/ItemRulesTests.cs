@@ -7,7 +7,7 @@ namespace Panissimo.UnitTests.Domain;
 public class ItemRulesTests
 {
     private static ItemDefinition Definition(ItemType type = ItemType.RawMaterial, ItemPresentation? presentation = null) =>
-        new("har-001", "sku0001", "Harina", type, Guid.NewGuid(), Guid.NewGuid(), null, null, false, null, StorageCondition.Ambient, 0m, presentation);
+        new("har-001", "Harina", type, Guid.NewGuid(), Guid.NewGuid(), null, null, false, null, StorageCondition.Ambient, 0m, presentation);
 
     private static IEnumerable<string> Fields(ItemDefinition d) => ItemRules.Check(d).Select(e => e.Field);
 
@@ -93,14 +93,14 @@ public class ItemRulesTests
     }
 
     [Fact]
-    public void The_internal_sku_is_required_upper_case_and_shaped_like_a_sku()
+    public void The_sku_is_required_upper_case_and_shaped_like_a_code()
     {
-        Assert.Contains("internalSku", Fields(Definition() with { InternalSku = " " }));
-        Assert.Equal("SKU0001", ItemRules.NormalizeInternalSku(" sku0001 "));
-        Assert.Contains("internalSku", Fields(Definition() with { InternalSku = "SKU 0001" }));
-        Assert.Contains("internalSku", Fields(Definition() with { InternalSku = new string('A', ItemRules.SkuMaxLength + 1) }));
+        Assert.Contains("sku", Fields(Definition() with { Sku = " " }));
+        Assert.Equal("SKU0001", ItemRules.NormalizeSku(" sku0001 "));
+        Assert.Contains("sku", Fields(Definition() with { Sku = "SKU 0001" }));
+        Assert.Contains("sku", Fields(Definition() with { Sku = new string('A', ItemRules.SkuMaxLength + 1) }));
 
-        var item = new Item(Definition() with { InternalSku = "sku0001" });
-        Assert.Equal("SKU0001", item.InternalSku);
+        var item = new Item(Definition() with { Sku = "sku0001" });
+        Assert.Equal("SKU0001", item.Sku);
     }
 }

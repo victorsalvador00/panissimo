@@ -40,7 +40,7 @@ public static class TestData
 
         // D-07: every test item gets an internal SKU (INT-…), so the OP import can find it.
         var sku = $"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 9)];
-        var item = new Item(new ItemDefinition(sku, $"INT-{sku}", $"{prefix} de prueba", type, category.Id, uomId, purchaseUomId,
+        var item = new Item(new ItemDefinition(sku, $"{prefix} de prueba", type, category.Id, uomId, purchaseUomId,
             purchaseToBaseFactor, tracksLots, shelfLifeDays, StorageCondition.Ambient, 0m, presentation));
         db.Items.Add(item);
         await db.SaveChangesAsync();

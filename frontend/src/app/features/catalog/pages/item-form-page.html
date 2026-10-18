@@ -28,18 +28,8 @@
           <mat-form-field>
             <mat-label>SKU</mat-label>
             <input matInput class="pan-uppercase" formControlName="sku" autocomplete="off" />
-            <mat-error>{{ controlError(form.controls.sku) }}</mat-error>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>SKU interno</mat-label>
-            <input
-              matInput
-              class="pan-uppercase"
-              formControlName="internalSku"
-              autocomplete="off"
-            />
             <mat-hint>El código de Paníssimo; la importación de OP lo usa.</mat-hint>
-            <mat-error>{{ controlError(form.controls.internalSku) }}</mat-error>
+            <mat-error>{{ controlError(form.controls.sku) }}</mat-error>
           </mat-form-field>
           <mat-form-field class="wide">
             <mat-label>Nombre</mat-label>

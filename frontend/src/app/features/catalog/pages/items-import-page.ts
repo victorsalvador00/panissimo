@@ -6,9 +6,8 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { ItemImportResult, ItemsApi } from '../data-access/catalog-api';
 
 /** Columns of the backend item import (ItemImportService.Columns), in template order. */
-const columns = [
+export const columns = [
   'sku',
-  'sku_interno',
   'nombre',
   'tipo',
   'categoria',
@@ -27,9 +26,8 @@ const columns = [
   'gramaje_g',
 ];
 
-const exampleRows = [
+export const exampleRows = [
   [
-    'HARINA-T',
     'MP-001',
     'Harina de trigo',
     'materia_prima',
@@ -49,7 +47,6 @@ const exampleRows = [
     '',
   ],
   [
-    'CONCHA-G',
     'PT-010',
     'Concha a granel',
     'terminado',
@@ -69,7 +66,6 @@ const exampleRows = [
     '70',
   ],
   [
-    'CONCHA-6',
     'PT-011',
     'Concha paquete de 6',
     'terminado',
@@ -82,7 +78,7 @@ const exampleRows = [
     'ambiente',
     '0',
     'empaquetado',
-    'CONCHA-G',
+    'PT-010',
     '6',
     'PAN-DULCE',
     '',
@@ -94,12 +90,8 @@ const guide: CsvColumnGuide[] = [
   {
     column: 'sku',
     required: true,
-    description: 'Letras, números, punto, guion y guion bajo. Si ya existe, se actualiza.',
-  },
-  {
-    column: 'sku_interno',
-    required: true,
-    description: 'Código de Paníssimo, único. La fila sin él se omite y se reporta.',
+    description:
+      'Código de Paníssimo: letras, números, punto, guion y guion bajo. Si ya existe, se actualiza.',
   },
   { column: 'nombre', required: true, description: 'Hasta 200 caracteres.' },
   {
@@ -154,17 +146,6 @@ const guide: CsvColumnGuide[] = [
           {{ result.created === 1 ? 'artículo creado' : 'artículos creados' }} y
           {{ result.updated }} {{ result.updated === 1 ? 'actualizado' : 'actualizados' }}.
         </p>
-        @if (result.skipped.length > 0) {
-          <p>
-            {{ result.skipped.length }}
-            {{ result.skipped.length === 1 ? 'fila omitida' : 'filas omitidas' }}:
-          </p>
-          <ul>
-            @for (skipped of result.skipped; track $index) {
-              <li>Fila {{ skipped.row }}: {{ skipped.message }}</li>
-            }
-          </ul>
-        }
         <a matButton="tonal" routerLink="/catalogos/articulos">Ver artículos</a>
       </section>
     }

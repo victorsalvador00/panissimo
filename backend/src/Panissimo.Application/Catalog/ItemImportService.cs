@@ -18,7 +18,6 @@ public interface IItemImportService
 
 /// <summary>
 /// Item CSV (backend §13, B-05): sku, nombre, tipo, categoria and unidad_base are required; the rest are optional.
-/// D-07: sku_interno is required; a row without it is skipped (reported in the result) and the rest is imported.
 /// A packaged row may point (sku_granel) to a bulk item that already exists or that comes in the same file.
 /// </summary>
 public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IItemImportService
@@ -44,14 +43,13 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         public const string Area = "area";
         public const string Multiple = "multiplo_op";
         public const string Weight = "gramaje_g";
-        public const string InternalSku = "sku_interno";
 
         public static readonly IReadOnlyList<string> Required = [Sku, Name, Type, Category, BaseUom];
 
         public static readonly IReadOnlyList<string> All =
         [
             .. Required, PurchaseUom, Factor, TracksLots, ShelfLife, Storage, Tax, Presentation, BulkSku, UnitsPerPackage,
-            Area, Multiple, Weight, InternalSku,
+            Area, Multiple, Weight,
         ];
     }
 
@@ -90,7 +88,6 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         ["productionAreaId"] = Columns.Area,
         ["productionMultiple"] = Columns.Multiple,
         ["unitWeightGrams"] = Columns.Weight,
-        ["internalSku"] = Columns.InternalSku,
     };
 
     private sealed record ParsedRow(int Line, ItemDefinition Definition, string? BulkSku)
@@ -113,18 +110,8 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         var parsed = new List<ParsedRow>();
         var seenSkus = new Dictionary<string, int>();
 
-        var skipped = new List<ImportError>();
-        var hasInternalColumn = document.Headers.Contains(Columns.InternalSku);
         foreach (var row in document.Rows)
         {
-            if (row.Get(Columns.InternalSku).Length == 0)
-            {
-                skipped.Add(new ImportError(row.Line, Columns.InternalSku, hasInternalColumn
-                    ? "Renglón omitido: falta el SKU interno."
-                    : $"Renglón omitido: el archivo no trae la columna {Columns.InternalSku}."));
-                continue;
-            }
-
             var rowErrors = new List<ImportError>();
             var result = ParseRow(row, catalogs, rowErrors);
 
@@ -157,8 +144,6 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         errors.AddRange(ValidateBulkLinks(parsed, bySku, existing));
         errors.AddRange(await ValidateFixedOnceMovedAsync(parsed, existing, ct));
         errors.AddRange(await ValidateBulkWithPackagedAsync(parsed, existing, ct));
-
-        errors.AddRange(await ValidateInternalSkusAsync(parsed, ct));
 
         if (errors.Count > 0)
             throw new ImportValidationException([.. errors.OrderBy(e => e.Row)]);
@@ -194,7 +179,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 
-        return new ItemImportResult(created, updated, skipped);
+        return new ItemImportResult(created, updated);
     }
 
     /// <summary>sku_granel must be an active bulk finished good, in the file or in the catalog, and not the row itself.</summary>
@@ -270,22 +255,6 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         return new Catalogs(categoriesByName,
             await db.UnitsOfMeasure.AsNoTracking().ToDictionaryAsync(u => u.Code, ct),
             areasByKey);
-    }
-
-    /// <summary>D-07: an internal SKU is unique in the file and in the catalog.</summary>
-    private async Task<IEnumerable<ImportError>> ValidateInternalSkusAsync(IReadOnlyList<ParsedRow> parsed, CancellationToken ct)
-    {
-        var errors = new List<ImportError>();
-        foreach (var duplicate in parsed.GroupBy(r => ItemRules.NormalizeInternalSku(r.Definition.InternalSku)).Where(g => g.Count() > 1))
-            errors.AddRange(duplicate.Skip(1).Select(r => new ImportError(r.Line, Columns.InternalSku,
-                $"El SKU interno '{duplicate.Key}' está repetido (ya aparece en la fila {duplicate.First().Line}).")));
-
-        var codes = parsed.Select(r => ItemRules.NormalizeInternalSku(r.Definition.InternalSku)).Distinct().ToList();
-        var taken = await db.Items.AsNoTracking().Where(i => codes.Contains(i.InternalSku))
-            .ToDictionaryAsync(i => i.InternalSku, i => i.Sku, ct);
-        errors.AddRange(parsed.Where(r => taken.TryGetValue(ItemRules.NormalizeInternalSku(r.Definition.InternalSku), out var sku) && sku != r.Sku)
-            .Select(r => new ImportError(r.Line, Columns.InternalSku, $"El SKU interno '{ItemRules.NormalizeInternalSku(r.Definition.InternalSku)}' ya lo usa otro artículo.")));
-        return errors;
     }
 
     private static void ValidateLayout(CsvDocument document)
@@ -392,7 +361,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
 
         return errors.Count > before
             ? null
-            : new ParsedRow(row.Line, new ItemDefinition(row.Get(Columns.Sku), row.Get(Columns.InternalSku), row.Get(Columns.Name), type, categoryId,
+            : new ParsedRow(row.Line, new ItemDefinition(row.Get(Columns.Sku), row.Get(Columns.Name), type, categoryId,
                 baseUomId, purchaseUomId, factor, tracksLots, shelfLife, storage, taxRate, presentation, null, unitsPerPackage, areaId,
                 multiple, weight), bulkSku);
 

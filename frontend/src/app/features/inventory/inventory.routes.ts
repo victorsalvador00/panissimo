@@ -90,6 +90,47 @@ export const INVENTORY_ROUTES: Routes = [
     ],
   },
   {
+    path: 'vales-internos',
+    canActivate: [permissionGuard],
+    data: { permission: 'inventory.view', breadcrumb: 'Vales internos' },
+    children: [
+      {
+        path: '',
+        title: 'Vales internos · SGO Paníssimo',
+        loadComponent: () => import('./pages/vouchers-list-page').then((m) => m.VouchersListPage),
+      },
+      {
+        path: 'nuevo',
+        title: 'Nuevo vale interno · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'inventory.internal_transfers', breadcrumb: 'Nuevo vale' },
+        loadComponent: () => import('./pages/voucher-form-page').then((m) => m.VoucherFormPage),
+      },
+      {
+        path: ':id',
+        title: 'Vale interno · SGO Paníssimo',
+        data: { breadcrumb: 'Vale' },
+        loadComponent: () => import('./pages/voucher-detail-page').then((m) => m.VoucherDetailPage),
+      },
+      {
+        path: ':id/editar',
+        title: 'Editar vale interno · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'inventory.internal_transfers', breadcrumb: 'Editar vale' },
+        loadComponent: () => import('./pages/voucher-form-page').then((m) => m.VoucherFormPage),
+      },
+      {
+        // The same receipt as a transfer (frontend §7.3).
+        path: ':id/recibir',
+        title: 'Recibir vale interno · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'inventory.internal_transfers', breadcrumb: 'Recibir', voucher: true },
+        loadComponent: () =>
+          import('../logistics/pages/transfer-receive-page').then((m) => m.TransferReceivePage),
+      },
+    ],
+  },
+  {
     path: 'existencias-iniciales',
     title: 'Existencias iniciales · SGO Paníssimo',
     canActivate: [permissionGuard],

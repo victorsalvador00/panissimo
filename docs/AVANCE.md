@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-12, importación de OP).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-25, vales internos; fase 2 del frontend completa).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-12 terminadas (fase 1 completa) (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-12 y F-25 terminadas (fases 1 y 2) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-25 (★ vales internos entre subalmacenes), que cierra la fase 2 del frontend; después la fase 3 desde F-13 (proveedores) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** fase 3 del frontend desde F-13 (proveedores y artículos de proveedor) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-25 (vales internos, fase 2) y F-13..F-24.
+- Frontend F-13..F-24.
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-25). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-13). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -79,7 +79,7 @@
 | 2 | F-10 Órdenes de producción | ✅ | (ver `git log`) |
 | 2 | F-11 Cierres de producción | ✅ | (ver `git log`) |
 | 2 | F-12 Importación de OP desde Excel | ✅ | (ver `git log`) |
-| 2 | F-25 (vales internos) | ⏳ | |
+| 2 | F-25 Vales internos entre subalmacenes | ✅ | (ver `git log`) |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
@@ -493,3 +493,13 @@
 - Fixtures `e2e/fixtures/ordenes-con-errores.xlsx` y `ordenes-validas.xlsx` generados por `frontend/scripts/e2e-fixtures.py` (**openpyxl 3.1.5, MIT, herramienta local** como Pillow; no es dependencia del proyecto; fechas 2030 para no caducar).
 - **E2E 8 en verde** (suite 20/20): archivo con errores → tabla de 3 errores y sin botón de importar; archivo válido con columna desconocida → 3 filas → 2 órdenes, importar deshabilitado hasta marcar la casilla → "2 órdenes creadas en borrador" → "Ver órdenes" muestra 2. Pasa también en la segunda corrida (aviso de archivo ya importado y de OP existentes). No mueve inventario; cada corrida deja 2 OP en borrador de `E2E-MASA` para el 30 y 31/12/2030.
 - Pruebas: 108 unitarias (`app-xlsx-import`: errores bloquean, avisos exigen casilla, solo `.xlsx`). Sin paquetes npm nuevos.
+
+### F-25 (2026-10-17)
+
+- ★ **Vales internos** (`/inventario/vales-internos`, RN-47) y entrada "Vales internos" en el menú de Inventario (`inventory.view`). Lista con pestañas Por enviar / En tránsito / Recibidos / Todos de los vales de la ubicación activa, con **Recibir** en los que llegan a uno de sus subalmacenes; aviso si la ubicación no tiene dos subalmacenes donde el usuario mueva existencia.
+- **Formulario** (`/nuevo`, `/:id/editar`, `inventory.internal_transfers`): "Sale de" y "Entra a" entre los subalmacenes de la ubicación activa (distintos; el origen no cambia al editar), notas y líneas con lote planeado opcional del subalmacén origen.
+- **Detalle** (`/:id`): datos, valor enviado, pérdida en tránsito y líneas con recibido, faltante y motivo; en borrador Editar, Cancelar y **Enviar** (lote planeado o el que caduca primero, confirmación con resumen); en tránsito **Recibir**. Las acciones solo aparecen si el subalmacén (origen para enviar, destino para recibir) es de la ubicación activa y el usuario puede mover existencia ahí.
+- **Recepción** (`/:id/recibir`): la misma pantalla que la de traspasos (`TransferReceivePage` con `data: { voucher: true }`: API de vales, rutas y textos de "vale"). `InternalTransfersApi` en `logistics/data-access`. Los folios de vales del kardex enlazan a su pantalla. `stockWarehouses` trata una consulta fallida como "sin subalmacenes".
+- **Corrección de backend (B-26d):** la lista de traspasos y vales filtrada por `locationId` de una planta o sucursal no incluía los de sus subalmacenes (los extremos de un vale), así que la lista de vales salía vacía. Ahora el filtro incluye los subalmacenes (RN-46). Prueba de integración `The_list_by_a_location_includes_the_vouchers_of_its_warehouses`; backend 230 unitarias y 151 de integración en verde.
+- **E2E 9 en verde** (criterio de F-25; suite 21/21): vale de PLANTA-MP a PLANTA-PT con 3 kg de `E2E-HARINA` creado y enviado en escritorio, recibido con 2 kg y motivo "Faltante" a 390 px sin scroll horizontal; existencias: −3 en MP y +2 en PT. **Mueve inventario** (mete 3 kg con un ajuste de corrección por corrida). Se actualizaron la unitaria del menú y la E2E 1 con la entrada nueva.
+- Pruebas: 108 unitarias. Sin paquetes nuevos.

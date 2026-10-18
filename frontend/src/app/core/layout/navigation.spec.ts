@@ -11,6 +11,7 @@ describe('visibleNavigation', () => {
     expect(sections[1].items.map((i) => i.label)).toEqual([
       'Existencias',
       'Kardex',
+      'Vales internos',
       'Análisis de consumo',
     ]);
   });

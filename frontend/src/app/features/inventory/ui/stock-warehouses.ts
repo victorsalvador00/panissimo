@@ -15,5 +15,8 @@ export function stockWarehouses(
     stream: ({ params }) => api.warehouses(params),
     defaultValue: [],
   });
-  return computed(() => warehouses.value().filter((w) => w.isActive && w.canMoveStock));
+  // A failed lookup (e.g. a sub-warehouse has none) counts as none.
+  return computed(() =>
+    (warehouses.hasValue() ? warehouses.value() : []).filter((w) => w.isActive && w.canMoveStock),
+  );
 }

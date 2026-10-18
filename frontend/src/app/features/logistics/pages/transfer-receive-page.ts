@@ -38,6 +38,7 @@ import {
   DiscrepancyReason,
   Transfer,
   TransferLine,
+  InternalTransfersApi,
   TransfersApi,
 } from '../data-access/logistics-api';
 import { DISCREPANCY_REASONS, receiptNeedsReason } from '../ui/transfer-rules';
@@ -59,7 +60,8 @@ function reasonWhenShort(shipped: number) {
 }
 
 /**
- * ★ /logistica/traspasos/:id/recibir (frontend §7.5, RN-22), designed for the phone: a card per line filled with what
+ * ★ /logistica/traspasos/:id/recibir and /inventario/vales-internos/:id/recibir (frontend §7.3, §7.5, RN-22, RN-47),
+ * designed for the phone (route data `voucher` for an internal voucher): a card per line filled with what
  * was shipped; if less arrives, reason and notes; never more than shipped; fixed bar and confirmation.
  */
 @Component({
@@ -81,7 +83,10 @@ function reasonWhenShort(shipped: number) {
     @if (transfer(); as t) {
       <app-page-header [title]="'Recibir ' + t.folio" />
       <p class="context muted">
-        De {{ t.from.name }} · {{ t.vehicleDescription }} · {{ t.driverName }}
+        De {{ t.from.name }}
+        @if (t.vehicleDescription) {
+          · {{ t.vehicleDescription }} · {{ t.driverName }}
+        }
         @if (t.dispatchedAt) {
           · salió {{ t.dispatchedAt | date: 'dd/MM/yyyy HH:mm' }}
         }
@@ -160,15 +165,17 @@ function reasonWhenShort(shipped: number) {
               {{ shortLines() }} {{ shortLines() === 1 ? 'línea' : 'líneas' }} con faltante
             </span>
           }
-          <a matButton [routerLink]="['/logistica/traspasos', t.id]">Volver</a>
+          <a matButton [routerLink]="[basePath(), t.id]">Volver</a>
           <button matButton="filled" type="submit" form="receive-form" [disabled]="saving()">
             Confirmar recepción
           </button>
         </div>
       } @else {
         <p class="pan-card">
-          Este traspaso no está en tránsito.
-          <a [routerLink]="['/logistica/traspasos', t.id]">Ver el traspaso</a>
+          {{ voucher() ? 'Este vale' : 'Este traspaso' }} no está en tránsito.
+          <a [routerLink]="[basePath(), t.id]">{{
+            voucher() ? 'Ver el vale' : 'Ver el traspaso'
+          }}</a>
         </p>
       }
     } @else if (resource.isLoading()) {
@@ -245,8 +252,17 @@ function reasonWhenShort(shipped: number) {
 })
 export class TransferReceivePage {
   readonly id = input.required<string>();
+  /** Route data: an internal voucher instead of a transfer. */
+  readonly voucher = input(false);
 
-  private readonly api = inject(TransfersApi);
+  private readonly transfers = inject(TransfersApi);
+  private readonly vouchers = inject(InternalTransfersApi);
+  private get api(): TransfersApi | InternalTransfersApi {
+    return this.voucher() ? this.vouchers : this.transfers;
+  }
+  protected readonly basePath = computed(() =>
+    this.voucher() ? '/inventario/vales-internos' : '/logistica/traspasos',
+  );
   private readonly router = inject(Router);
   private readonly notifier = inject(Notifier);
   private readonly confirmService = inject(ConfirmService);
@@ -347,8 +363,8 @@ export class TransferReceivePage {
           }),
         }),
       );
-      this.notifier.info(`Traspaso ${received.folio} recibido.`);
-      await this.router.navigate(['/logistica/traspasos', received.id]);
+      this.notifier.info(`${this.voucher() ? 'Vale' : 'Traspaso'} ${received.folio} recibido.`);
+      await this.router.navigate([this.basePath(), received.id]);
     } catch (error) {
       // A 409 (another user changed it) opens its dialog from the error interceptor.
       this.formErrors.apply(this.form, error);

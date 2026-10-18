@@ -51,6 +51,12 @@ export const NAVIGATION: readonly NavSection[] = [
         permission: 'inventory.consumption',
       },
       {
+        label: 'Vales internos',
+        icon: 'swap_horiz',
+        route: '/inventario/vales-internos',
+        permission: 'inventory.view',
+      },
+      {
         label: 'Análisis de consumo',
         icon: 'monitoring',
         route: '/inventario/analisis-consumo',

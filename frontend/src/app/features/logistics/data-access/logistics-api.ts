@@ -52,6 +52,47 @@ export class TransfersApi {
   }
 }
 
+/**
+ * Internal vouchers between two sub-warehouses of the same plant or branch (`/internal-transfers`, RN-47): same
+ * documents as a transfer, without vehicle or driver; sent with the chosen lots or the first to expire.
+ */
+@Injectable({ providedIn: 'root' })
+export class InternalTransfersApi {
+  private readonly http = inject(HttpClient);
+
+  list(query: ListQuery, filters: ParamValues = {}): Observable<Page<TransferListItem>> {
+    return this.http.get<Page<TransferListItem>>('internal-transfers', {
+      params: toHttpParams(query, filters),
+    });
+  }
+
+  get(id: string): Observable<Transfer> {
+    return this.http.get<Transfer>(`internal-transfers/${id}`);
+  }
+
+  create(request: Schemas['CreateInternalTransferRequest']): Observable<Transfer> {
+    return this.http.post<Transfer>('internal-transfers', request);
+  }
+
+  /** `toLocationId` is the destination sub-warehouse. */
+  update(id: string, request: Schemas['UpdateTransferRequest']): Observable<Transfer> {
+    return this.http.put<Transfer>(`internal-transfers/${id}`, request);
+  }
+
+  dispatch(id: string, request: Schemas['DispatchInternalTransferRequest']): Observable<Transfer> {
+    return this.http.post<Transfer>(`internal-transfers/${id}/dispatch`, request);
+  }
+
+  receive(id: string, request: Schemas['ReceiveTransferRequest']): Observable<Transfer> {
+    return this.http.post<Transfer>(`internal-transfers/${id}/receive`, request);
+  }
+
+  cancel(id: string, version: number): Observable<Transfer> {
+    const body: Schemas['VersionRequest'] = { version };
+    return this.http.post<Transfer>(`internal-transfers/${id}/cancel`, body);
+  }
+}
+
 /** Every active location, also those outside the user's scope: destinations of transfers (`/locations/lookup`). */
 @Injectable({ providedIn: 'root' })
 export class DestinationsApi {

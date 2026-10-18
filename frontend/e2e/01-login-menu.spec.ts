@@ -43,6 +43,7 @@ test.describe('Login y menú filtrado', () => {
       'Kardex',
       'Conteos',
       'Consumos',
+      'Vales internos',
       'Análisis de consumo',
       'Pedidos de sucursal',
       'Traspasos',

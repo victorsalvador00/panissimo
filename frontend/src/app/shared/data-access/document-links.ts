@@ -24,6 +24,7 @@ const AVAILABLE = new Set([
   'PhysicalCount',
   'Consumption',
   'Transfer',
+  'InternalTransfer',
   'ProductionOrder',
   'ProductionClose',
   'ProductionOrderImport',

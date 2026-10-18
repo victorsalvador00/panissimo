@@ -19,7 +19,7 @@ const ROUTES: Record<string, string> = {
 };
 
 /** Screens already built (they grow task by task, frontend §11). */
-const AVAILABLE = new Set(['Adjustment', 'PhysicalCount', 'Consumption']);
+const AVAILABLE = new Set(['Adjustment', 'PhysicalCount', 'Consumption', 'Transfer']);
 
 export function documentLink(docType: string, id: string): string[] | null {
   const route = ROUTES[docType];

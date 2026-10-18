@@ -109,6 +109,35 @@ export class AdminApi {
     });
   }
 
+  async itemId(sku: string): Promise<string> {
+    const found = await this.get<{ id: string; sku: string }[]>(`items/lookup?q=${encodeURIComponent(sku)}`);
+    return found.find((i) => i.sku === sku)!.id;
+  }
+
+  /** Puts stock with a correction entry (for tests that move inventory). */
+  async addStock(locationCode: string, sku: string, quantity: number, unitCost = 10): Promise<void> {
+    const locationId = await this.locationId(locationCode);
+    const itemId = await this.itemId(sku);
+    await this.post('adjustments', {
+      locationId,
+      reason: 'Correction',
+      notes: 'E2E',
+      lines: [
+        {
+          itemId,
+          quantity,
+          lotId: null,
+          lotNumber: null,
+          expirationDate: null,
+          unitCost,
+          wasteQty: null,
+          wasteReason: null,
+          notes: null,
+        },
+      ],
+    });
+  }
+
   /** Id of a location by code (also inactive ones and sub-warehouses). */
   async locationId(code: string): Promise<string | null> {
     const page = await this.get<{ items: { id: string; code: string }[] }>(

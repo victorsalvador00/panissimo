@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-07, conteo y consumo).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-08, traspasos; fase 1 del frontend completa).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-07 terminadas (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-08 terminadas (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-08 (traspasos directos con despacho y recepción) según `docs/specs/frontend.md` §11; cierra la fase 1 del frontend. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** fase 2 del frontend, empezando por F-09 (recetas con editor, versiones y componentes de tipo insumo) según `docs/specs/frontend.md` §11; F-25 (vales internos) también es de la fase 2. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-08..F-24 y F-25 (vales internos, fase 2).
+- Frontend F-09..F-24 y F-25 (vales internos, fase 2).
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-08). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-09). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -74,7 +74,7 @@
 | 1 | F-05 Catálogos (ubicaciones, categorías, unidades, áreas, artículos, CSV) | ✅ | (ver `git log`) |
 | 1 | F-06 Inventario (existencias, kardex, ajustes, existencias iniciales) | ✅ | (ver `git log`) |
 | 1 | F-07 Conteo físico y consumo | ✅ | (ver `git log`) |
-| 1 | F-08 | ⏳ | |
+| 1 | F-08 Traspasos directos | ✅ | (ver `git log`) |
 | 2 | F-09..F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
@@ -436,3 +436,15 @@
 - **E2E 4 en verde** (solo en 390 px; suite 16/16): conteo nuevo → iniciar → capturar → "Guardado" → recargar conserva → revisar → cancelar, sin scroll horizontal; consumo en la sucursal `SUC-E2E` (la crea si falta) capturando el mismo artículo dos veces (2 + 3 = 5), sin scroll horizontal y sin registrarlo. No mueve inventario.
 - Pruebas: 87 unitarias (autoguardado: espera de 1 s, último valor por línea, guardados en serie con versión, reintento). Sin paquetes nuevos.
 - Datos de prueba en la BD de desarrollo: CF-000001 cerrado (−2 de `E2E-GRANEL` lote L-A en PLANTA-PT), la sucursal `SUC-E2E` y conteos cancelados de las corridas E2E.
+
+### F-08 (2026-10-17)
+
+- Feature `logistics` (`/logistica/traspasos`): lista con pestañas Por despachar / En tránsito / Recibidos / Todos (en `?tab=`, vuelve a la página 1 al cambiar) de los traspasos que salen o llegan a la ubicación activa, con botón **Recibir** en los que van en tránsito hacia ella.
+- **Formulario** (`/nuevo`, `/:id/editar`): origen = ubicación activa (al editar, la del borrador); destino filtrado por ruta RN-25 (`ui/transfer-rules.ts`: sin `logistics.transfers.special` solo Planta → sucursal; nunca a sí misma ni a un subalmacén); líneas con lote planeado opcional; guarda borrador.
+- **Detalle** (`/:id`): datos, valor enviado, pérdida en tránsito, líneas con subalmacén origen → destino, recibido, faltante y motivo. En borrador (con permiso y si el origen es tuyo): Editar, Cancelar (si surte un pedido de sucursal advierte que también lo cancela) y **Despachar** — diálogo con subalmacén de salida (RN-45), vehículo, chofer y "Elegir lotes" por línea (lotes con existencia del subalmacén; la suma debe igualar la línea o quedar vacía para lote planeado / el que caduca primero), luego confirmación con resumen.
+- ★ **Recepción** (`/:id/recibir`, móvil primero): tarjeta por línea prellenada con lo enviado, nunca más; si llega menos, motivo (Faltante/Dañado/Otro, obligatorio) y notas; subalmacén de entrada si el destino los tiene; barra fija con el número de líneas con faltante; confirmación con el detalle del faltante (RN-22).
+- Los folios de traspasos del kardex ya enlazan a su pantalla.
+- Probado en Chrome: lista y detalle recibido; borrador TR-000004 con `E2E-GRANEL` → "Elegir lotes" muestra L-A y L-B con su existencia y avisa si no suma; cancelado sin mover inventario.
+- **E2E 5 en verde** (escritorio; recepción a 390 px sin scroll horizontal; suite 17/17): mete 3 pza de `E2E-TRASPASO` en PLANTA-PT con un ajuste de corrección por API, crea PLANTA → `SUC-E2E`, despacha desde Producto terminado, recibe 2 con motivo Faltante y verifica "Recibido con diferencias" y la pérdida en tránsito. **Sí mueve inventario** en la BD contra la que corre (cada corrida deja 2 pza en SUC-E2E y 1 de pérdida).
+- Pruebas: 91 unitarias (rutas RN-25, motivo RN-22, suma de lotes). Sin paquetes nuevos.
+- Datos de prueba en la BD de desarrollo: TR-000001..TR-000003 recibidos con diferencias (corridas E2E), TR-000004 cancelado, el artículo `E2E-TRASPASO` y sus ajustes de corrección.

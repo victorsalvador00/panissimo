@@ -1,30 +1,26 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (B-28, trazabilidad de lotes en el backend).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-26, pantalla de trazabilidad: plan completo).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
-## ▶ Retomar aquí (estado al 2026-10-17)
+## ▶ Retomar aquí (estado al 2026-10-18)
 
 **Dónde quedamos**
-- Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5 completa (B-22..B-25): **backend terminado**.
-- Pruebas en verde: 282 unitarias y 167 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
+- **Plan completo:** backend B-01..B-28 y frontend F-01..F-26 terminados y en `main`, incluida la ampliación de trazabilidad (B-28 y F-26).
+- Pruebas en verde: backend 282 unitarias y 167 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers); frontend 187 unitarias, lint y build; E2E: suite completa 45 en verde y 22 omitidas por diseño (escritorio y celular); la E2E 7 falló una vez por el botón de ayuda (corregido abajo) y se volvió a correr en verde con las que usan barra de acciones.
 - Migraciones hasta `AddTraceability` (B-28).
-- Backend fases 1-4 completas. Frontend: F-01..F-25 terminadas (las cinco fases; proyecto Angular 22 en `/frontend`).
-- BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
+- BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las migraciones vigentes.
 
-**Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
+**Decisiones:** D-01..D-11 en `docs/specs/dominio.md` §8. D-11 (roles de la trazabilidad) decidida con el usuario el 2026-10-18. D-10 sigue abierta (no bloquea). El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
 
-**Siguiente:** **F-26**, la pantalla de trazabilidad (`docs/specs/trazabilidad-ui.md`); después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
-
-**Después**
-- **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
+**Siguiente:** no quedan tareas en el plan. Lo que falta depende del cliente: D-10 (usuarios por rol), la lista real de sucursales (`deploy/seed/locations.csv`, D-01) y el arranque en producción (`deploy/README.md`). Todo lo demás requiere una tarea nueva en los specs.
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer `docs/specs/trazabilidad-ui.md` y `docs/specs/trazabilidad.md` §6 (F-26). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -766,4 +762,69 @@
   - Los ≈ 1,500 nodos estimados son 802 con el mismo volumen.
 - Specs actualizados según trazabilidad §8: `dominio.md` (glosario, `LotId` de la recepción, RN-100..RN-109, permiso, roles, parámetro y D-11), `backend.md` (índices, endpoints, pruebas, B-28) y `frontend.md` (rutas, componentes, tokens, E2E 17, F-26).
 - Frontend: tipos regenerados, etiquetas de los enums de trazabilidad y de la acción "Consulta" en la bitácora.
+- Sin paquetes nuevos.
+
+### F-26 (2026-10-18)
+
+- **Rutas y menú:** `/inventario/trazabilidad` (búsqueda) y `/inventario/trazabilidad/:tipo/:id?direccion=atras|adelante|ambas` (resultado), con [inventory.traceability]; entrada "Trazabilidad" en el menú de Inventario (ícono `account_tree`).
+- **Búsqueda:** un campo con autocompletado (`/traceability/sources/lookup`) que muestra el tipo de cada resultado; la dirección se pone sola según RN-100 al elegir la entrada.
+- **Resultado:**
+  - Encabezado con la entrada, "Estado al", los avisos (`truncated`, `unlotted_components`, `missing_receipt_link`), "Otra búsqueda" y "Exportar CSV".
+  - Estados: skeleton, vacío con `no_lots` ("Esta OC todavía no tiene recepciones", "Esta OP todavía no tiene cierres"), error con "Reintentar" y "No se encontró".
+  - Tres pestañas (Mapa, Resumen, Bitácora); en celular abre en Resumen.
+  - Cambiar la dirección solo cambia el resaltado y reescribe `?direccion=`. Si la respuesta era de una sola dirección, vuelve a consultar con ambas.
+- **Mapa** (`trazabilidad-ui.md`), lógica en funciones puras con pruebas:
+  - `trace-layout.ts`: carriles fijos, con los de semiterminado por nivel; compactación de §4.4; orden por baricentro, con los grupos juntos y paso mínimo; puertos apilados; grosor por `maxQty`; etiquetas en la curva.
+  - `trace-selection.ts`: cadena hacia atrás, hacia adelante o completa, sin mezclar ramas; selección de grupo; barra de selección; flechas.
+  - `trace-text.ts`: los cuatro renglones de cada tarjeta.
+  - `trace-detail-model.ts`: las estadísticas y secciones de cada ficha.
+  - `trace-events.ts`: bitácora por día y CSV con BOM (eventos y resumen).
+- **Componentes:**
+  - `app-trace-graph`: SVG con `role="img"` y `aria-label` que resume la cadena; zoom de 45 a 130 % y "Ver todo", que es el inicial en pantallas de 1,400 px o más; zoom recordado en `localStorage` con try/catch; arrastre con el mouse, sin que el arrastre cuente como clic; vista previa al pasar el cursor; Esc en dos pasos.
+  - Ficha: overlay conectado en escritorio y tableta (derecha, si no izquierda, si no abajo o arriba, empujada dentro de la ventana); `MatBottomSheet` en celular. El foco va al título al abrir y regresa a la tarjeta al cerrar.
+  - `app-trace-card`: `button` con `aria-pressed`.
+  - `app-trace-detail` con `app-trace-stats`, `app-trace-meter` y `app-trace-stack`.
+  - `app-trace-summary`: en celular cada fila es tarjeta.
+  - `app-trace-log`: renglón enfocable que lleva a su tarjeta en el mapa.
+  - Tokens `--pan-trace-*` en claro y oscuro.
+- **Accesos directos "Rastrear"** (`app-trace-link`, solo con el permiso): encabezados de OP, OC, traspaso y remisión despachada; cada cierre de la línea de tiempo de la OP; cada línea con lote de la recepción; lotes de Existencias y filas con lote del kardex.
+  - Para el de los cierres, `ProductionCloseListItemDto` ganó `OutputLotId` (campo opcional al final; sin migración).
+- **Ayuda** para las dos rutas y video `trazabilidad.webm` (`npm run help:record`; solo consulta, usa la cadena que deja la E2E 24).
+- **Pruebas:**
+  - Unitarias (frontend 187): `trace-layout.spec.ts` y `trace-detail.spec.ts`.
+    - Carriles, compactación, orden del escenario de referencia, separación, grupos, diferencia "390 de 400 pza", grosor, puertos y semiterminados en dos niveles.
+    - Grafo solo hacia adelante: todos los carriles bajo el encabezado (regresión).
+    - Selección desde HT-2609-C: 1 cierre, 1 lote terminado, 2 traspasos, SUC-01 y SUC-02, 1,800 pza. Sin mezclar ramas, grupo y flechas.
+    - Fichas de cada tipo; sin permiso de costos no hay estadística ni columna de costo.
+    - Textos de tarjeta, bitácora en hora de la planta, CSV, avisos, lado de la ficha.
+    - Componente: Enter, flechas, Esc en dos pasos y regreso del foco.
+  - **E2E 24 `24-traceability`** (es la "E2E 17" del spec; el 17 ya era el de requerimiento de materiales). Arma por API:
+    - Dos lotes de harina en dos OC.
+    - Una OP con dos cierres (FEFO toma primero la harina vieja).
+    - Tres traspasos a SUC-TZ1..3, sin dejar saldo.
+
+    Después:
+    - Busca la OP y abre el mapa.
+    - La ficha de la harina vieja muestra 5 kg en su cierre.
+    - "Destino" deja SUC-TZ3 atenuada y la barra suma 50 pza enviadas.
+    - axe sin violaciones serias con la ficha abierta, en claro y oscuro.
+    - Esc cierra y el foco vuelve a la tarjeta; el segundo Esc quita la selección.
+    - A 1024 px la ficha de una tarjeta del carril 7 abre a la izquierda.
+    - La Bitácora lleva a la tarjeta.
+    - A 390 px abre en Resumen, sin scroll horizontal, y la ficha es hoja inferior que se cierra con el fondo.
+
+    **Mueve inventario.**
+- **Errores encontrados con las pruebas y corregidos:**
+  - `daysTo` no restaba 1 al mes.
+  - Un grafo solo hacia adelante dejaba sus primeros carriles sin ordenar.
+  - Un lote sin cierre en el grafo mostraba 0 pza.
+  - El Esc del overlay y el del mapa se sumaban.
+  - Un clic en los controles cerraba la ficha.
+  - La ficha prefería abrir arriba en tableta.
+  - **Barra de acciones (todas las pantallas):** en tableta y escritorio, el botón de ayuda tapaba el botón de la derecha cuando la barra quedaba al fondo de la ventana. La E2E 7 lo mostró con "Liberar". Ahora la barra deja libre la columna del botón de ayuda (`padding-right: 64px` desde 768 px).
+- **Desviaciones del spec, anotadas:**
+  - **Componentes de la ficha:** en vez de un componente por tipo hay una función por tipo (`trace-detail-model.ts`) y un solo componente que pinta el modelo, con las tres piezas compartidas. Es igual de probable por tipo y evita nueve plantillas casi iguales.
+  - **Encabezado del cierre:** la tarjeta dice "Cierre · #1" y la etiqueta Parcial o Final, para que no se corte.
+  - **Contraste de lo atenuado:** lo que la selección atenúa lleva la clase `dimmed` y axe lo excluye. Es contenido incidental fuera de la cadena (WCAG 1.4.3); lo resaltado y la ficha sí se revisan.
+  - **Alerta de caducidad en la tarjeta:** usa el default de `inventory.expiry_alert_days` (3), porque el grafo no trae el parámetro.
 - Sin paquetes nuevos.

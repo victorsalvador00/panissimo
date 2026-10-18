@@ -233,6 +233,33 @@ export const HELP: Readonly<Record<string, HelpTopic>> = {
     ],
     tips: ['La tendencia compara las últimas 4 semanas contra las 4 anteriores.'],
   },
+  'inventario/trazabilidad': {
+    title: 'Trazabilidad',
+    summary:
+      'Sigue un lote por toda la cadena: de dónde viene (proveedor, OC, cierre) y a dónde llegó (lotes, traspasos, sucursales, clientes).',
+    steps: [
+      'Escribe un folio OC-, OP-, TR-, RM- o un número de lote y elige la entrada de la lista.',
+      'La dirección se pone sola: hacia adelante para una OC, hacia atrás para una remisión y ambas para lo demás. Puedes cambiarla.',
+      'Usa "Rastrear". También llegas aquí con el botón "Rastrear" de existencias, kardex, OP, OC, recepciones, traspasos y remisiones.',
+    ],
+    tips: ['Cada consulta queda en la bitácora con la entrada y la dirección.'],
+  },
+  'inventario/trazabilidad/:sourceType/:sourceId': {
+    title: 'Resultado de trazabilidad',
+    summary:
+      'La cadena de la entrada en un mapa por etapas, el resumen para un retiro y la bitácora de eventos en orden.',
+    steps: [
+      'En el mapa, el grosor de la cinta es la cantidad de piezas. Toca una tarjeta para resaltar su cadena y ver su ficha.',
+      'Origen, Cadena completa y Destino cambian qué se resalta. Esc cierra la ficha; un segundo Esc quita la selección.',
+      'Resumen: dónde queda existencia hoy, qué se remisionó a cada cliente, qué lotes de materia prima se usaron y la pérdida en tránsito.',
+      'Bitácora: los eventos por día; un renglón te lleva a su tarjeta en el mapa.',
+    ],
+    tips: [
+      'Arrastra el fondo del mapa para recorrerlo; con las flechas vas a padres, hijos y tarjetas del mismo carril.',
+      '"Exportar CSV" baja la bitácora y el resumen. Los costos solo aparecen con permiso de producción o compras.',
+    ],
+    video: 'trazabilidad.webm',
+  },
   'inventario/kardex': {
     title: 'Kardex',
     summary:

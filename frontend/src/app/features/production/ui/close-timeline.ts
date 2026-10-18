@@ -11,6 +11,7 @@ import {
   ProductionClosesApi,
 } from '../data-access/production-api';
 import { CloseConsumption } from './close-consumption';
+import { TraceLink } from '../../inventory/ui/trace/trace-link';
 
 /**
  * `app-close-timeline` (frontend §7.4.2): the closes of an order from the first to the last, with folio, kind, date and
@@ -20,6 +21,7 @@ import { CloseConsumption } from './close-consumption';
   selector: 'app-close-timeline',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TraceLink,
     DatePipe,
     RouterLink,
     MatButtonModule,
@@ -53,7 +55,14 @@ import { CloseConsumption } from './close-consumption';
                 ><strong>{{ close.producedQty | qty: close.baseUomCode }}</strong> producido</span
               >
               @if (close.outputLotNumber) {
-                <span>lote {{ close.outputLotNumber }}</span>
+                <span
+                  >lote {{ close.outputLotNumber }}
+                  <app-trace-link
+                    type="Lot"
+                    [id]="close.outputLotId"
+                    [label]="'lote ' + close.outputLotNumber"
+                    [compact]="true"
+                /></span>
               }
               <span>{{ close.unitCost | mxn }} por {{ close.baseUomCode }}</span>
               <span [class.exit]="close.wasteCost > 0">merma {{ close.wasteCost | mxn }}</span>

@@ -37,6 +37,7 @@ import {
   CustomerShipmentLine,
   CustomerShipmentsApi,
 } from '../data-access/sales-api';
+import { TraceLink } from '../../inventory/ui/trace/trace-link';
 
 interface DraftLine {
   line: CustomerShipmentLine;
@@ -55,6 +56,7 @@ interface DraftLine {
   selector: 'app-shipment-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TraceLink,
     DatePipe,
     ReactiveFormsModule,
     RouterLink,

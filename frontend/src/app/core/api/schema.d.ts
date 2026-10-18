@@ -17007,6 +17007,8 @@ export interface components {
       /** Format: double */
       wasteCost: number;
       closedByName: null | string;
+      /** Format: uuid */
+      outputLotId?: null | string;
     };
     ProductionCloseLotDto: {
       /** Format: uuid */

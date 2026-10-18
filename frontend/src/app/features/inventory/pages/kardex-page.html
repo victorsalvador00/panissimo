@@ -64,6 +64,12 @@
     <strong>{{ entry.sku }}</strong> {{ entry.itemName }}
     @if (entry.lotNumber) {
       <span class="muted">· lote {{ entry.lotNumber }}</span>
+      <app-trace-link
+        type="Lot"
+        [id]="entry.lotId"
+        [label]="'lote ' + entry.lotNumber"
+        [compact]="true"
+      />
     }
   </ng-template>
   <ng-template appCell="location" header="Ubicación" [appCellOf]="rows()" let-entry>

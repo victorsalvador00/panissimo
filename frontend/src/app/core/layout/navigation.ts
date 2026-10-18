@@ -62,6 +62,12 @@ export const NAVIGATION: readonly NavSection[] = [
         route: '/inventario/analisis-consumo',
         permission: 'inventory.view',
       },
+      {
+        label: 'Trazabilidad',
+        icon: 'account_tree',
+        route: '/inventario/trazabilidad',
+        permission: 'inventory.traceability',
+      },
     ],
   },
   {

@@ -86,6 +86,14 @@ html {
   margin-top: 16px;
 }
 
+// Inline (tablet and desktop) the buttons keep clear of the help button's column (right 16–72 px), so the help never
+// covers them when the bar is at the bottom of the window.
+@media (min-width: 768px) {
+  .pan-action-bar {
+    padding-right: 64px;
+  }
+}
+
 @media (max-width: 767.98px) {
   .pan-action-bar {
     position: fixed;

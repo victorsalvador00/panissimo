@@ -8,12 +8,13 @@ import { Stamp } from '../../../shared/components/stamp/stamp';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { MxnPipe, QtyPipe } from '../../../shared/pipes/pipes';
 import { GoodsReceiptsApi } from '../data-access/purchasing-api';
+import { TraceLink } from '../../inventory/ui/trace/trace-link';
 
 /** /compras/recepciones/:id: the receipt with its lines in the purchase and base units, lots and costs (RN-33). */
 @Component({
   selector: 'app-goods-receipt-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, RouterLink, PageHeader, Stamp, StatusTag, QtyPipe, MxnPipe],
+  imports: [TraceLink, DatePipe, RouterLink, PageHeader, Stamp, StatusTag, QtyPipe, MxnPipe],
   template: `
     @if (receipt.hasValue()) {
       @let g = receipt.value();
@@ -72,6 +73,14 @@ import { GoodsReceiptsApi } from '../data-access/purchasing-api';
                   <td class="end">{{ line.baseQuantity | qty: line.baseUomCode }}</td>
                   <td>
                     {{ line.lotNumber ?? '—' }}
+                    @if (line.lotId) {
+                      <app-trace-link
+                        type="Lot"
+                        [id]="line.lotId"
+                        [label]="'lote ' + line.lotNumber"
+                        [compact]="true"
+                      />
+                    }
                     @if (line.expirationDate) {
                       <span class="muted">· {{ line.expirationDate | date: 'dd/MM/yyyy' }}</span>
                     }

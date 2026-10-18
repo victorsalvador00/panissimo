@@ -50,6 +50,16 @@
   --pan-status-red-bg: light-dark(#fde3e1, #5a1612);
   --pan-status-red-fg: light-dark(#a8201a, #ffb4ab);
 
+  // Traceability map (F-26, trazabilidad-ui §3): alternate lanes, warm product bands, thin raw material lines, lots.
+  --pan-trace-lane: light-dark(#f7f8fb, #161a22);
+  --pan-trace-lane-alt: light-dark(#eff2f7, #12161d);
+  --pan-trace-flow: #c79a55;
+  --pan-trace-edge: light-dark(#a3abbe, #56627f);
+  --pan-trace-lot: light-dark(#b8863b, #d5a75f);
+  --pan-trace-lot-tint: light-dark(#f6eddd, #2c2416);
+  --pan-trace-warn: light-dark(#d9480f, #ff9f5a);
+  --pan-trace-selected: var(--mat-sys-primary);
+
   // Top bar: green in light, navy with "neon blue" text in dark.
   --pan-topbar-bg: light-dark(#2e7d32, #0a1a3d);
   --pan-topbar-fg: light-dark(#ffffff, #90befe);

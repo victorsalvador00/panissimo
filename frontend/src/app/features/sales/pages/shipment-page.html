@@ -1,6 +1,9 @@
 @if (shipment(); as s) {
   <app-page-header class="pan-no-print" [title]="'Remisión ' + s.folio">
     <app-status-tag [value]="s.status" kind="CustomerShipmentStatus" />
+    @if (s.status !== 'Draft') {
+      <app-trace-link type="CustomerShipment" [id]="s.id" />
+    }
   </app-page-header>
 
   <div class="sheet pan-has-action-bar">

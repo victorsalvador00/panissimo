@@ -179,3 +179,41 @@ test('cierre de producción', async ({ page, baseURL }) => {
   await api.post(`production-orders/${order.id}/cancel`, { version: released.version });
   await api.dispose();
 });
+
+/**
+ * Result screen of the traceability (trazabilidad §6.4): it only reads. It needs a chain with lots in the database
+ * (E2E 24 leaves one: the E2E-TZ-HARINA lots); without it the scene is skipped.
+ */
+test('trazabilidad', async ({ page, baseURL }) => {
+  const api = await AdminApi.create(baseURL!);
+  const sources = await api.get<{ type: string; label: string }[]>(
+    'traceability/sources/lookup?q=TZ-',
+  );
+  await api.dispose();
+  const lot = sources.find((s) => s.type === 'Lot' && s.label.includes('-A'));
+  test.skip(!lot, 'Sin lotes de E2E-TZ-HARINA: corre antes la E2E 24.');
+  await signIn(page, adminCredentials());
+  await page.goto('/inventario/trazabilidad');
+  await pause(page);
+  await type(
+    page.getByRole('combobox', { name: 'Lote, OC, OP, traspaso o remisión' }),
+    lot!.label.split(' ')[0],
+  );
+  await pause(page, 700);
+  await page.getByRole('option').first().click();
+  await pause(page, 600);
+  await page.getByRole('button', { name: 'Rastrear' }).click();
+  await pause(page, 1500);
+  // Select the lot: its chain is highlighted and its ficha opens beside the card.
+  await page.locator('app-trace-card').first().getByRole('button').click();
+  await pause(page, 2500);
+  await page.locator('app-trace-graph .controls').getByRole('radio', { name: 'Destino' }).click();
+  await pause(page, 2000);
+  await page.keyboard.press('Escape');
+  await pause(page, 800);
+  await page.getByRole('tab', { name: 'Resumen' }).click();
+  await pause(page, 2500);
+  await page.getByRole('tab', { name: 'Bitácora' }).click();
+  await pause(page, 2500);
+  await save(page, 'trazabilidad.webm');
+});

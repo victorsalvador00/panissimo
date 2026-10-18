@@ -5,12 +5,13 @@ import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { QtyPipe } from '../../../shared/pipes/pipes';
 import { StockApi } from '../data-access/inventory-api';
 import { daysToExpireText } from './expiry';
+import { TraceLink } from './trace/trace-link';
 
 /** Lots of an item at a location, first to expire first; expired lots in red (frontend §7.3). */
 @Component({
   selector: 'app-stock-lots',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, QtyPipe, StatusTag],
+  imports: [TraceLink, DatePipe, QtyPipe, StatusTag],
   template: `
     @if (lots.isLoading()) {
       <p class="muted" role="status">Cargando lotes…</p>
@@ -29,7 +30,17 @@ import { daysToExpireText } from './expiry';
           <tbody>
             @for (lot of lots.value(); track $index) {
               <tr [class.expired]="lot.isExpired">
-                <td>{{ lot.lotNumber ?? 'Sin lote' }}</td>
+                <td>
+                  {{ lot.lotNumber ?? 'Sin lote' }}
+                  @if (lot.lotId) {
+                    <app-trace-link
+                      type="Lot"
+                      [id]="lot.lotId"
+                      [label]="'lote ' + lot.lotNumber"
+                      [compact]="true"
+                    />
+                  }
+                </td>
                 <td>
                   @if (lot.expirationDate) {
                     {{ lot.expirationDate | date: 'dd/MM/yyyy' }}

@@ -28,6 +28,7 @@ import { MxnPipe, QtyPipe, StatusLabelPipe, formatQty } from '../../../shared/pi
 import { ProductionOrder, ProductionOrdersApi } from '../data-access/production-api';
 import { CloseTimeline } from '../ui/close-timeline';
 import { componentWaste, productionOrderActions } from '../ui/order-actions';
+import { TraceLink } from '../../inventory/ui/trace/trace-link';
 
 /** Document type of each demand, for its link (the screens arrive with F-16 and F-17). */
 const DEMAND_DOCS = {
@@ -44,6 +45,7 @@ const DEMAND_DOCS = {
   selector: 'app-order-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TraceLink,
     DatePipe,
     RouterLink,
     MatButtonModule,

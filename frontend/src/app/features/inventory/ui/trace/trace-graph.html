@@ -1,0 +1,261 @@
+<div class="controls">
+  <mat-button-toggle-group
+    aria-label="Dirección del resaltado"
+    hideSingleSelectionIndicator
+    [value]="direction()"
+    (change)="direction.set($event.value)"
+  >
+    <mat-button-toggle value="Backward">Origen</mat-button-toggle>
+    <mat-button-toggle value="Both">Cadena completa</mat-button-toggle>
+    <mat-button-toggle value="Forward">Destino</mat-button-toggle>
+  </mat-button-toggle-group>
+  <div class="zoom" role="group" aria-label="Zoom del mapa">
+    <button
+      matIconButton
+      type="button"
+      aria-label="Alejar"
+      [disabled]="zoom() <= 0.45"
+      (click)="zoomBy(-0.1)"
+    >
+      <mat-icon>remove</mat-icon>
+    </button>
+    <button matButton type="button" class="percent" aria-label="Zoom al 100 %" (click)="setZoom(1)">
+      {{ (zoom() * 100).toFixed(0) }} %
+    </button>
+    <button
+      matIconButton
+      type="button"
+      aria-label="Acercar"
+      [disabled]="zoom() >= 1.3"
+      (click)="zoomBy(0.1)"
+    >
+      <mat-icon>add</mat-icon>
+    </button>
+    <button matButton type="button" (click)="fit()">Ver todo</button>
+  </div>
+</div>
+<ul class="legend">
+  <li><span class="key band" aria-hidden="true"></span>Producto (grosor = piezas)</li>
+  <li><span class="key thin" aria-hidden="true"></span>Materia prima</li>
+  <li><span class="key dotted" aria-hidden="true"></span>Proveedor</li>
+  <li><span class="key diff" aria-hidden="true"></span>Recepción con diferencia</li>
+</ul>
+
+<div
+  #viewport
+  class="viewport"
+  [class.dragging]="dragging()"
+  (pointerdown)="pointerDown($event)"
+  (pointermove)="pointerMove($event)"
+  (pointerup)="pointerUp()"
+  (pointercancel)="pointerCancel()"
+  (scroll)="reposition()"
+>
+  <div
+    class="sizer"
+    [style.width.px]="layout().width * zoom()"
+    [style.height.px]="layout().height * zoom()"
+  >
+    <div
+      class="canvas"
+      [style.width.px]="layout().width"
+      [style.height.px]="layout().height"
+      [style.transform]="'scale(' + zoom() + ')'"
+    >
+      @for (lane of layout().lanes; track lane.key; let odd = $odd) {
+        <div class="lane" [class.alt]="odd" [style.left.px]="lane.x">
+          <div class="lane-head">
+            <span class="stage">{{ lane.stage }}</span>
+            <mat-icon aria-hidden="true">{{ lane.icon }}</mat-icon>
+            <span class="lane-name">{{ lane.label }}</span>
+            <span class="count">{{ lane.count }}</span>
+          </div>
+        </div>
+      }
+
+      @for (group of layout().groups; track group.id) {
+        <div
+          class="group"
+          [class.order]="group.kind === 'order'"
+          [style.left.px]="group.x"
+          [style.top.px]="group.y"
+          [style.width.px]="group.width"
+          [style.height.px]="group.height"
+          [style.opacity]="groupHighlighted(group) ? 1 : 0.4"
+          [class.dimmed]="!groupHighlighted(group)"
+        >
+          <button
+            type="button"
+            class="group-head"
+            [attr.data-group]="group.id"
+            [attr.aria-pressed]="selection()?.key === group.id"
+            (click)="selectGroup(group, $event)"
+          >
+            @if (group.order; as order) {
+              <span class="g-type">Orden de producción</span>
+              <span class="g-title">{{ order.folio }}</span>
+              <span class="g-line">{{ order.sku }} · {{ order.itemName }}</span>
+              <span class="g-line"
+                >{{ order.scheduledDate.split('-').reverse().join('/')
+                }}{{
+                  order.shift
+                    ? ' · ' +
+                      (order.shift === 'Day'
+                        ? 'Día'
+                        : order.shift === 'Afternoon'
+                          ? 'Tarde'
+                          : 'Noche')
+                    : ''
+                }}</span
+              >
+              <span class="progress" aria-hidden="true"
+                ><span [style.width.%]="groupPercent(group)"></span
+              ></span>
+              <span class="g-line"
+                >{{ formatQty(order.producedQty, null) }} de
+                {{ formatQty(order.plannedQty, order.baseUom) }}</span
+              >
+            } @else if (group.location; as location) {
+              <span class="g-type">{{ location.code }}</span>
+              <span class="g-title">{{ location.name }}</span>
+              <span class="g-line">Saldo {{ formatQty(location.onHand, location.uom) }}</span>
+            }
+          </button>
+        </div>
+      }
+
+      <svg
+        class="links"
+        role="img"
+        [attr.aria-label]="ariaLabel()"
+        [attr.width]="layout().width"
+        [attr.height]="layout().height"
+      >
+        @for (link of layout().links; track link.id) {
+          <path
+            [attr.d]="link.d"
+            [class]="'link ' + link.type"
+            [class.on]="chain()?.links?.has(link.id)"
+            [attr.stroke-width]="link.width"
+            [style.opacity]="linkOpacityOf(link)"
+          />
+        }
+        @for (link of layout().links; track link.id) {
+          @if (showLabel(link)) {
+            <text
+              class="label"
+              [class.diff]="link.type === 'difference'"
+              [attr.x]="link.labelX"
+              [attr.y]="link.labelY"
+              text-anchor="middle"
+              [style.opacity]="linkOpacityOf(link) < 0.3 ? 0.35 : 1"
+              [class.dimmed]="linkOpacityOf(link) < 0.3"
+            >
+              {{ link.label }}
+            </text>
+          }
+        }
+      </svg>
+
+      @for (card of layout().cards; track card.id) {
+        <app-trace-card
+          [card]="card"
+          [text]="texts().get(card.id)!"
+          [selected]="selection()?.key === card.id"
+          [opacity]="opacityOf(card.id)"
+          (click)="select(card, $event)"
+          (keydown)="cardKey($event, card)"
+          (mouseenter)="hover.set(card.id)"
+          (mouseleave)="hover.set(null)"
+        />
+      }
+    </div>
+  </div>
+</div>
+
+<div class="selection-bar" aria-live="polite">
+  @if (summary(); as s) {
+    <span class="dir">{{
+      direction() === 'Backward'
+        ? 'Origen'
+        : direction() === 'Forward'
+          ? 'Destino'
+          : 'Cadena completa'
+    }}</span>
+    @if (s.suppliers) {
+      <span class="chip"
+        >{{ s.suppliers }} {{ s.suppliers === 1 ? 'proveedor' : 'proveedores' }}</span
+      >
+    }
+    @if (s.purchaseOrders) {
+      <span class="chip">{{ s.purchaseOrders }} OC</span>
+    }
+    @if (s.rawLots) {
+      <span class="chip"
+        >{{ s.rawLots }}
+        {{ s.rawLots === 1 ? 'lote de materia prima' : 'lotes de materia prima' }}</span
+      >
+    }
+    @if (s.closes) {
+      <span class="chip">{{ s.closes }} {{ s.closes === 1 ? 'cierre' : 'cierres' }}</span>
+    }
+    @if (s.finishedLots) {
+      <span class="chip"
+        >{{ s.finishedLots }}
+        {{ s.finishedLots === 1 ? 'lote terminado' : 'lotes terminados' }}</span
+      >
+    }
+    @if (s.transfers) {
+      <span class="chip">{{ s.transfers }} {{ s.transfers === 1 ? 'traspaso' : 'traspasos' }}</span>
+    }
+    @for (code of s.branches; track code) {
+      <span class="chip branch">{{ code }}</span>
+    }
+    @if (s.shippedQty) {
+      <span class="chip">{{ formatQty(s.shippedQty, s.shippedUom) }} enviadas</span>
+    }
+    <button matButton type="button" (click)="clearSelection()">Quitar selección</button>
+  } @else {
+    <span class="hint"
+      >Toca una tarjeta para ver su detalle y resaltar su cadena. Arrastra el mapa para
+      recorrerlo.</span
+    >
+  }
+</div>
+
+<ng-template
+  cdkConnectedOverlay
+  [cdkConnectedOverlayOrigin]="anchor()!"
+  [cdkConnectedOverlayOpen]="!!detail() && !mobile() && !!anchor()"
+  [cdkConnectedOverlayPositions]="positions()"
+  [cdkConnectedOverlayPush]="true"
+  [cdkConnectedOverlayViewportMargin]="16"
+  (overlayOutsideClick)="outsideClick($event)"
+  (overlayKeydown)="overlayKeydown($event)"
+  (detach)="closeDetail(false)"
+>
+  @if (detail(); as model) {
+    @for (key of [selection()!.key]; track key) {
+      <app-trace-detail
+        [model]="model"
+        [direction]="direction()"
+        (closed)="closeDetail()"
+        (directionChange)="direction.set($event)"
+      />
+    }
+  }
+</ng-template>
+
+<ng-template #sheet>
+  @if (detail(); as model) {
+    @for (key of [selection()!.key]; track key) {
+      <app-trace-detail
+        [model]="model"
+        [direction]="direction()"
+        [modal]="true"
+        (closed)="closeDetail()"
+        (directionChange)="direction.set($event)"
+      />
+    }
+  }
+</ng-template>

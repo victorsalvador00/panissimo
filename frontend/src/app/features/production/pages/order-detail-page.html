@@ -1,6 +1,7 @@
 @if (order(); as o) {
   <app-page-header [title]="'Orden ' + o.folio">
     <app-status-tag [value]="o.status" kind="ProductionOrderStatus" />
+    <app-trace-link type="ProductionOrder" [id]="o.id" />
   </app-page-header>
 
   <div class="layout" [class.pan-has-action-bar]="actions().length > 0">

@@ -66,7 +66,7 @@ public sealed record ProductionCloseListItemDto(
     Guid Id, string Folio, DateOnly BusinessDate, DateTimeOffset ClosedAt, Guid ProductionOrderId, string OrderFolio, Guid OutputItemId,
     string Sku, string ItemName, string BaseUomCode, Guid? ProductionAreaId, string? ProductionAreaName, Shift? Shift, ProductionCloseKind Kind,
     int Sequence, decimal ProducedQty, bool ExceedsTolerance, string? OutputLotNumber, decimal TotalCost, decimal UnitCost, decimal WasteCost,
-    string? ClosedByName);
+    string? ClosedByName, Guid? OutputLotId = null);
 
 public sealed class CreateProductionCloseRequestValidator : AbstractValidator<CreateProductionCloseRequest>
 {
@@ -326,7 +326,7 @@ public sealed class ProductionCloseService(
                 x.Order.OutputItemId, item.Sku, item.Name, item.Uom, x.Order.ProductionAreaId,
                 x.Order.ProductionAreaId is { } a ? names.Areas.GetValueOrDefault(a) : null, x.Close.Shift, x.Close.Kind, x.Close.Sequence,
                 x.Close.ProducedQty, x.Close.ExceedsTolerance, x.Close.OutputLotId is { } lot ? names.Lots[lot].LotNumber : null, x.Close.TotalCost, x.Close.UnitCost,
-                wasteCost.GetValueOrDefault(x.Close.Id), users.Of(x.Close.ClosedBy));
+                wasteCost.GetValueOrDefault(x.Close.Id), users.Of(x.Close.ClosedBy), x.Close.OutputLotId);
         }).ToList(), page.Page, page.PageSize, page.Total);
     }
 

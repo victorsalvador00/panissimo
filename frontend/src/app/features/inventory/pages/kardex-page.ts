@@ -29,6 +29,7 @@ import { endOfDayIso, startOfDayIso } from '../../../shared/forms/dates';
 import { ENUM_LABELS } from '../../../shared/pipes/labels';
 import { MxnPipe, QtyPipe, StatusLabelPipe } from '../../../shared/pipes/pipes';
 import { MovementsApi, StockApi } from '../data-access/inventory-api';
+import { TraceLink } from '../ui/trace/trace-link';
 
 type MovementType = ApiEnum<'MovementType'>;
 
@@ -40,6 +41,7 @@ type MovementType = ApiEnum<'MovementType'>;
   selector: 'app-kardex-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TraceLink,
     DatePipe,
     ReactiveFormsModule,
     RouterLink,

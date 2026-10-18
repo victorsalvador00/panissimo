@@ -1,0 +1,75 @@
+<app-page-header [title]="'Trazabilidad · ' + (graph()?.source?.label ?? typeLabel())">
+  <a matButton routerLink="/inventario/trazabilidad">
+    <mat-icon>search</mat-icon>
+    Otra búsqueda
+  </a>
+  <button matButton="tonal" type="button" [disabled]="!graph() || empty()" (click)="exportCsv()">
+    <mat-icon>download</mat-icon>
+    Exportar CSV
+  </button>
+</app-page-header>
+
+@if (!type() || notFound()) {
+  <section class="pan-card state" role="alert">
+    <p>No se encontró la entrada de trazabilidad.</p>
+    <a matButton="tonal" routerLink="/inventario/trazabilidad">Buscar otra</a>
+  </section>
+} @else if (result.error()) {
+  <section class="pan-card state" role="alert">
+    <p>No se pudo consultar la trazabilidad.</p>
+    <button matButton="tonal" type="button" (click)="result.reload()">Reintentar</button>
+  </section>
+} @else if (graph(); as graph) {
+  <p class="entry">
+    <span
+      >Entrada: <strong>{{ graph.source.label }}</strong> · {{ typeLabel() }}</span
+    >
+    <span>Estado al {{ asOf() }}</span>
+    @for (w of warnings(); track w) {
+      <span class="warning" role="note"><mat-icon aria-hidden="true">info</mat-icon>{{ w }}</span>
+    }
+  </p>
+
+  @if (empty()) {
+    <section class="pan-card state">
+      <mat-icon aria-hidden="true">inbox</mat-icon>
+      <p>
+        {{
+          graph.source.type === 'PurchaseOrder'
+            ? 'Esta OC todavía no tiene recepciones.'
+            : graph.source.type === 'ProductionOrder'
+              ? 'Esta OP todavía no tiene cierres.'
+              : 'La entrada no tiene lotes que rastrear.'
+        }}
+      </p>
+    </section>
+  } @else {
+    <mat-tab-group
+      mat-stretch-tabs="false"
+      preserveContent
+      [selectedIndex]="tab()"
+      (selectedIndexChange)="tab.set($event)"
+    >
+      <mat-tab label="Mapa">
+        <div class="tab-body">
+          <app-trace-graph
+            [graph]="graph"
+            [direction]="direction()"
+            (directionChange)="changeDirection($event)"
+          />
+        </div>
+      </mat-tab>
+      <mat-tab label="Resumen">
+        <div class="tab-body"><app-trace-summary [graph]="graph" /></div>
+      </mat-tab>
+      <mat-tab label="Bitácora">
+        <div class="tab-body"><app-trace-log [graph]="graph" (opened)="openOnMap($event)" /></div>
+      </mat-tab>
+    </mat-tab-group>
+  }
+} @else {
+  <div class="skeleton" aria-busy="true" aria-label="Cargando la trazabilidad">
+    <div class="pan-skeleton line"></div>
+    <div class="pan-skeleton map"></div>
+  </div>
+}

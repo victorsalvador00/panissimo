@@ -27,6 +27,7 @@ import { MxnPipe, QtyPipe, formatQty } from '../../../shared/pipes/pipes';
 import { StockApi } from '../../inventory/data-access/inventory-api';
 import { Transfer, TransfersApi } from '../data-access/logistics-api';
 import { DispatchDialog, DispatchDialogData, DispatchResult } from '../ui/dispatch-dialog';
+import { TraceLink } from '../../inventory/ui/trace/trace-link';
 
 /**
  * /logistica/traspasos/:id (frontend §7.5): the transfer by state. A draft is edited, cancelled (a branch order's
@@ -36,6 +37,7 @@ import { DispatchDialog, DispatchDialogData, DispatchResult } from '../ui/dispat
   selector: 'app-transfer-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TraceLink,
     DatePipe,
     RouterLink,
     MatButtonModule,
@@ -50,6 +52,7 @@ import { DispatchDialog, DispatchDialogData, DispatchResult } from '../ui/dispat
     @if (transfer(); as t) {
       <app-page-header [title]="'Traspaso ' + t.folio">
         <app-status-tag [value]="t.status" kind="TransferStatus" />
+        <app-trace-link type="Transfer" [id]="t.id" />
       </app-page-header>
 
       <div class="layout" [class.pan-has-action-bar]="hasActions()">

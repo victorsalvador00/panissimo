@@ -19,6 +19,25 @@ export const INVENTORY_ROUTES: Routes = [
       import('./pages/consumption-analysis-page').then((m) => m.ConsumptionAnalysisPage),
   },
   {
+    path: 'trazabilidad',
+    canActivate: [permissionGuard],
+    data: { permission: 'inventory.traceability', breadcrumb: 'Trazabilidad' },
+    children: [
+      {
+        path: '',
+        title: 'Trazabilidad · SGO Paníssimo',
+        loadComponent: () =>
+          import('./pages/traceability-search-page').then((m) => m.TraceabilitySearchPage),
+      },
+      {
+        path: ':sourceType/:sourceId',
+        title: 'Trazabilidad · SGO Paníssimo',
+        data: { breadcrumb: 'Resultado' },
+        loadComponent: () => import('./pages/traceability-page').then((m) => m.TraceabilityPage),
+      },
+    ],
+  },
+  {
     path: 'kardex',
     title: 'Kardex · SGO Paníssimo',
     canActivate: [permissionGuard],

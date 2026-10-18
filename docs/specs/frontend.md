@@ -344,7 +344,7 @@ Pipes: `qty`, `mxn`, `statusLabel`.
   14. Accesibilidad: axe (WCAG 2.1 A/AA, falla con serious/critical) en claro y oscuro en login, tablero, listas y flujos de captura.
   15. Tema: persistencia y "según el sistema".
   16. Ayuda: abrir, video, Esc y foco.
-  17. Trazabilidad (`trazabilidad.md` §6.4, `trazabilidad-ui.md` §11): busca la OP, abre el mapa, selecciona el lote más antiguo de harina y la sucursal que no lo recibió queda atenuada; en celular, pestaña Resumen sin scroll horizontal; axe en claro y oscuro. Mueve inventario.
+  17. Trazabilidad (`trazabilidad.md` §6.4, `trazabilidad-ui.md` §11; archivo `e2e/24-traceability.spec.ts`, porque el 17 ya era el de requerimiento de materiales): busca la OP, abre el mapa, selecciona el lote más antiguo de harina y la sucursal que no lo recibió queda atenuada; en celular, pestaña Resumen sin scroll horizontal; axe en claro y oscuro. Mueve inventario.
 - **Lighthouse** (`npm run lighthouse`, accesibilidad con emulación móvil, ≥ 90): login, tablero, recepción de traspaso y cierre de producción.
 
 ## 10. Build y despliegue

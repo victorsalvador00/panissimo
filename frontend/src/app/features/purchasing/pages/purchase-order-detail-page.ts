@@ -24,6 +24,7 @@ import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { MxnPipe, QtyPipe, formatMxn } from '../../../shared/pipes/pipes';
 import { PurchaseOrder, PurchaseOrdersApi } from '../data-access/purchasing-api';
 import { PurchaseOrderAction, purchaseOrderActions } from '../ui/purchase-order-actions';
+import { TraceLink } from '../../inventory/ui/trace/trace-link';
 
 /**
  * /compras/ordenes/:id (frontend §7.6, RN-31, RN-32): the purchase order with its lines (received and pending, the
@@ -33,6 +34,7 @@ import { PurchaseOrderAction, purchaseOrderActions } from '../ui/purchase-order-
   selector: 'app-purchase-order-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TraceLink,
     DatePipe,
     RouterLink,
     MatButtonModule,
@@ -47,6 +49,7 @@ import { PurchaseOrderAction, purchaseOrderActions } from '../ui/purchase-order-
     @if (order(); as o) {
       <app-page-header [title]="'Orden de compra ' + o.folio">
         <app-status-tag [value]="o.status" kind="PurchaseOrderStatus" />
+        <app-trace-link type="PurchaseOrder" [id]="o.id" />
       </app-page-header>
 
       <div class="layout" [class.pan-has-action-bar]="actions().length > 0">

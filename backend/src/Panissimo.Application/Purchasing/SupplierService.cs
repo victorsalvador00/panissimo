@@ -239,7 +239,7 @@ public sealed class SupplierService(IAppDbContext db, ITransactionLocks locks, I
         orderby i.Sku
         select new SupplierItemDto(r.Id, r.SupplierId, r.ItemId, i.Sku, i.Name, i.Type, i.IsActive, b.Code,
             p == null ? null : p.Code, i.PurchaseToBaseFactor, r.SupplierSku, r.Price,
-            PerBaseUnit(r.Price, i.PurchaseToBaseFactor), r.LeadTimeDays, r.IsPreferred, r.IsActive, r.Version);
+            PerBaseUnit(r.Price, i.PurchaseToBaseFactor), r.LeadTimeDays, r.IsPreferred, r.IsActive, r.Version, i.TaxRate);
 
     private async Task<SupplierDto> ToDtoAsync(Supplier s, CancellationToken ct)
     {

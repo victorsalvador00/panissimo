@@ -86,6 +86,7 @@ public sealed record SupplierItemListQuery
 
 /// <summary>
 /// <c>Price</c> is per purchase unit (or base unit when the item has none); <c>PricePerBaseUnit</c> = Price / factor.
+/// <c>TaxRate</c> is the item's VAT, which a purchase order line takes.
 /// </summary>
 public sealed record SupplierItemDto(
     Guid Id,
@@ -104,7 +105,8 @@ public sealed record SupplierItemDto(
     int LeadTimeDays,
     bool IsPreferred,
     bool IsActive,
-    uint Version);
+    uint Version,
+    decimal TaxRate);
 
 public sealed record CreateSupplierItemRequest(Guid ItemId, string? SupplierSku, decimal Price, int LeadTimeDays, bool IsPreferred)
     : ISupplierItemFields;

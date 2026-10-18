@@ -84,7 +84,7 @@ public class SupplierTests(ApiFactory factory)
         var rowA = await AddItemAsync(admin, a.Id, flour.Id, 20m, preferred: true);
         var rowB = await AddItemAsync(admin, b.Id, flour.Id, 18m, preferred: false);
         await AddItemAsync(admin, c.Id, flour.Id, 15m, preferred: false);
-        Assert.Equal(20m, rowA.PricePerBaseUnit);
+        Assert.Equal((20m, flour.TaxRate), (rowA.PricePerBaseUnit, rowA.TaxRate)); // the VAT a PO line takes
 
         var offers = await OffersAsync(admin, flour.Id);
         Assert.Equal([a.Id, c.Id, b.Id], offers!.Select(o => o.SupplierId)); // preferred first, then cheapest

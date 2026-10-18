@@ -18,10 +18,24 @@
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: inherit;
   text-decoration: none;
   font-weight: 700;
+}
+
+.brand-logo {
+  display: block;
+  height: 48px;
+  width: auto;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 18%);
+}
+
+.brand-name {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.9;
 }
 
 .spacer {
@@ -96,7 +110,7 @@
   padding: 24px;
 }
 
-// < 600 px: only the brand icon (its link keeps the accessible name).
+// < 600 px: only the logo (its link keeps the accessible name).
 @media (max-width: 599.98px) {
   .brand-name {
     display: none;

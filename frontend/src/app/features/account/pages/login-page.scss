@@ -36,9 +36,12 @@
 
 .welcome {
   .logo {
-    width: 56px;
-    height: 56px;
-    font-size: 56px;
+    display: block;
+    width: min(420px, 100%);
+    height: auto;
+    margin-bottom: 16px;
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 35%);
   }
 
   h1 {
@@ -137,8 +140,17 @@
     padding: 72px 16px 24px;
   }
 
-  .welcome h1 {
-    font-size: 2.25rem;
+  .welcome {
+    text-align: center;
+
+    .logo {
+      margin-inline: auto;
+      width: min(300px, 100%);
+    }
+
+    h1 {
+      font-size: 2.25rem;
+    }
   }
 
   .card {

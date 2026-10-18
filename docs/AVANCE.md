@@ -420,3 +420,7 @@
 - **E2E 3 en verde** (suite completa 14/14, escritorio y 390 px): ajuste de merma de `E2E-SIN-EXISTENCIA` (lo crea por API si falta, nunca tiene existencia) en el subalmacén de producto terminado → diálogo "Existencia insuficiente" con lo que falta; no se guarda nada.
 - Pruebas: 83 unitarias (signo y lote del ajuste, subalmacén obligatorio, nivel de existencia, textos de caducidad, enlaces a documentos). Backend: 230 unitarias y 149 de integración. Sin paquetes nuevos.
 - Datos de prueba en la BD de desarrollo: AJ-000001 (existencia inicial de `E2E-GRANEL` en PLANTA-PT) y el artículo `E2E-SIN-EXISTENCIA`.
+
+### Marca (2026-10-17)
+
+- Por indicación del usuario: `ico.png` como favicon y `logo.png` como logo del login y título de la barra superior. Los originales (varios MB) quedan en la raíz del repositorio; `frontend/scripts/brand-assets.py` (Pillow, MIT-CMU, herramienta local) genera `public/favicon.ico` (16-64 px, el ícono ancho se completa a cuadrado con su color de fondo), `public/brand/icon-180.png` e `icon-192.png` (apple-touch y PWA) y los logos en WebP (`logo-bar.webp` 4.6 KB para la barra de 48 px, `logo.webp` 66 KB para el login). Revisado en Chrome en claro y oscuro.

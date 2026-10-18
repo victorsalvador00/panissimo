@@ -411,6 +411,52 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("item_location_setting", "catalog");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Catalog.ItemPhoto", b =>
+                {
+                    b.Property<Guid>("ItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("item_id");
+
+                    b.Property<byte[]>("Image")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("image");
+
+                    b.Property<string>("ImageContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("image_content_type");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint")
+                        .HasColumnName("revision");
+
+                    b.Property<byte[]>("Thumbnail")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("thumbnail");
+
+                    b.Property<string>("ThumbnailContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("thumbnail_content_type");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("ItemId")
+                        .HasName("pk_item_photo");
+
+                    b.ToTable("item_photo", "catalog");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Catalog.UnitOfMeasure", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3807,6 +3853,16 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_item_location_setting_locations_location_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Catalog.ItemPhoto", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Catalog.Item", null)
+                        .WithOne()
+                        .HasForeignKey("Panissimo.Domain.Catalog.ItemPhoto", "ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_photo_item_item_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Inventory.ConsumptionEntry", b =>

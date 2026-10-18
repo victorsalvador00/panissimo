@@ -216,6 +216,7 @@ export class RecipeFormPage {
       tracksLots: false,
       shelfLifeDays: null,
       productionAreaId: null,
+      photoRevision: null,
     };
     // Reuses the line controls already on screen (re-creating them all re-renders the editor).
     while (this.lines.length > recipe.lines.length)
@@ -234,6 +235,7 @@ export class RecipeFormPage {
           tracksLots: false,
           shelfLifeDays: null,
           productionAreaId: null,
+          photoRevision: null,
         },
         quantity: line.quantity,
         wastePct: line.wastePct,

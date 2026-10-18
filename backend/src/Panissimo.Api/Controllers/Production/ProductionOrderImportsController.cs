@@ -19,7 +19,7 @@ public sealed class ProductionOrderImportsController(IProductionOrderImportServi
     /// <summary>Plantilla .xlsx con la hoja OP (fecha, sku, cantidad, area, turno, ubicacion, notas) e instrucciones.</summary>
     [HttpGet("template")]
     [RequirePermission(Permissions.ProductionOrdersImport)]
-    [ProducesResponseType<FileContentResult>(StatusCodes.Status200OK, XlsxContentType)]
+    [ProducesResponseType<Stream>(StatusCodes.Status200OK, XlsxContentType)]
     public IActionResult Template() => File(imports.Template(), XlsxContentType, "plantilla-ordenes-produccion.xlsx");
 
     /// <summary>Valida el archivo (RN-90..RN-93) sin guardar nada: errores por fila y columna, avisos y órdenes a crear.</summary>

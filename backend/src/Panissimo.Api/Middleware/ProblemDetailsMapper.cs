@@ -48,6 +48,7 @@ public static class ProblemDetailsMapper
             StatusCodes.Status403Forbidden => ("forbidden", "Acceso denegado", "No tienes permiso para realizar esta acción."),
             StatusCodes.Status404NotFound => ("not_found", "No encontrado", "El recurso solicitado no existe."),
             StatusCodes.Status405MethodNotAllowed => ("method_not_allowed", "Método no permitido", "La operación no está permitida en este recurso."),
+            StatusCodes.Status413PayloadTooLarge => ("payload_too_large", "Archivo demasiado grande", "El archivo excede el tamaño permitido."),
             StatusCodes.Status415UnsupportedMediaType => ("unsupported_media_type", "Tipo de contenido no admitido",
                 "Envía el cuerpo como JSON (Content-Type: application/json)."),
             StatusCodes.Status429TooManyRequests => ("too_many_requests", "Demasiadas solicitudes", "Demasiadas solicitudes. Intenta más tarde."),

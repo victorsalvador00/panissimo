@@ -38,6 +38,7 @@ const bulk: Schemas['ItemDto'] = {
   updatedAt: null,
   updatedByName: null,
   version: 1,
+  photoRevision: null,
 };
 
 async function setup(inputs: Record<string, string> = {}) {

@@ -65,7 +65,8 @@ public sealed record ItemLookupDto(
     string BaseUomCode,
     bool TracksLots,
     int? ShelfLifeDays,
-    Guid? ProductionAreaId);
+    Guid? ProductionAreaId,
+    long? PhotoRevision);
 
 public sealed record ItemListItemDto(
     Guid Id,
@@ -81,7 +82,8 @@ public sealed record ItemListItemDto(
     string? ProductionAreaName,
     bool TracksLots,
     StorageCondition StorageCondition,
-    bool IsActive);
+    bool IsActive,
+    long? PhotoRevision);
 
 public sealed record ItemDto(
     Guid Id,
@@ -111,7 +113,8 @@ public sealed record ItemDto(
     string? CreatedByName,
     DateTimeOffset? UpdatedAt,
     string? UpdatedByName,
-    uint Version);
+    uint Version,
+    long? PhotoRevision);
 
 public sealed record CreateItemRequest(
     string Sku,

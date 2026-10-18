@@ -117,6 +117,7 @@ public static class DependencyInjection
         services.AddScoped<IMaterialRequirementService, MaterialRequirementService>();
         services.AddScoped<IProductionSummaryService, ProductionSummaryService>();
         services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IItemPhotoService, ItemPhotoService>();
         services.AddScoped<IConsumptionAnalysisService, ConsumptionAnalysisService>();
         services.AddScoped<IPurchaseOrderService, PurchaseOrderService>();
         services.AddScoped<IGoodsReceiptService, GoodsReceiptService>();

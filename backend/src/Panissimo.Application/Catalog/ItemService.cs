@@ -73,11 +73,14 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         var categories = await db.ItemCategories.Where(c => categoryIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Name, ct);
         var uoms = await db.UnitsOfMeasure.Where(u => uomIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Code, ct);
         var areas = await db.ProductionAreas.Where(a => areaIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Name, ct);
+        var itemIds = page.Items.Select(i => i.Id).ToList();
+        var photos = await db.ItemPhotos.Where(p => itemIds.Contains(p.ItemId)).ToDictionaryAsync(p => p.ItemId, p => p.Revision, ct);
 
         return new PagedResult<ItemListItemDto>(
             page.Items.Select(i => new ItemListItemDto(i.Id, i.Sku, i.InternalSku, i.Name, i.Type, i.Presentation, i.CategoryId,
                 categories[i.CategoryId], uoms[i.BaseUomId], i.ProductionAreaId,
-                i.ProductionAreaId is { } a ? areas.GetValueOrDefault(a) : null, i.TracksLots, i.StorageCondition, i.IsActive)).ToList(),
+                i.ProductionAreaId is { } a ? areas.GetValueOrDefault(a) : null, i.TracksLots, i.StorageCondition, i.IsActive,
+                photos.TryGetValue(i.Id, out var revision) ? revision : null)).ToList(),
             page.Page, page.PageSize, page.Total);
     }
 
@@ -106,7 +109,8 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
                       join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                       orderby i.Sku
                       select new ItemLookupDto(i.Id, i.Sku, i.Name, i.Type, i.Presentation, u.Code, i.TracksLots,
-                          i.ShelfLifeDays, i.ProductionAreaId))
+                          i.ShelfLifeDays, i.ProductionAreaId,
+                          db.ItemPhotos.Where(p => p.ItemId == i.Id).Select(p => (long?)p.Revision).FirstOrDefault()))
             .Take(limit)
             .ToListAsync(ct);
     }
@@ -251,11 +255,12 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
             ? await db.Items.AsNoTracking().Where(b => b.Id == bulkId).Select(b => new { b.Sku, b.Name }).SingleOrDefaultAsync(ct)
             : null;
         var names = await userDirectory.GetNamesAsync([i.CreatedBy, i.UpdatedBy], ct);
+        var photoRevision = await db.ItemPhotos.Where(p => p.ItemId == i.Id).Select(p => (long?)p.Revision).SingleOrDefaultAsync(ct);
 
         return new ItemDto(i.Id, i.Sku, i.InternalSku, i.Name, i.Type, i.CategoryId, i.BaseUomId, baseUomCode, i.PurchaseUomId,
             i.PurchaseToBaseFactor, i.TracksLots, i.ShelfLifeDays, i.StorageCondition, i.TaxRate, i.Presentation,
             i.BulkItemId, bulk?.Sku, bulk?.Name, i.UnitsPerPackage, i.ProductionAreaId, i.ProductionMultiple, i.UnitWeightGrams,
-            i.IsActive, i.CreatedAt, names.Of(i.CreatedBy), i.UpdatedAt, names.Of(i.UpdatedBy), i.Version);
+            i.IsActive, i.CreatedAt, names.Of(i.CreatedBy), i.UpdatedAt, names.Of(i.UpdatedBy), i.Version, photoRevision);
     }
 
     private async Task<Item> FindAsync(Guid id, CancellationToken ct) =>

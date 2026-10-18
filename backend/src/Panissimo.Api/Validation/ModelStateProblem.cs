@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
@@ -18,6 +19,9 @@ public static partial class ModelStateProblem
 
     public static IActionResult Response(ActionContext context)
     {
+        if (context.ModelState.Values.SelectMany(e => e.Errors).Any(IsTooLarge))
+            return TooLarge(context);
+
         var bodyParameters = context.ActionDescriptor.Parameters
             .Where(p => p.BindingInfo?.BindingSource == BindingSource.Body)
             .Select(p => p.Name)
@@ -45,6 +49,29 @@ public static partial class ModelStateProblem
         ProblemDetailsMapper.Normalize(problem);
         problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
         return new ObjectResult(problem) { StatusCode = StatusCodes.Status400BadRequest };
+    }
+
+    /// <summary>
+    /// The upload went over the endpoint's limit while the form was read: MVC reports it as a binding error in English;
+    /// it is a 413 with the limit in Spanish.
+    /// </summary>
+    private static bool IsTooLarge(ModelError error) =>
+        error.Exception is InvalidDataException or BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge }
+        || error.ErrorMessage.StartsWith("Failed to read the request form", StringComparison.Ordinal);
+
+    private static ObjectResult TooLarge(ActionContext context)
+    {
+        var limit = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<IRequestSizeLimitMetadata>()?.MaxRequestBodySize;
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status413PayloadTooLarge,
+            Detail = limit is { } bytes
+                ? $"El archivo excede el tamaño permitido ({bytes / 1024:N0} KB)."
+                : "El archivo excede el tamaño permitido.",
+        };
+        ProblemDetailsMapper.Normalize(problem);
+        problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+        return new ObjectResult(problem) { StatusCode = StatusCodes.Status413PayloadTooLarge };
     }
 
     /// <summary>Spanish texts for the messages MVC builds itself (query string, route and body binding).</summary>

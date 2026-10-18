@@ -329,6 +329,7 @@ export class ItemFormPage {
         tracksLots: bulk.tracksLots,
         shelfLifeDays: bulk.shelfLifeDays,
         productionAreaId: bulk.productionAreaId,
+        photoRevision: bulk.photoRevision,
       },
     });
   }
@@ -353,5 +354,7 @@ function bulkOption(item: Item): ItemOption {
     tracksLots: item.tracksLots,
     shelfLifeDays: item.shelfLifeDays,
     productionAreaId: item.productionAreaId,
+    // The item does not bring the photo of its bulk version.
+    photoRevision: null,
   };
 }

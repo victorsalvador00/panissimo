@@ -25,6 +25,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ItemCategory> ItemCategories => Set<ItemCategory>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<ItemLocationSetting> ItemLocationSettings => Set<ItemLocationSetting>();
+    public DbSet<ItemPhoto> ItemPhotos => Set<ItemPhoto>();
     public DbSet<Lot> Lots => Set<Lot>();
     public DbSet<StockBalance> StockBalances => Set<StockBalance>();
     public DbSet<ItemLocationCost> ItemLocationCosts => Set<ItemLocationCost>();

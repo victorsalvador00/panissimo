@@ -51,6 +51,7 @@ export const ENUM_LABELS: { [K in EnumName]: Record<ApiEnum<K>, string> } = {
     ParentOrder: 'OP superior',
   },
   DiscrepancyReason: { Missing: 'Faltante', Damaged: 'Dañado', Other: 'Otro' },
+  ItemPhotoSize: { Thumbnail: 'Miniatura', Full: 'Completa' },
   ItemPresentation: { Bulk: 'Granel', Packaged: 'Empaquetado' },
   ItemType: {
     RawMaterial: 'Materia prima',

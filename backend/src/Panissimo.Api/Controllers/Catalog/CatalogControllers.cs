@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Net.Http.Headers;
 using Panissimo.Api.Auth;
 using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Production;
+using Panissimo.Domain.Common;
 using Panissimo.Domain.Security;
 
 namespace Panissimo.Api.Controllers.Catalog;
@@ -188,5 +190,71 @@ public sealed class ImportsController(IItemImportService itemImport) : Controlle
     {
         await using var stream = file.OpenReadStream();
         return await itemImport.ImportAsync(stream, ct);
+    }
+}
+
+/// <summary>Foto del artículo (una por artículo; el navegador la redimensiona).</summary>
+[ApiController]
+[Route("items/{id:guid}/photo")]
+[Tags("Artículos")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+public sealed class ItemPhotosController(IItemPhotoService photos) : ControllerBase
+{
+    /// <summary>Límite de la carga completa (imagen ≤ 300 KB + miniatura ≤ 50 KB + encabezados).</summary>
+    public const int MaxRequestBytes = 400 * 1024;
+
+    /// <summary>
+    /// La foto (size=full, máx. 512 px) o su miniatura (size=thumbnail, 96 px; por omisión). Responde con ETag
+    /// (revisión y tamaño): con If-None-Match vigente, 304 sin cuerpo. 404 si el artículo no tiene foto.
+    /// </summary>
+    [HttpGet]
+    [RequirePermission(Permissions.CatalogView, Permissions.InventoryView, Permissions.LogisticsView, Permissions.ProductionView,
+        Permissions.PurchasingView, Permissions.SalesView)]
+    [ProducesResponseType(typeof(Stream), StatusCodes.Status200OK, "image/png", "image/jpeg", "image/webp")]
+    [ProducesResponseType(StatusCodes.Status304NotModified)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid id, [FromQuery] ItemPhotoSize size = ItemPhotoSize.Thumbnail, CancellationToken ct = default)
+    {
+        var photo = await photos.GetAsync(id, size, ct) ?? throw new NotFoundException("la foto del artículo", id);
+        // Private: the photo needs a session; no-cache: the browser keeps it and revalidates with the ETag.
+        Response.Headers.CacheControl = "private, no-cache";
+        return File(photo.Content, photo.ContentType, lastModified: null,
+            new EntityTagHeaderValue($"\"{photo.Revision}-{size.ToString().ToLowerInvariant()}\""));
+    }
+
+    /// <summary>
+    /// Sube o reemplaza la foto: multipart con `image` (PNG, JPEG o WebP; máx. 512 px por lado y 300 KB) y `thumbnail`
+    /// (máx. 96 px y 50 KB). El tipo se lee del archivo, no del nombre. Cambia la revisión.
+    /// </summary>
+    [HttpPut]
+    [RequirePermission(Permissions.CatalogManage)]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaxRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxRequestBytes)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status413PayloadTooLarge)]
+    public async Task<ItemPhotoDto> Put(Guid id, IFormFile? image, IFormFile? thumbnail, CancellationToken ct) =>
+        await photos.SaveAsync(id, await ReadAsync(image, ct), await ReadAsync(thumbnail, ct), ct);
+
+    /// <summary>Quita la foto del artículo (sin foto no hace nada).</summary>
+    [HttpDelete]
+    [RequirePermission(Permissions.CatalogManage)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        await photos.RemoveAsync(id, ct);
+        return NoContent();
+    }
+
+    private static async Task<PhotoUpload> ReadAsync(IFormFile? file, CancellationToken ct)
+    {
+        if (file is null)
+            return new PhotoUpload([], null);
+        using var buffer = new MemoryStream((int)Math.Min(file.Length, MaxRequestBytes));
+        await file.CopyToAsync(buffer, ct);
+        return new PhotoUpload(buffer.ToArray(), file.ContentType);
     }
 }

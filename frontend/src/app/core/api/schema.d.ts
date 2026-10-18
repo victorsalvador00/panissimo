@@ -6183,7 +6183,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': components['schemas']['FileContentResult'];
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': components['schemas']['Stream'];
           };
         };
         /** @description Unauthorized */
@@ -13931,6 +13931,234 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/items/{id}/photo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * La foto (size=full, máx. 512 px) o su miniatura (size=thumbnail, 96 px; por omisión). Responde con ETag
+     *     (revisión y tamaño): con If-None-Match vigente, 304 sin cuerpo. 404 si el artículo no tiene foto.
+     */
+    get: {
+      parameters: {
+        query?: {
+          size?: components['schemas']['ItemPhotoSize'];
+        };
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'image/png': components['schemas']['Stream'];
+            'image/jpeg': components['schemas']['Stream'];
+            'image/webp': components['schemas']['Stream'];
+          };
+        };
+        /** @description Not Modified */
+        304: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    /**
+     * Sube o reemplaza la foto: multipart con `image` (PNG, JPEG o WebP; máx. 512 px por lado y 300 KB) y `thumbnail`
+     *     (máx. 96 px y 50 KB). El tipo se lee del archivo, no del nombre. Cambia la revisión.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'multipart/form-data': {
+            image?: components['schemas']['IFormFile'];
+          } & {
+            thumbnail?: components['schemas']['IFormFile'];
+          };
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ItemPhotoDto'];
+            'application/json': components['schemas']['ItemPhotoDto'];
+            'text/json': components['schemas']['ItemPhotoDto'];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Payload Too Large */
+        413: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    post?: never;
+    /** Quita la foto del artículo (sin foto no hace nada). */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description No Content */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -15476,10 +15704,6 @@ export interface components {
       /** Format: uuid */
       fromWarehouseId?: null | string;
     };
-    EntityTagHeaderValue: {
-      tag?: components['schemas']['StringSegment'];
-      isWeak?: boolean;
-    };
     ExpiringLotAlertDto: {
       /** Format: uuid */
       locationId: string;
@@ -15553,16 +15777,6 @@ export interface components {
       averageCost: null | number;
       /** Format: double */
       estimatedCost: null | number;
-    };
-    FileContentResult: {
-      /** Format: byte */
-      fileContents?: string;
-      contentType?: null | string;
-      fileDownloadName?: null | string;
-      /** Format: date-time */
-      lastModified?: null | string;
-      entityTag?: null | components['schemas']['EntityTagHeaderValue'];
-      enableRangeProcessing?: boolean;
     };
     GeneratedProductionOrderDto: {
       /** Format: uuid */
@@ -15836,6 +16050,8 @@ export interface components {
       updatedByName: null | string;
       /** Format: uint32 */
       version: number;
+      /** Format: int64 */
+      photoRevision: null | number;
     };
     ItemImportResult: {
       /** Format: int32 */
@@ -15862,6 +16078,8 @@ export interface components {
       tracksLots: boolean;
       storageCondition: components['schemas']['StorageCondition'];
       isActive: boolean;
+      /** Format: int64 */
+      photoRevision: null | number;
     };
     ItemLocationSettingDto: {
       /** Format: uuid */
@@ -15894,7 +16112,25 @@ export interface components {
       shelfLifeDays: null | number;
       /** Format: uuid */
       productionAreaId: null | string;
+      /** Format: int64 */
+      photoRevision: null | number;
     };
+    ItemPhotoDto: {
+      /** Format: uuid */
+      itemId: string;
+      /** Format: int64 */
+      revision: number;
+      imageContentType: string;
+      /** Format: int32 */
+      imageBytes: number;
+      thumbnailContentType: string;
+      /** Format: int32 */
+      thumbnailBytes: number;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    /** @enum {unknown} */
+    ItemPhotoSize: 'Thumbnail' | 'Full';
     /** @enum {unknown} */
     ItemPresentation: 'Bulk' | 'Packaged' | null;
     /** @enum {unknown} */
@@ -17378,15 +17614,8 @@ export interface components {
     };
     /** @enum {unknown} */
     StorageCondition: 'Ambient' | 'Refrigerated' | 'Frozen';
-    StringSegment: {
-      buffer?: null | string;
-      /** Format: int32 */
-      offset?: number;
-      /** Format: int32 */
-      length?: number;
-      value?: null | string;
-      hasValue?: boolean;
-    };
+    /** Format: binary */
+    Stream: string;
     SupplierDto: {
       /** Format: uuid */
       id: string;

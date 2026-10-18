@@ -25,6 +25,7 @@ public interface IAppDbContext
     DbSet<ItemCategory> ItemCategories { get; }
     DbSet<Item> Items { get; }
     DbSet<ItemLocationSetting> ItemLocationSettings { get; }
+    DbSet<ItemPhoto> ItemPhotos { get; }
     DbSet<Lot> Lots { get; }
     DbSet<StockBalance> StockBalances { get; }
     DbSet<ItemLocationCost> ItemLocationCosts { get; }

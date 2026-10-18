@@ -45,6 +45,18 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
     }
 }
 
+internal sealed class ItemPhotoConfiguration : IEntityTypeConfiguration<ItemPhoto>
+{
+    public void Configure(EntityTypeBuilder<ItemPhoto> builder)
+    {
+        builder.ToTable("item_photo", "catalog");
+        builder.HasKey(p => p.ItemId);
+        builder.Property(p => p.ImageContentType).HasMaxLength(32);
+        builder.Property(p => p.ThumbnailContentType).HasMaxLength(32);
+        builder.HasOne<Item>().WithOne().HasForeignKey<ItemPhoto>(p => p.ItemId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 internal sealed class ItemLocationSettingConfiguration : IEntityTypeConfiguration<ItemLocationSetting>
 {
     public void Configure(EntityTypeBuilder<ItemLocationSetting> builder)

@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-14, requisiciones).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-15, compras; fase 3 del frontend completa).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,16 +9,16 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-14 y F-25 terminadas (fases 1 y 2; F-13 y F-14 de la 3) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-15 y F-25 terminadas (fases 1, 2 y 3) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-15 (órdenes de compra y ★ recepciones) según `docs/specs/frontend.md` §11; cierra la fase 3. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** fase 4 del frontend desde F-16 (★ pedidos de sucursal con sugerido y aprobación) según `docs/specs/frontend.md` §11. La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-15..F-24.
+- Frontend F-16..F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
@@ -26,7 +26,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-15). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-16). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -84,7 +84,7 @@
 | 2 | F-25 Vales internos entre subalmacenes | ✅ | (ver `git log`) |
 | 3 | F-13 Proveedores y artículos de proveedor | ✅ | (ver `git log`) |
 | 3 | F-14 Requisiciones y conversión a OC | ✅ | (ver `git log`) |
-| 3 | F-15 | ⏳ | |
+| 3 | F-15 Órdenes de compra y recepciones | ✅ | (ver `git log`) |
 | 4 | F-16..F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
 | + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
@@ -525,3 +525,14 @@
 - **Detalle** (`/:id`): datos, sellos (enviada, aprobada, rechazada con motivo), líneas con proveedor (o "Sin proveedor"), precio, importe y la OC que la convirtió; **acciones por estado y permiso** (`ui/requisition-actions.ts`): Editar y Enviar en borrador, Aprobar y Rechazar con motivo (`ReasonService`) enviadas, Cancelar en borrador/enviada/aprobada, **Convertir a OC** aprobadas.
 - **E2E 11 en verde** (criterio de F-14; suite 23/23): una requisición por el formulario (proveedor preferido e importe) enviada y aprobada en la interfaz, otra aprobada por API; ambas seleccionadas y convertidas; la tabla de OC generadas muestra los dos folios. No mueve inventario; cada corrida deja 2 requisiciones convertidas y una OC en borrador.
 - Pruebas: 115 unitarias (acciones por estado y permiso; nota de artículo repetido). Sin paquetes nuevos.
+
+### F-15 (2026-10-17)
+
+- **Órdenes de compra** (`/compras/ordenes`, RN-30..RN-32): pestañas Todas / Por aprobar / Por recibir (en `?tab=`), búsqueda por folio o proveedor y **Recibir** en las aprobadas o parcialmente recibidas.
+- **Formulario** (`/nueva`, `/:id/editar`): proveedor (nuevo `ui/supplier-picker.ts` sobre `LookupPicker`; fijo al guardar), planta de entrega, fecha esperada (+7 días), notas; líneas del **catálogo activo del proveedor** (el editor aparece cuando el catálogo cargó) con el precio sugerido y editable, el IVA del artículo y **totales en vivo con el mismo redondeo que el backend** (`ui/purchase-math.ts`: centavos redondeando lejos de cero, IVA sobre el subtotal redondeado de cada línea); la requisición de origen por línea.
+- **Detalle** (`/:id`): proveedor, entrega, sellos (enviada, aprobada —automática si quedó debajo del umbral—, rechazada, cerrada con saldo con su motivo), líneas con recibido y pendiente, totales y recepciones; **acciones por estado y permiso** (`ui/purchase-order-actions.ts`): Editar/Enviar/Cancelar en borrador, Aprobar/Rechazar con motivo por aprobar, Recibir y Cancelar aprobada, Recibir y **Cerrar con saldo** (motivo) parcialmente recibida.
+- ★ **Recepción** (`/compras/recepciones/nueva?oc=`, móvil primero): tarjeta por línea con su saldo prellenada con lo pendiente; lote y caducidad para artículos con lotes y **"Otro lote"** para repartir una línea; factura (en mayúsculas); subalmacén de entrada; aviso naranja si excede lo pendiente y bloqueo arriba de la tolerancia (`ui/receipt-rules.ts`, RN-32); barra fija con el costo sin IVA; confirmación. **Historial** (`/compras/recepciones`) y **detalle** con unidad de compra y base, lote y costo unitario base (RN-33). Los folios de OC y recepciones del kardex y de requisiciones enlazan a su pantalla.
+- **Backend:** `SupplierItemDto` trae `taxRate` (el IVA del artículo, que toma la línea de la OC), para calcular los totales de una línea nueva sin pedir permiso de catálogos; tipos regenerados.
+- Corrección en el formulario: el selector de proveedor emite cambios al escribir y al reescribir su valor; las líneas solo se reinician cuando cambia de verdad el proveedor (antes se recreaban y el selector de artículos perdía el foco y las opciones).
+- **E2E 9 en verde** (`12-purchase-receipt`, suite 24/24): OC por el formulario con el precio del catálogo → enviar → aprobar → recibir a 390 px (prellenado con lo pendiente, factura, sin scroll horizontal) → recepción con OC "Recibida" → la existencia de PLANTA-MP sube 5 kg. **Mueve inventario.** `support/api.ts` ganó `ensureSupplierOffer`.
+- Pruebas: 124 unitarias (redondeo igual al backend, acciones de OC, tolerancia de recepción). Sin paquetes nuevos.

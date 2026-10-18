@@ -28,6 +28,8 @@ const AVAILABLE = new Set([
   'ProductionOrder',
   'ProductionClose',
   'ProductionOrderImport',
+  'PurchaseOrder',
+  'GoodsReceipt',
 ]);
 
 export function documentLink(docType: string, id: string): string[] | null {

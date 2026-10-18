@@ -24,31 +24,13 @@ test('convertir varias requisiciones muestra las OC generadas', async ({
   await api.ensureItem('E2E-HARINA', 'Harina E2E', 'E2E', 'kg');
   const harina = await api.itemId('E2E-HARINA');
   // A supplier that sells it (the preferred one is taken by the form).
-  let offers = await api.get<{ supplierId: string }[]>(`items/${harina}/supplier-offers`);
-  if (offers.length === 0) {
-    const supplier = await api.post<{ id: string }>('suppliers', {
-      taxId: 'EEE010101AAA',
-      name: 'Proveedor E2E base',
-      contactName: null,
-      phone: null,
-      email: null,
-      paymentTermsDays: 0,
-    });
-    await api.post(`suppliers/${supplier.id}/items`, {
-      itemId: harina,
-      supplierSku: null,
-      price: 18,
-      leadTimeDays: 1,
-      isPreferred: true,
-    });
-    offers = await api.get<{ supplierId: string }[]>(`items/${harina}/supplier-offers`);
-  }
+  const offer = await api.ensureSupplierOffer('E2E-HARINA');
   const plant = await api.locationId('PLANTA');
   const viaApi = await api.post<{ id: string; folio: string; version: number }>('requisitions', {
     locationId: plant,
     neededBy: inDays(10),
     notes: 'E2E 11',
-    lines: [{ itemId: harina, quantity: 4, suggestedSupplierId: offers[0].supplierId, notes: null }],
+    lines: [{ itemId: harina, quantity: 4, suggestedSupplierId: offer.supplierId, notes: null }],
   });
   const submitted = await api.post<{ version: number }>(`requisitions/${viaApi.id}/submit`, {
     version: viaApi.version,

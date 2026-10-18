@@ -17,6 +17,12 @@ export type SupplierOffer = Schemas['SupplierOfferDto'];
 export type Requisition = Schemas['RequisitionDto'];
 export type RequisitionListItem = Schemas['RequisitionListItemDto'];
 export type ConvertedOrder = Schemas['ConvertedPurchaseOrderDto'];
+export type SupplierOption = Schemas['SupplierLookupDto'];
+export type PurchaseOrder = Schemas['PurchaseOrderDto'];
+export type PurchaseOrderLine = Schemas['PurchaseOrderLineDto'];
+export type PurchaseOrderListItem = Schemas['PurchaseOrderListItemDto'];
+export type GoodsReceipt = Schemas['GoodsReceiptDto'];
+export type GoodsReceiptListItem = Schemas['GoodsReceiptListItemDto'];
 
 /** Suppliers and their catalog of items (`/suppliers`, RN-30, RN-35). */
 @Injectable({ providedIn: 'root' })
@@ -125,5 +131,89 @@ export class SupplierOffersApi {
 
   of(itemId: string): Observable<SupplierOffer[]> {
     return this.http.get<SupplierOffer[]>(`items/${itemId}/supplier-offers`);
+  }
+}
+
+/** Active suppliers for the pickers (`/suppliers/lookup`, up to 50). */
+@Injectable({ providedIn: 'root' })
+export class SupplierLookupApi {
+  private readonly http = inject(HttpClient);
+
+  search(q: string): Observable<SupplierOption[]> {
+    return this.http.get<SupplierOption[]>('suppliers/lookup', {
+      params: httpParams({ q, limit: 20 }),
+    });
+  }
+}
+
+/** Purchase orders (`/purchase-orders`, RN-30..RN-32). */
+@Injectable({ providedIn: 'root' })
+export class PurchaseOrdersApi {
+  private readonly http = inject(HttpClient);
+
+  /** `tab` (All, ToApprove, ToReceive), `q` by folio or supplier. */
+  list(query: ListQuery, filters: ParamValues = {}): Observable<Page<PurchaseOrderListItem>> {
+    return this.http.get<Page<PurchaseOrderListItem>>('purchase-orders', {
+      params: toHttpParams(query, filters),
+    });
+  }
+
+  get(id: string): Observable<PurchaseOrder> {
+    return this.http.get<PurchaseOrder>(`purchase-orders/${id}`);
+  }
+
+  /** A draft with items of the supplier's active catalog (RN-30). */
+  create(request: Schemas['CreatePurchaseOrderRequest']): Observable<PurchaseOrder> {
+    return this.http.post<PurchaseOrder>('purchase-orders', request);
+  }
+
+  update(id: string, request: Schemas['UpdatePurchaseOrderRequest']): Observable<PurchaseOrder> {
+    return this.http.put<PurchaseOrder>(`purchase-orders/${id}`, request);
+  }
+
+  /** RN-31: at or above the threshold it waits for approval; otherwise it is approved at once. */
+  submit(id: string, version: number): Observable<PurchaseOrder> {
+    return this.http.post<PurchaseOrder>(`purchase-orders/${id}/submit`, { version });
+  }
+
+  approve(id: string, version: number): Observable<PurchaseOrder> {
+    return this.http.post<PurchaseOrder>(`purchase-orders/${id}/approve`, { version });
+  }
+
+  /** Final; the reason is required. */
+  reject(id: string, version: number, reason: string): Observable<PurchaseOrder> {
+    const body: Schemas['RejectPurchaseOrderRequest'] = { version, reason };
+    return this.http.post<PurchaseOrder>(`purchase-orders/${id}/reject`, body);
+  }
+
+  cancel(id: string, version: number): Observable<PurchaseOrder> {
+    return this.http.post<PurchaseOrder>(`purchase-orders/${id}/cancel`, { version });
+  }
+
+  /** RN-32: closes a partially received order with its balance; the reason is required. */
+  close(id: string, version: number, reason: string): Observable<PurchaseOrder> {
+    const body: Schemas['ClosePurchaseOrderRequest'] = { version, reason };
+    return this.http.post<PurchaseOrder>(`purchase-orders/${id}/close`, body);
+  }
+}
+
+/** Goods receipts of purchase orders (`/goods-receipts`, RN-32, RN-33). */
+@Injectable({ providedIn: 'root' })
+export class GoodsReceiptsApi {
+  private readonly http = inject(HttpClient);
+
+  list(query: ListQuery, filters: ParamValues = {}): Observable<Page<GoodsReceiptListItem>> {
+    return this.http.get<Page<GoodsReceiptListItem>>('goods-receipts', {
+      params: toHttpParams(query, filters),
+    });
+  }
+
+  get(id: string): Observable<GoodsReceipt> {
+    return this.http.get<GoodsReceipt>(`goods-receipts/${id}`);
+  }
+
+  /** Partial or total; a line may come in several lots; over-receiving up to the tolerance. */
+  create(request: Schemas['CreateGoodsReceiptRequest']): Observable<GoodsReceipt> {
+    return this.http.post<GoodsReceipt>('goods-receipts', request);
   }
 }

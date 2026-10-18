@@ -866,6 +866,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
+    /** Lista de roles. También la ve quien administra usuarios, para asignarlos. */
     get: {
       parameters: {
         query?: {
@@ -16882,6 +16883,8 @@ export interface components {
       isActive: boolean;
       /** Format: uint32 */
       version: number;
+      /** Format: double */
+      taxRate: number;
     };
     SupplierListItemDto: {
       /** Format: uuid */

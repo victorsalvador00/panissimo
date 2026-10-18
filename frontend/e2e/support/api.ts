@@ -145,6 +145,36 @@ export class AdminApi {
     });
   }
 
+  /** An active supplier that sells the item (the preferred one first); creates "Proveedor E2E base" if none. */
+  async ensureSupplierOffer(sku: string): Promise<{ supplierId: string; supplierName: string }> {
+    const itemId = await this.itemId(sku);
+    const offers = () =>
+      this.get<{ supplierId: string; supplierName: string }[]>(`items/${itemId}/supplier-offers`);
+    let found = await offers();
+    if (found.length === 0) {
+      const suppliers = await this.get<{ id: string; name: string }[]>('suppliers/lookup?q=EEE010101AAA');
+      const supplier =
+        suppliers[0] ??
+        (await this.post<{ id: string }>('suppliers', {
+          taxId: 'EEE010101AAA',
+          name: 'Proveedor E2E base',
+          contactName: null,
+          phone: null,
+          email: null,
+          paymentTermsDays: 0,
+        }));
+      await this.post(`suppliers/${supplier.id}/items`, {
+        itemId,
+        supplierSku: null,
+        price: 18,
+        leadTimeDays: 1,
+        isPreferred: true,
+      });
+      found = await offers();
+    }
+    return found[0];
+  }
+
   /** Id of a location by code (also inactive ones and sub-warehouses). */
   async locationId(code: string): Promise<string | null> {
     const page = await this.get<{ items: { id: string; code: string }[] }>(

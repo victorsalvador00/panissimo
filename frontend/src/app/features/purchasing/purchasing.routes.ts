@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Purchasing (frontend §7.6). F-15 adds the purchase orders and receipts; F-20 the requirement. */
+/** Purchasing (frontend §7.6). F-20 adds the raw material requirement. */
 export const PURCHASING_ROUTES: Routes = [
   {
     path: 'proveedores',
@@ -61,6 +61,69 @@ export const PURCHASING_ROUTES: Routes = [
         data: { permission: 'purchasing.requisitions.manage', breadcrumb: 'Editar requisición' },
         loadComponent: () =>
           import('./pages/requisition-form-page').then((m) => m.RequisitionFormPage),
+      },
+    ],
+  },
+  {
+    path: 'ordenes',
+    canActivate: [permissionGuard],
+    data: { permission: 'purchasing.view', breadcrumb: 'Órdenes de compra' },
+    children: [
+      {
+        path: '',
+        title: 'Órdenes de compra · SGO Paníssimo',
+        loadComponent: () =>
+          import('./pages/purchase-orders-list-page').then((m) => m.PurchaseOrdersListPage),
+      },
+      {
+        path: 'nueva',
+        title: 'Nueva orden de compra · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'purchasing.po.manage', breadcrumb: 'Nueva orden' },
+        loadComponent: () =>
+          import('./pages/purchase-order-form-page').then((m) => m.PurchaseOrderFormPage),
+      },
+      {
+        path: ':id',
+        title: 'Orden de compra · SGO Paníssimo',
+        data: { breadcrumb: 'Orden de compra' },
+        loadComponent: () =>
+          import('./pages/purchase-order-detail-page').then((m) => m.PurchaseOrderDetailPage),
+      },
+      {
+        path: ':id/editar',
+        title: 'Editar orden de compra · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'purchasing.po.manage', breadcrumb: 'Editar orden' },
+        loadComponent: () =>
+          import('./pages/purchase-order-form-page').then((m) => m.PurchaseOrderFormPage),
+      },
+    ],
+  },
+  {
+    path: 'recepciones',
+    canActivate: [permissionGuard],
+    data: { permission: 'purchasing.view', breadcrumb: 'Recepciones' },
+    children: [
+      {
+        path: '',
+        title: 'Recepciones de compra · SGO Paníssimo',
+        loadComponent: () =>
+          import('./pages/goods-receipts-list-page').then((m) => m.GoodsReceiptsListPage),
+      },
+      {
+        path: 'nueva',
+        title: 'Recibir orden de compra · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'purchasing.receive', breadcrumb: 'Recibir' },
+        loadComponent: () => import('./pages/goods-receipt-page').then((m) => m.GoodsReceiptPage),
+      },
+      {
+        path: ':id',
+        title: 'Recepción de compra · SGO Paníssimo',
+        data: { breadcrumb: 'Recepción' },
+        loadComponent: () =>
+          import('./pages/goods-receipt-detail-page').then((m) => m.GoodsReceiptDetailPage),
       },
     ],
   },

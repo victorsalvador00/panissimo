@@ -26,6 +26,7 @@ import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { documentLink } from '../../../shared/data-access/document-links';
 import { MxnPipe, QtyPipe, StatusLabelPipe, formatQty } from '../../../shared/pipes/pipes';
 import { ProductionOrder, ProductionOrdersApi } from '../data-access/production-api';
+import { CloseTimeline } from '../ui/close-timeline';
 import { componentWaste, productionOrderActions } from '../ui/order-actions';
 
 /** Document type of each demand, for its link (the screens arrive with F-16 and F-17). */
@@ -37,8 +38,7 @@ const DEMAND_DOCS = {
 
 /**
  * /produccion/ordenes/:id (frontend §7.4.2): header with product, recipe, area, shift, date, origin and progress;
- * actions by state and permission (RN-60); tabs Componentes, Cierres, Pedidos and Historial. The close screen and its
- * timeline arrive with F-11.
+ * actions by state and permission (RN-60); tabs Componentes, Cierres (timeline), Pedidos and Historial.
  */
 @Component({
   selector: 'app-order-detail-page',
@@ -54,6 +54,7 @@ const DEMAND_DOCS = {
     Stamp,
     ProgressMeter,
     AuditPanel,
+    CloseTimeline,
     QtyPipe,
     MxnPipe,
     StatusLabelPipe,

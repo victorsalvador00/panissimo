@@ -22,7 +22,8 @@ describe('inventory rules', () => {
   it('links only to the documents that have a screen', () => {
     expect(documentLink('Adjustment', 'a1')).toEqual(['/inventario/ajustes', 'a1']);
     expect(documentLink('PhysicalCount', 'c1')).toEqual(['/inventario/conteos', 'c1']);
-    expect(documentLink('ProductionClose', 'c1')).toBeNull();
+    expect(documentLink('ProductionClose', 'c1')).toEqual(['/produccion/cierres', 'c1']);
+    expect(documentLink('GoodsReceipt', 'r1')).toBeNull();
     expect(documentLink('Unknown', 'x')).toBeNull();
   });
 });

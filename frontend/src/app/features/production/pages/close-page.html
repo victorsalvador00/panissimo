@@ -1,0 +1,202 @@
+@if (order(); as o) {
+  <app-page-header
+    [title]="
+      (kind() === 'Final' ? 'Cierre final' : 'Cierre parcial') + ' — ' + o.folio + ' · ' + o.sku
+    "
+  />
+  <p class="context muted">
+    {{ o.itemName }} · producido {{ o.producedQty | qty: o.baseUomCode }} de
+    {{ o.plannedQty | qty: o.baseUomCode }} · pendiente {{ o.pendingQty | qty: o.baseUomCode }}
+  </p>
+
+  @if (o.status === 'Released' || o.status === 'InProgress') {
+    <form
+      id="close-form"
+      class="layout pan-capture pan-has-action-bar"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      novalidate
+    >
+      <section class="pan-card" aria-labelledby="close-output">
+        <h2 id="close-output">Producción de este cierre</h2>
+        <app-qty-input
+          class="produced"
+          formControlName="producedQty"
+          label="Cantidad producida en este cierre"
+          [unit]="o.baseUomCode"
+          [allowZero]="!!check()?.zeroAllowed"
+        />
+        @if (kind() === 'Final' && check()?.zeroAllowed) {
+          <p class="muted hint">Si no se produjo más, captura 0: solo se cierra la orden.</p>
+        }
+        @if (check(); as c) {
+          @if (c.overTolerance) {
+            <p class="alert over" role="alert">
+              <mat-icon aria-hidden="true">warning</mat-icon>
+              El total ({{ c.total | qty: o.baseUomCode }}) supera la tolerancia: máximo permitido
+              {{ o.maxAllowedQty | qty: o.baseUomCode }}. Puedes registrarlo; el cierre quedará
+              marcado.
+            </p>
+          } @else if (c.overPlanned) {
+            <p class="alert over" role="status">
+              <mat-icon aria-hidden="true">info</mat-icon>
+              El total ({{ c.total | qty: o.baseUomCode }}) supera lo planeado.
+            </p>
+          }
+        }
+        <div class="fields">
+          <mat-form-field>
+            <mat-label>Turno</mat-label>
+            <mat-select formControlName="shift">
+              <mat-option [value]="null">Sin turno</mat-option>
+              @for (option of shifts; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          @if (warehouses().length > 0) {
+            <mat-form-field>
+              <mat-label>Consume del subalmacén</mat-label>
+              <mat-select formControlName="consumptionWarehouseId">
+                @for (warehouse of warehouses(); track warehouse.id) {
+                  <mat-option [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+                }
+              </mat-select>
+              <mat-error>{{ controlError(form.controls.consumptionWarehouseId) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>El producto entra a</mat-label>
+              <mat-select formControlName="outputWarehouseId">
+                @for (warehouse of warehouses(); track warehouse.id) {
+                  <mat-option [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+                }
+              </mat-select>
+              <mat-error>{{ controlError(form.controls.outputWarehouseId) }}</mat-error>
+            </mat-form-field>
+          }
+          <mat-form-field class="wide">
+            <mat-label>Notas</mat-label>
+            <input matInput formControlName="notes" />
+            <mat-error>{{ controlError(form.controls.notes) }}</mat-error>
+          </mat-form-field>
+        </div>
+        @if (lastPreview()?.nextLotNumber; as lot) {
+          <p class="muted">
+            Lote del cierre: <strong>{{ lot }}</strong>
+            @if (lastPreview()!.nextLotExpiration) {
+              · caduca {{ lastPreview()!.nextLotExpiration | date: 'dd/MM/yyyy' }}
+            }
+          </p>
+        }
+      </section>
+
+      @if (check()?.needsReason) {
+        <section class="pan-card shortfall" aria-labelledby="close-shortfall">
+          <h2 id="close-shortfall">Faltante</h2>
+          <p class="muted">
+            Se cierra con {{ check()!.total | qty: o.baseUomCode }} de
+            {{ o.plannedQty | qty: o.baseUomCode }} planeado: indica el motivo.
+          </p>
+          <div class="fields">
+            <mat-form-field>
+              <mat-label>Motivo del faltante</mat-label>
+              <mat-select formControlName="shortfallReason">
+                @for (option of reasons; track option.value) {
+                  <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-error>{{ controlError(form.controls.shortfallReason) }}</mat-error>
+            </mat-form-field>
+            <mat-form-field class="wide">
+              <mat-label>Notas del faltante</mat-label>
+              <input matInput formControlName="shortfallNotes" />
+              <mat-error>{{ controlError(form.controls.shortfallNotes) }}</mat-error>
+            </mat-form-field>
+          </div>
+        </section>
+      }
+
+      @if (lines().length > 0) {
+        <section aria-labelledby="close-consumption" class="consumption">
+          <h2 id="close-consumption">Consumo real por componente</h2>
+          @for (line of lines(); track line.componentItemId) {
+            @let c = consumption(line);
+            <article class="pan-card line" [class.short]="line.shortage > 0">
+              <div class="item">
+                <strong>{{ line.sku }}</strong>
+                <span>{{ line.name }}</span>
+                <span class="muted">
+                  Teórico {{ line.theoreticalQty | qty: line.baseUomCode }} · hay
+                  {{ line.available | qty: line.baseUomCode }}
+                </span>
+                @if (line.shortage > 0) {
+                  <span class="exit">Faltan {{ line.shortage | qty: line.baseUomCode }}</span>
+                }
+              </div>
+              <app-qty-input
+                class="qty"
+                [formControl]="c.actual"
+                label="Consumo real"
+                [unit]="line.baseUomCode"
+                allowZero
+              />
+              @if (line.tracksLots && consumptionLocationId(); as locationId) {
+                <div class="lots">
+                  <button matButton type="button" (click)="c.open.set(!c.open())">
+                    <mat-icon>{{ c.open() ? 'expand_less' : 'expand_more' }}</mat-icon>
+                    Elegir lotes
+                    @if (c.lots().length > 0) {
+                      ({{ c.lots().length }})
+                    }
+                  </button>
+                  @if (c.open()) {
+                    <app-lot-split
+                      [locationId]="locationId"
+                      [itemId]="line.componentItemId"
+                      [target]="c.actual.value"
+                      [unit]="line.baseUomCode"
+                      [chosen]="c.lots()"
+                      (chosenChange)="setLots(line, $event)"
+                    />
+                  } @else if (!lotsValid(line)) {
+                    <p class="exit">Los lotes elegidos no suman el consumo real.</p>
+                  }
+                </div>
+              }
+            </article>
+          }
+        </section>
+      } @else if (preview.isLoading()) {
+        <p class="muted" role="status">Calculando el consumo…</p>
+      }
+    </form>
+
+    <div class="pan-action-bar">
+      <dl class="totals">
+        <div>
+          <dt>Costo estimado</dt>
+          <dd>{{ costs().total | mxn }}</dd>
+        </div>
+        <div>
+          <dt>Unitario</dt>
+          <dd>{{ costs().unit | mxn }}</dd>
+        </div>
+        <div>
+          <dt>Merma</dt>
+          <dd [class.exit]="costs().waste > 0">{{ costs().waste | mxn }}</dd>
+        </div>
+      </dl>
+      <a matButton [routerLink]="['/produccion/ordenes', o.id]">Volver</a>
+      <button matButton="filled" type="submit" form="close-form" [disabled]="saving()">
+        {{ kind() === 'Final' ? 'Cerrar orden' : 'Registrar cierre parcial' }}
+      </button>
+    </div>
+  } @else {
+    <p class="pan-card">
+      Esta orden no está liberada ni en proceso: no se puede cerrar.
+      <a [routerLink]="['/produccion/ordenes', o.id]">Ver la orden</a>
+    </p>
+  }
+} @else if (resource.isLoading()) {
+  <p role="status">Cargando…</p>
+}

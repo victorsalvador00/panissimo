@@ -219,7 +219,7 @@ Para **tableta en la línea** (también 390 px):
 - Turno (default el de la OP) y notas.
 - **Consumo real por componente:** tarjetas con el teórico para la cantidad capturada (`close-preview`, recalculado al dejar de escribir), consumo real prellenado y editable, existencia y "Elegir lotes" (reparto que debe sumar el consumo). Al cambiar la cantidad solo se recalculan las líneas que el usuario no tocó.
 - **Faltante en cierre final:** motivo obligatorio (y notas con "Otro").
-- **Sobreproducción:** aviso naranja si supera lo planeado; bloqueo si supera la tolerancia ("Máximo permitido: 3,300 pza").
+- **Sobreproducción:** aviso naranja si supera lo planeado; si supera la tolerancia, aviso destacado con el máximo ("Máximo permitido: 3,300 pza") **sin bloquear**: el cierre se registra marcado (D-03, tolerancia solo informativa).
 - Barra fija con costo estimado, costo unitario y merma; botón "Registrar cierre parcial" o "Cerrar orden"; confirmación con producido, lote y caducidad, consumos. 409 → diálogos de faltantes o concurrencia.
 - Al terminar: aviso con folios del cierre y del lote; regresa al detalle.
 

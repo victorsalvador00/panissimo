@@ -25,6 +25,7 @@ const AVAILABLE = new Set([
   'Consumption',
   'Transfer',
   'ProductionOrder',
+  'ProductionClose',
 ]);
 
 export function documentLink(docType: string, id: string): string[] | null {

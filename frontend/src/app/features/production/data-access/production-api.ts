@@ -18,6 +18,8 @@ export type ProductionOrder = Schemas['ProductionOrderDto'];
 export type ProductionOrderListItem = Schemas['ProductionOrderListItemDto'];
 export type ProductionOrderTab = ApiEnum<'ProductionOrderTab'>;
 export type ProductionCloseListItem = Schemas['ProductionCloseListItemDto'];
+export type ProductionClose = Schemas['ProductionCloseDto'];
+export type ClosePreview = Schemas['ClosePreviewDto'];
 
 /** Versioned recipes (`/recipes`, RN-10). */
 @Injectable({ providedIn: 'root' })
@@ -62,7 +64,7 @@ export class RecipesApi {
   }
 }
 
-/** Production orders (`/production-orders`, RN-60). The closes arrive with F-11. */
+/** Production orders (`/production-orders`, RN-60) and their closes (RN-61..RN-66). */
 @Injectable({ providedIn: 'root' })
 export class ProductionOrdersApi {
   private readonly http = inject(HttpClient);
@@ -102,5 +104,36 @@ export class ProductionOrdersApi {
 
   closes(id: string): Observable<ProductionCloseListItem[]> {
     return this.http.get<ProductionCloseListItem[]>(`production-orders/${id}/closes`);
+  }
+
+  /** Theoretical per component for `qty` (RN-11), stock, estimated cost and the lot it would create (RN-62). */
+  closePreview(id: string, qty: number): Observable<ClosePreview> {
+    return this.http.get<ClosePreview>(`production-orders/${id}/close-preview`, {
+      params: httpParams({ qty }),
+    });
+  }
+
+  /**
+   * Partial or final close in one transaction (RN-61, RN-63): a 409 brings the shortages (nothing is posted) or
+   * another close of the same order (RN-66).
+   */
+  close(id: string, request: Schemas['CreateProductionCloseRequest']): Observable<ProductionClose> {
+    return this.http.post<ProductionClose>(`production-orders/${id}/closes`, request);
+  }
+}
+
+/** Every production close (`/production-closes`), with its consumption and lots. */
+@Injectable({ providedIn: 'root' })
+export class ProductionClosesApi {
+  private readonly http = inject(HttpClient);
+
+  list(query: ListQuery, filters: ParamValues = {}): Observable<Page<ProductionCloseListItem>> {
+    return this.http.get<Page<ProductionCloseListItem>>('production-closes', {
+      params: toHttpParams(query, filters),
+    });
+  }
+
+  get(id: string): Observable<ProductionClose> {
+    return this.http.get<ProductionClose>(`production-closes/${id}`);
   }
 }

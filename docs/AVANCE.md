@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-10, órdenes de producción).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-11, cierres de producción).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-10 terminadas (fase 1 completa) (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-11 terminadas (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-11 (★ cierre parcial y final, línea de tiempo de cierres, lista y detalle de cierres) según `docs/specs/frontend.md` §11; F-25 (vales internos) también es de la fase 2. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-12 (importación de OP desde Excel con `app-xlsx-import` e historial) según `docs/specs/frontend.md` §11; F-25 (vales internos) también es de la fase 2. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-11..F-24 y F-25 (vales internos, fase 2).
+- Frontend F-12..F-24 y F-25 (vales internos, fase 2).
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-11). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-12). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -77,7 +77,8 @@
 | 1 | F-08 Traspasos directos | ✅ | (ver `git log`) |
 | 2 | F-09 Recetas | ✅ | (ver `git log`) |
 | 2 | F-10 Órdenes de producción | ✅ | (ver `git log`) |
-| 2 | F-11, F-12, F-25 (vales internos) | ⏳ | |
+| 2 | F-11 Cierres de producción | ✅ | (ver `git log`) |
+| 2 | F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
@@ -472,3 +473,13 @@
 - Verificado con un recorrido temporal de Playwright en escritorio y 390 px (nueva OP con explosión → guardar → liberar → cancelar) y capturas.
 - Pruebas: 100 unitarias (acciones por estado y permiso; merma por componente). Sin paquetes nuevos.
 - Datos de prueba en la BD de desarrollo: OP-000001..OP-000007 de `E2E-MASA`, todas canceladas.
+
+### F-11 (2026-10-17)
+
+- ★ **Cierre** (`/produccion/ordenes/:id/cerrar?tipo=parcial|final`, §7.4.3, RN-61..RN-66), para tableta y 390 px: título "Cierre parcial/final — OP · SKU" con producido y pendiente; cantidad con input grande (parcial vacía; final con el pendiente; 0 solo si ya hay cierres); turno (el de la OP), subalmacén de consumo y de entrada (obligatorios si la planta los tiene; se recuerdan por planta en este equipo), notas y el lote que se creará con su caducidad (RN-62). **Consumo real** por componente en tarjetas con el teórico de `close-preview` (recalculado 400 ms después de dejar de escribir; la vista previa anterior se conserva mientras llega la nueva), consumo prellenado que solo sigue al teórico mientras el usuario no lo toca, existencia, faltante y **"Elegir lotes"** (nuevo `inventory/ui/lot-split.ts` reutilizable, el reparto debe sumar el consumo). Final abajo de lo planeado: motivo obligatorio y notas con "Otro". Barra fija con costo estimado, unitario y merma; confirmación con producido, lote y consumos; al terminar avisa folio y lote y regresa al detalle. 409 por los diálogos del interceptor.
+- **Sobreproducción (D-03):** aviso naranja si supera lo planeado y aviso destacado con el máximo permitido si supera la tolerancia, **sin bloquear** (el cierre queda marcado). `frontend.md` §7.4.3 decía "bloqueo"; se corrigió para cumplir D-03 (decisión cerrada en `dominio.md`).
+- **Línea de tiempo** `app-close-timeline` en la pestaña Cierres del detalle de OP: folio, tipo, fecha y hora, turno, usuario, producido, lote, costo unitario, merma y tolerancia; al expandir carga consumos y lotes (`ui/close-consumption.ts`).
+- **Cierres** (`/produccion/cierres`, `/:id`): lista con búsqueda, fechas (DateOnly), área y tipo (fecha, OP, producto, área y turno, tipo, producido, costo, merma) y detalle de solo lectura (RN-65) con lote, caducidad, subalmacén de entrada, costos y consumos con lotes. El kardex enlaza los folios de cierres.
+- **Corrección de backend (B-26d):** la explosión (RN-12) y la vista previa del cierre costeaban con el costo promedio de la planta misma, que es 0 cuando la existencia está en sus subalmacenes. Ahora usan `InventoryLocations.AverageCostsAsync` (promedio ponderado por existencia de la planta y sus subalmacenes, como el renglón total de Existencias). Prueba de integración `Explosion_and_close_preview_cost_the_components_of_the_plant_warehouses`. Backend: 230 unitarias y 150 de integración en verde.
+- **E2E 7 en verde** (suite 19/19): liberar → cierre parcial de 10 kg a 1024 px (consumo 6 kg) → cierre parcial de 5 kg a 390 px sin scroll horizontal (subalmacenes recordados) → cierre final de 3 kg con motivo "Falta de insumo" → Terminada con 3 cierres → los lotes `{folio}-01..03` en Existencias. **Mueve inventario**: mete 20 kg de `E2E-HARINA` en PLANTA-MP y produce 18 kg de `E2E-MASA-L` (artículo con lotes, vida útil 3 días) por corrida.
+- Pruebas: 104 unitarias (tipo de cierre, motivo, tolerancia, costos y merma). Sin paquetes nuevos.

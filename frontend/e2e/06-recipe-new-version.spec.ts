@@ -55,7 +55,7 @@ test('receta: editar una receta usada crea la versión N+1', async ({ page, base
   await signIn(page, adminCredentials());
   await page.goto('/produccion/recetas');
   await page.getByLabel('Buscar por SKU o nombre del producto').fill('E2E-MASA');
-  await page.getByRole('link', { name: 'E2E-MASA' }).click();
+  await page.getByRole('link', { name: 'E2E-MASA', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: `Receta de E2E-MASA · v${current}` })).toBeVisible();
   await expect(page.getByText(`guardar creará la versión ${current + 1}`)).toBeVisible();

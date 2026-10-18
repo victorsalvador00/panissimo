@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Production (frontend §7.4). F-11 onward adds the closes, the import and the plan. */
+/** Production (frontend §7.4). F-12 onward adds the import and the plan. */
 export const PRODUCTION_ROUTES: Routes = [
   {
     path: 'recetas',
@@ -57,6 +57,31 @@ export const PRODUCTION_ROUTES: Routes = [
         canActivate: [permissionGuard],
         data: { permission: 'production.orders.manage', breadcrumb: 'Editar orden' },
         loadComponent: () => import('./pages/order-form-page').then((m) => m.OrderFormPage),
+      },
+      {
+        path: ':id/cerrar',
+        title: 'Cierre de producción · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'production.orders.close', breadcrumb: 'Cierre' },
+        loadComponent: () => import('./pages/close-page').then((m) => m.ClosePage),
+      },
+    ],
+  },
+  {
+    path: 'cierres',
+    canActivate: [permissionGuard],
+    data: { permission: 'production.view', breadcrumb: 'Cierres' },
+    children: [
+      {
+        path: '',
+        title: 'Cierres de producción · SGO Paníssimo',
+        loadComponent: () => import('./pages/closes-list-page').then((m) => m.ClosesListPage),
+      },
+      {
+        path: ':id',
+        title: 'Cierre · SGO Paníssimo',
+        data: { breadcrumb: 'Cierre' },
+        loadComponent: () => import('./pages/close-detail-page').then((m) => m.CloseDetailPage),
       },
     ],
   },

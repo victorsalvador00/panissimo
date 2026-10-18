@@ -143,40 +143,7 @@
         </mat-tab>
 
         <mat-tab [label]="'Cierres (' + o.closeCount + ')'">
-          @if (closes.value().length > 0) {
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Folio</th>
-                    <th scope="col">Tipo</th>
-                    <th scope="col">Fecha</th>
-                    <th scope="col" class="end">Producido</th>
-                    <th scope="col">Lote</th>
-                    <th scope="col" class="end">Costo unitario</th>
-                    <th scope="col" class="end">Merma</th>
-                    <th scope="col">Registró</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (close of closes.value(); track close.id) {
-                    <tr>
-                      <td>{{ close.folio }}</td>
-                      <td>{{ close.kind | statusLabel: 'ProductionCloseKind' }}</td>
-                      <td>{{ close.closedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
-                      <td class="end">{{ close.producedQty | qty: close.baseUomCode }}</td>
-                      <td>{{ close.outputLotNumber ?? '—' }}</td>
-                      <td class="end">{{ close.unitCost | mxn }}</td>
-                      <td class="end">{{ close.wasteCost | mxn }}</td>
-                      <td>{{ close.closedByName ?? '—' }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          } @else {
-            <p class="muted empty">Todavía no hay cierres.</p>
-          }
+          <app-close-timeline [closes]="closes.value()" />
         </mat-tab>
 
         <mat-tab [label]="'Pedidos (' + o.demands.length + ')'">

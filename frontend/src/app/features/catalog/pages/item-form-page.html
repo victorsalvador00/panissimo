@@ -1,0 +1,245 @@
+<app-page-header [title]="title()">
+  @if (item(); as item) {
+    <app-status-tag
+      [text]="item.isActive ? 'Activo' : 'Inactivo'"
+      [color]="item.isActive ? 'green' : 'grey'"
+    />
+  }
+</app-page-header>
+
+<mat-tab-group
+  class="tabs"
+  mat-stretch-tabs="false"
+  animationDuration="0ms"
+  [selectedIndex]="tab()"
+  (selectedIndexChange)="tab.set($event)"
+>
+  <mat-tab label="Datos generales">
+    <form
+      id="item-form"
+      class="pan-has-action-bar general"
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      novalidate
+    >
+      <section class="pan-card" aria-labelledby="item-identity">
+        <h2 id="item-identity">Identificación</h2>
+        <div class="fields">
+          <mat-form-field>
+            <mat-label>SKU</mat-label>
+            <input matInput class="pan-uppercase" formControlName="sku" autocomplete="off" />
+            <mat-error>{{ controlError(form.controls.sku) }}</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>SKU interno</mat-label>
+            <input
+              matInput
+              class="pan-uppercase"
+              formControlName="internalSku"
+              autocomplete="off"
+            />
+            <mat-hint>El código de Paníssimo; la importación de OP lo usa.</mat-hint>
+            <mat-error>{{ controlError(form.controls.internalSku) }}</mat-error>
+          </mat-form-field>
+          <mat-form-field class="wide">
+            <mat-label>Nombre</mat-label>
+            <input matInput formControlName="name" autocomplete="off" />
+            <mat-error>{{ controlError(form.controls.name) }}</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Tipo</mat-label>
+            <mat-select formControlName="type">
+              @for (option of typeOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+            <mat-error>{{ controlError(form.controls.type) }}</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Categoría</mat-label>
+            <mat-select formControlName="categoryId">
+              @for (category of categories.value(); track category.id) {
+                @if (category.isActive || category.id === form.controls.categoryId.value) {
+                  <mat-option [value]="category.id">{{ category.name }}</mat-option>
+                }
+              }
+            </mat-select>
+            @if (categories.value().length === 0 && !categories.isLoading()) {
+              <mat-hint>No hay categorías: da de alta una en Catálogos › Categorías.</mat-hint>
+            }
+            <mat-error>{{ controlError(form.controls.categoryId) }}</mat-error>
+          </mat-form-field>
+          @if (item()) {
+            <mat-slide-toggle formControlName="isActive" class="toggle">Activo</mat-slide-toggle>
+          }
+        </div>
+      </section>
+
+      <section class="pan-card" aria-labelledby="item-units">
+        <h2 id="item-units">Unidades</h2>
+        <div class="fields">
+          <mat-form-field>
+            <mat-label>Unidad base</mat-label>
+            <mat-select formControlName="baseUomId">
+              @for (unit of units.value(); track unit.id) {
+                <mat-option [value]="unit.id">{{ unit.code }} · {{ unit.name }}</mat-option>
+              }
+            </mat-select>
+            <mat-hint>En la que se lleva la existencia.</mat-hint>
+            <mat-error>{{ controlError(form.controls.baseUomId) }}</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Unidad de compra</mat-label>
+            <mat-select formControlName="purchaseUomId">
+              <mat-option [value]="null">La misma que la base</mat-option>
+              @for (unit of units.value(); track unit.id) {
+                <mat-option [value]="unit.id">{{ unit.code }} · {{ unit.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          @if (hasPurchaseUnit()) {
+            <app-qty-input
+              formControlName="purchaseToBaseFactor"
+              label="Factor de compra"
+              [unit]="baseUnitCode()"
+              [decimals]="4"
+            />
+          }
+        </div>
+      </section>
+
+      <section class="pan-card" aria-labelledby="item-inventory">
+        <h2 id="item-inventory">Inventario e impuestos</h2>
+        <div class="fields">
+          <mat-slide-toggle formControlName="tracksLots" class="toggle"
+            >Maneja lotes</mat-slide-toggle
+          >
+          <mat-form-field>
+            <mat-label>Vida útil (días)</mat-label>
+            <input matInput type="number" min="0" formControlName="shelfLifeDays" />
+            <mat-error>{{ controlError(form.controls.shelfLifeDays) }}</mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Almacenamiento</mat-label>
+            <mat-select formControlName="storageCondition">
+              @for (option of storageOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>IVA</mat-label>
+            <mat-select formControlName="taxRate">
+              @for (option of taxOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+      </section>
+
+      @if (isFinishedGood()) {
+        <section class="pan-card" aria-labelledby="item-presentation">
+          <h2 id="item-presentation">Presentación</h2>
+          <div class="fields">
+            <mat-form-field>
+              <mat-label>Presentación</mat-label>
+              <mat-select formControlName="presentation">
+                @for (option of presentationOptions; track option.value) {
+                  <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-error>{{ controlError(form.controls.presentation) }}</mat-error>
+            </mat-form-field>
+            @if (isPackaged()) {
+              <app-item-picker
+                class="wide"
+                formControlName="bulkItemId"
+                label="Versión empaquetada de"
+                type="FinishedGood"
+                presentation="Bulk"
+              />
+              <mat-form-field>
+                <mat-label>Piezas por paquete</mat-label>
+                <input matInput type="number" min="1" formControlName="unitsPerPackage" />
+                <mat-error>{{ controlError(form.controls.unitsPerPackage) }}</mat-error>
+              </mat-form-field>
+            }
+          </div>
+        </section>
+      }
+
+      <section class="pan-card" aria-labelledby="item-production">
+        <h2 id="item-production">Producción y peso</h2>
+        <div class="fields">
+          @if (isProduced()) {
+            <mat-form-field>
+              <mat-label>Área de producción</mat-label>
+              <mat-select formControlName="productionAreaId">
+                <mat-option [value]="null">Sin área</mat-option>
+                @for (area of areas.value(); track area.id) {
+                  @if (area.isActive || area.id === form.controls.productionAreaId.value) {
+                    <mat-option [value]="area.id">{{ area.name }}</mat-option>
+                  }
+                }
+              </mat-select>
+            </mat-form-field>
+            <app-qty-input
+              formControlName="productionMultiple"
+              label="Múltiplo de OP"
+              [unit]="baseUnitCode()"
+              [decimals]="4"
+            />
+          }
+          <app-qty-input
+            formControlName="unitWeightGrams"
+            label="Gramaje"
+            unit="g"
+            [decimals]="2"
+          />
+        </div>
+      </section>
+
+      @if (item(); as item) {
+        <p class="stamps">
+          Creado <app-stamp [at]="item.createdAt" [by]="item.createdByName" />
+          @if (item.updatedAt) {
+            · Modificado <app-stamp [at]="item.updatedAt" [by]="item.updatedByName" />
+          }
+        </p>
+      }
+    </form>
+  </mat-tab>
+
+  @if (item(); as item) {
+    <mat-tab label="Mín/Máx por ubicación">
+      <app-item-location-settings
+        [itemId]="item.id"
+        [unit]="item.baseUomCode"
+        [readonly]="!canManage"
+      />
+    </mat-tab>
+    @if (isBulk()) {
+      <mat-tab label="Versiones empaquetadas">
+        <app-packaged-versions [bulkItemId]="item.id" [canCreate]="canManage" />
+      </mat-tab>
+    }
+    @if (canSeeAudit) {
+      <mat-tab label="Historial">
+        <section class="pan-card tab-card">
+          <app-audit-panel [entityId]="item.id" />
+        </section>
+      </mat-tab>
+    }
+  }
+</mat-tab-group>
+
+<!-- The other tabs save on their own: the bar of the general data only shows on its tab. -->
+@if (canManage && tab() === 0) {
+  <div class="pan-action-bar">
+    <a matButton routerLink="/catalogos/articulos">Volver</a>
+    <button matButton="filled" type="submit" form="item-form" [disabled]="saving()">
+      {{ item() ? 'Guardar' : 'Crear artículo' }}
+    </button>
+  </div>
+}

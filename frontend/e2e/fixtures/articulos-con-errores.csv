@@ -1,0 +1,5 @@
+sku;sku_interno;nombre;tipo;categoria;unidad_base;presentacion
+E2E-MALO-1;E2E-M1;Tipo inválido;pastel;E2E;pza;
+E2E-MALO-2;E2E-M2;Categoría que no existe;materia_prima;No Existe;kg;
+E2E-MALO-3;E2E-M3;Presentación en materia prima;materia_prima;E2E;kg;granel
+E2E-SIN-INTERNO;;Sin SKU interno;insumo;E2E;pza;

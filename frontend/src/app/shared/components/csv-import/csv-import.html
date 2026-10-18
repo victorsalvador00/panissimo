@@ -1,0 +1,127 @@
+<section class="pan-card step" aria-labelledby="csv-step-template">
+  <h2 id="csv-step-template">1. Prepara el archivo</h2>
+  <p>
+    Descarga la plantilla, llénala en Excel y guárdala como CSV (separado por comas o por punto y
+    coma).
+  </p>
+  <button matButton="tonal" type="button" (click)="downloadTemplate()">
+    <mat-icon>download</mat-icon>
+    Descargar plantilla
+  </button>
+  @if (guide().length > 0) {
+    <details class="guide">
+      <summary>Guía de valores</summary>
+      <dl>
+        @for (item of guide(); track item.column) {
+          <dt>
+            <code>{{ item.column }}</code>
+            @if (item.required) {
+              <span class="required">obligatoria</span>
+            }
+          </dt>
+          <dd>{{ item.description }}</dd>
+        }
+      </dl>
+    </details>
+  }
+</section>
+
+<section class="pan-card step" aria-labelledby="csv-step-file">
+  <h2 id="csv-step-file">2. Elige el archivo</h2>
+  <div class="file">
+    <input
+      #fileInput
+      type="file"
+      accept=".csv,text/csv"
+      class="pan-sr-only"
+      tabindex="-1"
+      aria-hidden="true"
+      (change)="choose(fileInput)"
+    />
+    <button matButton="tonal" type="button" (click)="fileInput.click()">
+      <mat-icon>upload_file</mat-icon>
+      Elegir archivo CSV
+    </button>
+    <span class="file-name">{{ file()?.name ?? 'Ningún archivo elegido' }}</span>
+  </div>
+
+  @if (document(); as document) {
+    <p class="summary" role="status">
+      {{ rowCount() }} {{ rowCount() === 1 ? 'fila' : 'filas' }} en el archivo.
+      @if (rowCount() > preview().length) {
+        Se muestran las primeras {{ preview().length }}.
+      }
+    </p>
+    @if (unknownColumns().length > 0) {
+      <p class="warning" role="alert">
+        Columnas que el sistema no reconoce y se ignorarán: {{ unknownColumns().join(', ') }}.
+      </p>
+    }
+    <div class="table-wrap">
+      <table class="preview" aria-label="Vista previa del archivo">
+        <thead>
+          <tr>
+            <th scope="col">Fila</th>
+            @for (header of document.headers; track $index) {
+              <th scope="col">{{ header }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of preview(); track $index; let i = $index) {
+            <tr>
+              <td class="muted">{{ i + 2 }}</td>
+              @for (value of row; track $index) {
+                <td>{{ value }}</td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+@if (failure(); as message) {
+  <p class="pan-card error-box" role="alert">{{ message }}</p>
+}
+
+@if (errors().length > 0) {
+  <section class="pan-card error-box" aria-labelledby="csv-errors" role="alert">
+    <h2 id="csv-errors">
+      El archivo tiene {{ errors().length }} {{ errors().length === 1 ? 'error' : 'errores' }}
+    </h2>
+    <p>No se guardó nada. Corrige el archivo y vuelve a subirlo.</p>
+    <div class="table-wrap">
+      <table class="errors">
+        <thead>
+          <tr>
+            <th scope="col">Fila</th>
+            <th scope="col">Columna</th>
+            <th scope="col">Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (error of errors(); track $index) {
+            <tr>
+              <td>{{ error.row }}</td>
+              <td>{{ error.column ?? '—' }}</td>
+              <td>{{ error.message }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
+
+<div class="pan-action-bar">
+  @if (file()) {
+    <button matButton type="button" [disabled]="uploading()" (click)="reset()">
+      Quitar archivo
+    </button>
+  }
+  <button matButton="filled" type="button" [disabled]="!file() || uploading()" (click)="send()">
+    {{ uploading() ? 'Importando…' : 'Importar' }}
+  </button>
+</div>

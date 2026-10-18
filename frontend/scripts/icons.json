@@ -1,6 +1,7 @@
 [
   "account_circle",
   "add",
+  "add_location_alt",
   "admin_panel_settings",
   "assignment",
   "autorenew",
@@ -14,6 +15,8 @@
   "contrast",
   "dark_mode",
   "delete",
+  "download",
+  "edit",
   "edit_note",
   "event_note",
   "expand_less",

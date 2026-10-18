@@ -1,0 +1,47 @@
+:host {
+  display: block;
+}
+
+.general {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font: var(--mat-sys-title-medium);
+  font-weight: 700;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px 16px;
+  align-items: start;
+
+  .wide {
+    grid-column: span 2;
+  }
+}
+
+.toggle {
+  align-self: center;
+  min-height: 56px;
+}
+
+.stamps {
+  margin: 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.tab-card {
+  margin-top: 16px;
+}
+
+@media (max-width: 599.98px) {
+  .fields .wide {
+    grid-column: auto;
+  }
+}

@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-04, administración).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-05, catálogos).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-04 terminadas (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-05 terminadas (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-05 (catálogos: ubicaciones, categorías, unidades, áreas, artículos con mín/máx e importación CSV) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-06 (inventario: existencias con lotes, kardex, ajustes, existencias iniciales) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-05..F-24 y F-25 (vales internos, fase 2).
+- Frontend F-06..F-24 y F-25 (vales internos, fase 2).
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-05). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-06). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -71,7 +71,8 @@
 | 1 | F-02 Sesión, interceptores, guardas, login, perfil | ✅ | (ver `git log`) |
 | 1 | F-03 Layout, estilos y componentes compartidos | ✅ | (ver `git log`) |
 | 1 | F-04 Administración (usuarios, roles, bitácora, configuración) | ✅ | (ver `git log`) |
-| 1 | F-05..F-08 | ⏳ | |
+| 1 | F-05 Catálogos (ubicaciones, categorías, unidades, áreas, artículos, CSV) | ✅ | (ver `git log`) |
+| 1 | F-06..F-08 | ⏳ | |
 | 2 | F-09..F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
@@ -397,3 +398,13 @@
 - Corregido al probar en Chrome: un `<form (ngSubmit)>` sin `[formGroup]` recargaba la página en vez de guardar (configuración, diálogo de motivo y de contraseña); ahora todos llevan su directiva.
 - Pruebas: 66 unitarias en verde. Aparte se corrigieron 18 archivos de pruebas de integración que calculaban "hoy" en UTC: después de las 18:00 en México fallaban dos (FEFO con lote "vencido" y plan con fecha pasada); ahora usan `ApiFactory.Today` (fecha de negocio de la Ciudad de México, igual que el servidor). Backend: 230 unitarias y 148 de integración en verde.
 - Paquete nuevo: `@playwright/test` 1.64.1 Apache-2.0 (dev; trae `playwright-core` 1.64.1 Apache-2.0).
+
+### F-05 (2026-10-17)
+
+- `features/catalog` (`/catalogos`, carga diferida) y `features/production` (por ahora solo `/produccion/areas`): ubicaciones (filtros por tipo y activas; alta de planta, sucursal o subalmacén con su ubicación padre; edición de nombre, dirección y activa), categorías, unidades de medida (el código no cambia), áreas de producción (código, nombre, orden, activa; editar con `production.areas.manage`). Las cuatro usan un diálogo genérico `app-record-dialog` armado por campos (visibilidad condicional, códigos en mayúsculas, errores 400 en su campo sin cerrar).
+- Artículos: lista con búsqueda y filtros (tipo, presentación, categoría, área, inactivos); formulario con los campos que aplican según el tipo (presentación solo en terminados, versión a granel y piezas solo en empaquetados, área solo en semiterminados y terminados; al cambiar el tipo se limpian los que dejan de aplicar), unidad y factor de compra, lotes, vida útil, almacenamiento, IVA 0/16 %, múltiplo de OP y gramaje; pestañas **Mín/Máx por ubicación** (guardado propio, máx ≥ mín), **Versiones empaquetadas** (si es granel, con "Nueva versión empaquetada" que abre el alta prellenada con `?granel=`) e **Historial**. Solo lectura sin `catalog.manage`. La pestaña Foto llega en F-23.
+- Importación CSV (`/catalogos/articulos/importar`): componente compartido `app-csv-import` (plantilla con BOM generada en el navegador, guía de valores, vista previa de 20 filas, aviso de columnas desconocidas, tabla de errores por fila del 400 `import_invalid`); la página muestra creados, actualizados y filas omitidas (sin `sku_interno`). Lector CSV RFC 4180 en `shared/data-access/csv.ts` (`,` o `;`, comillas, saltos de línea dentro de comillas).
+- Global: `input.pan-uppercase` (MDC anulaba `text-transform` en el input).
+- Probado en Chrome: alta de categoría; alta de granel con validación de presentación; desde su pestaña, alta de la versión empaquetada prellenada y ligada; mín/máx con error de máx < mín y guardado.
+- **E2E 2 en verde** (escritorio y 390 px; suite completa 12/12): archivo con errores (tipo inválido, categoría inexistente, presentación en materia prima) no guarda nada y muestra los errores; archivo válido da de alta (o actualiza) `E2E-GRANEL` y `E2E-PAQ` ligado, que aparece en "Versiones empaquetadas". Crea la categoría `E2E` si falta; no mueve inventario.
+- Pruebas: 75 unitarias en verde (CSV, diálogo de registro, reglas del formulario de artículo y prellenado del empaquetado). Sin paquetes nuevos.

@@ -1,0 +1,114 @@
+<app-page-header title="Artículos">
+  @if (canManage) {
+    <a matButton="tonal" routerLink="importar">
+      <mat-icon>upload_file</mat-icon>
+      Importar CSV
+    </a>
+    <a matButton="filled" routerLink="nuevo">
+      <mat-icon>add</mat-icon>
+      Nuevo artículo
+    </a>
+  }
+</app-page-header>
+
+<div class="filters">
+  <mat-form-field class="search">
+    <mat-label>Buscar por SKU o nombre</mat-label>
+    <input matInput type="search" [formControl]="search" />
+    <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Tipo</mat-label>
+    <mat-select [value]="filters().type ?? null" (valueChange)="setFilter('type', $event)">
+      <mat-option [value]="null">Todos</mat-option>
+      @for (option of typeOptions; track option.value) {
+        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Presentación</mat-label>
+    <mat-select
+      [value]="filters().presentation ?? null"
+      (valueChange)="setFilter('presentation', $event)"
+    >
+      <mat-option [value]="null">Todas</mat-option>
+      @for (option of presentationOptions; track option.value) {
+        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Categoría</mat-label>
+    <mat-select
+      [value]="filters().categoryId ?? null"
+      (valueChange)="setFilter('categoryId', $event)"
+    >
+      <mat-option [value]="null">Todas</mat-option>
+      @for (category of categories.value(); track category.id) {
+        <mat-option [value]="category.id">{{ category.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Área</mat-label>
+    <mat-select [value]="filters().areaId ?? null" (valueChange)="setFilter('areaId', $event)">
+      <mat-option [value]="null">Todas</mat-option>
+      @for (area of areas.value(); track area.id) {
+        <mat-option [value]="area.id">{{ area.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-slide-toggle
+    [checked]="!!filters().includeInactive"
+    (change)="setFilter('includeInactive', $event.checked)"
+  >
+    Mostrar inactivos
+  </mat-slide-toggle>
+</div>
+
+<app-data-table
+  label="Artículos"
+  [rows]="rows()"
+  [total]="total()"
+  [query]="query()"
+  [loading]="items.isLoading()"
+  (queryChange)="query.set($event)"
+>
+  <ng-template appCell="sku" header="SKU" sortable [appCellOf]="rows()" let-item>
+    <a class="row-link" [routerLink]="item.id">{{ item.sku }}</a>
+  </ng-template>
+  <ng-template appCell="internalSku" header="SKU interno" [appCellOf]="rows()" let-item>
+    {{ item.internalSku }}
+  </ng-template>
+  <ng-template appCell="name" header="Nombre" sortable [appCellOf]="rows()" let-item>
+    {{ item.name }}
+  </ng-template>
+  <ng-template appCell="type" header="Tipo" sortable [appCellOf]="rows()" let-item>
+    {{ item.type | statusLabel: 'ItemType' }}
+    @if (item.presentation) {
+      <span class="muted">· {{ item.presentation | statusLabel: 'ItemPresentation' }}</span>
+    }
+  </ng-template>
+  <ng-template appCell="category" header="Categoría" [appCellOf]="rows()" let-item>
+    {{ item.categoryName }}
+  </ng-template>
+  <ng-template appCell="unit" header="Unidad" [appCellOf]="rows()" let-item>
+    {{ item.baseUomCode }}
+  </ng-template>
+  <ng-template appCell="area" header="Área" [appCellOf]="rows()" let-item>
+    {{ item.productionAreaName ?? '—' }}
+  </ng-template>
+  <ng-template appCell="status" header="Estado" [appCellOf]="rows()" let-item>
+    <app-status-tag
+      [text]="item.isActive ? 'Activo' : 'Inactivo'"
+      [color]="item.isActive ? 'green' : 'grey'"
+    />
+  </ng-template>
+  <div empty>
+    <p>No hay artículos con estos filtros.</p>
+    @if (canManage) {
+      <a matButton="tonal" routerLink="nuevo">Dar de alta un artículo</a>
+    }
+  </div>
+</app-data-table>

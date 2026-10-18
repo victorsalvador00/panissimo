@@ -126,6 +126,11 @@ html {
   }
 }
 
+// Codes typed in capitals (SKU, location code); the value is upper-cased again on save.
+input.pan-uppercase.mat-mdc-input-element {
+  text-transform: uppercase;
+}
+
 // Visually hidden but read by screen readers.
 .pan-sr-only {
   position: absolute;

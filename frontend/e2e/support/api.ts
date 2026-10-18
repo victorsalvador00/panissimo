@@ -70,6 +70,15 @@ export class AdminApi {
     return { email, password };
   }
 
+  /** An active item category with this name (created the first time). */
+  async ensureCategory(name: string): Promise<void> {
+    const page = await this.get<{ items: { name: string; isActive: boolean }[] }>(
+      `item-categories?q=${encodeURIComponent(name)}&includeInactive=true&pageSize=100`,
+    );
+    if (!page.items.some((c) => c.name.toLowerCase() === name.toLowerCase()))
+      await this.post('item-categories', { name });
+  }
+
   async dispose(): Promise<void> {
     await this.context.dispose();
   }

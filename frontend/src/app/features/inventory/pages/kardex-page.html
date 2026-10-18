@@ -1,0 +1,91 @@
+<app-page-header title="Kardex" />
+
+<form class="filters" [formGroup]="filters" novalidate>
+  <mat-form-field>
+    <mat-label>Ubicación</mat-label>
+    <mat-select formControlName="locationId">
+      <mat-option [value]="null">Todas mis ubicaciones</mat-option>
+      @for (option of locationOptions(); track option.id) {
+        <mat-option [value]="option.id">{{ option.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <app-item-picker formControlName="item" label="Artículo" />
+  <mat-form-field>
+    <mat-label>Tipo de movimiento</mat-label>
+    <mat-select formControlName="type">
+      <mat-option [value]="null">Todos</mat-option>
+      @for (option of typeOptions; track option.value) {
+        <mat-option [value]="option.value">{{ option.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Desde</mat-label>
+    <input matInput [matDatepicker]="fromPicker" formControlName="from" />
+    <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+    <mat-datepicker #fromPicker />
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Hasta</mat-label>
+    <input matInput [matDatepicker]="toPicker" formControlName="to" />
+    <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+    <mat-datepicker #toPicker />
+  </mat-form-field>
+  <button matButton type="button" (click)="clear()">Limpiar filtros</button>
+</form>
+@if (!withBalance()) {
+  <p class="muted hint">Elige una ubicación y un artículo para ver el saldo corrido.</p>
+}
+
+<app-data-table
+  label="Kardex"
+  [rows]="rows()"
+  [total]="total()"
+  [query]="query()"
+  [loading]="movements.isLoading()"
+  emptyMessage="No hay movimientos con estos filtros."
+  (queryChange)="query.set($event)"
+>
+  <ng-template appCell="occurredAt" header="Fecha" [appCellOf]="rows()" let-entry>
+    {{ entry.occurredAt | date: 'dd/MM/yyyy HH:mm' }}
+  </ng-template>
+  <ng-template appCell="folio" header="Folio" [appCellOf]="rows()" let-entry>
+    @if (link(entry.sourceDocType, entry.sourceDocId); as route) {
+      <a class="row-link" [routerLink]="route">{{ entry.sourceDocFolio }}</a>
+    } @else {
+      {{ entry.sourceDocFolio }}
+    }
+  </ng-template>
+  <ng-template appCell="type" header="Tipo" [appCellOf]="rows()" let-entry>
+    {{ entry.type | statusLabel: 'MovementType' }}
+  </ng-template>
+  <ng-template appCell="item" header="Artículo" [appCellOf]="rows()" let-entry>
+    <strong>{{ entry.sku }}</strong> {{ entry.itemName }}
+    @if (entry.lotNumber) {
+      <span class="muted">· lote {{ entry.lotNumber }}</span>
+    }
+  </ng-template>
+  <ng-template appCell="location" header="Ubicación" [appCellOf]="rows()" let-entry>
+    {{ entry.locationCode }}
+  </ng-template>
+  <ng-template appCell="quantity" header="Cantidad" end [appCellOf]="rows()" let-entry>
+    <span [class.entry]="entry.quantity > 0" [class.exit]="entry.quantity < 0">
+      {{ entry.quantity > 0 ? '+' : '' }}{{ entry.quantity | qty: entry.baseUomCode }}
+    </span>
+  </ng-template>
+  <ng-template appCell="unitCost" header="Costo unitario" end [appCellOf]="rows()" let-entry>
+    {{ entry.unitCost | mxn }}
+  </ng-template>
+  <ng-template appCell="totalCost" header="Importe" end [appCellOf]="rows()" let-entry>
+    {{ entry.totalCost | mxn }}
+  </ng-template>
+  @if (withBalance()) {
+    <ng-template appCell="balance" header="Saldo" end [appCellOf]="rows()" let-entry>
+      <strong>{{ entry.balanceAfter | qty: entry.baseUomCode }}</strong>
+    </ng-template>
+  }
+  <ng-template appCell="user" header="Usuario" [appCellOf]="rows()" let-entry>
+    {{ entry.userName ?? 'Sistema' }}
+  </ng-template>
+</app-data-table>

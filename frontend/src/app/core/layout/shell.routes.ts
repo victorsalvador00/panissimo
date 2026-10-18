@@ -55,6 +55,12 @@ export const SHELL_ROUTES: Routes = [
           ),
       },
       {
+        path: 'inventario',
+        data: { breadcrumb: 'Inventario' },
+        loadChildren: () =>
+          import('../../features/inventory/inventory.routes').then((m) => m.INVENTORY_ROUTES),
+      },
+      {
         path: 'catalogos',
         data: { breadcrumb: 'Catálogos' },
         loadChildren: () =>

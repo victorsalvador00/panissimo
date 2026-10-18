@@ -79,6 +79,36 @@ export class AdminApi {
       await this.post('item-categories', { name });
   }
 
+  /** A raw material with this SKU (created the first time, never touched afterwards). */
+  async ensureItem(sku: string, name: string, categoryName: string, unitCode: string): Promise<void> {
+    const found = await this.get<{ id: string }[]>(`items/lookup?q=${encodeURIComponent(sku)}`);
+    if (found.length > 0) return;
+    const categories = await this.get<{ items: { id: string; name: string }[] }>(
+      `item-categories?pageSize=100&includeInactive=true`,
+    );
+    const units = await this.get<{ items: { id: string; code: string }[] }>('units-of-measure?pageSize=100');
+    await this.post('items', {
+      sku,
+      internalSku: sku,
+      name,
+      type: 'RawMaterial',
+      categoryId: categories.items.find((c) => c.name === categoryName)!.id,
+      baseUomId: units.items.find((u) => u.code === unitCode)!.id,
+      purchaseUomId: null,
+      purchaseToBaseFactor: null,
+      tracksLots: false,
+      shelfLifeDays: null,
+      storageCondition: 'Ambient',
+      taxRate: 0,
+      presentation: null,
+      bulkItemId: null,
+      unitsPerPackage: null,
+      productionAreaId: null,
+      productionMultiple: null,
+      unitWeightGrams: null,
+    });
+  }
+
   async dispose(): Promise<void> {
     await this.context.dispose();
   }

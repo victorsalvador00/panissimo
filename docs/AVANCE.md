@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-05, catálogos).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-06, inventario).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,23 +9,23 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-05 terminadas (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-06 terminadas (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** F-06 (inventario: existencias con lotes, kardex, ajustes, existencias iniciales) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-07 (conteo físico a ciegas con autoguardado y consumo de sucursal) según `docs/specs/frontend.md` §11. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-06..F-24 y F-25 (vales internos, fase 2).
+- Frontend F-07..F-24 y F-25 (vales internos, fase 2).
 
 **Para arrancar mañana**
 1. Abrir Docker Desktop.
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-06). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-07). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -72,7 +72,8 @@
 | 1 | F-03 Layout, estilos y componentes compartidos | ✅ | (ver `git log`) |
 | 1 | F-04 Administración (usuarios, roles, bitácora, configuración) | ✅ | (ver `git log`) |
 | 1 | F-05 Catálogos (ubicaciones, categorías, unidades, áreas, artículos, CSV) | ✅ | (ver `git log`) |
-| 1 | F-06..F-08 | ⏳ | |
+| 1 | F-06 Inventario (existencias, kardex, ajustes, existencias iniciales) | ✅ | (ver `git log`) |
+| 1 | F-07..F-08 | ⏳ | |
 | 2 | F-09..F-12, F-25 (vales internos) | ⏳ | |
 | 3 | F-13..F-15 | ⏳ | |
 | 4 | F-16..F-20 | ⏳ | |
@@ -408,3 +409,14 @@
 - Probado en Chrome: alta de categoría; alta de granel con validación de presentación; desde su pestaña, alta de la versión empaquetada prellenada y ligada; mín/máx con error de máx < mín y guardado.
 - **E2E 2 en verde** (escritorio y 390 px; suite completa 12/12): archivo con errores (tipo inválido, categoría inexistente, presentación en materia prima) no guarda nada y muestra los errores; archivo válido da de alta (o actualiza) `E2E-GRANEL` y `E2E-PAQ` ligado, que aparece en "Versiones empaquetadas". Crea la categoría `E2E` si falta; no mueve inventario.
 - Pruebas: 75 unitarias en verde (CSV, diálogo de registro, reglas del formulario de artículo y prellenado del empaquetado). Sin paquetes nuevos.
+
+### F-06 (2026-10-17)
+
+- `features/inventory` (`/inventario`, carga diferida): **Existencias** de la ubicación activa (renglón total de la planta o sucursal y uno por subalmacén, RN-46; costo promedio, valor y `app-stock-level`; lotes al expandir con vencidos en rojo; "Solo bajo mínimo"; sección "Lotes por caducar" de `/alerts`; enlace al kardex por artículo y ubicación), **Kardex** (filtros por ubicación —las del usuario y los subalmacenes de la activa—, artículo, tipo y fechas; saldo corrido con ubicación y artículo; folio con enlace al documento; usuario), **Ajustes** (lista por motivo y fechas; alta; detalle con líneas, movimientos registrados con lote y costo, e historial) y **Existencias iniciales** (CSV con `app-csv-import`; muestra los folios de los ajustes de corrección).
+- Alta de ajuste: la ubicación es la activa y, si tiene subalmacenes, se elige uno (RN-45). Por motivo: corrección elige entrada o salida por línea; merma, caducado, dañado y uso interno solo salidas (se capturan en positivo y se envían negativas); devolución de cliente solo entradas, con merma opcional y su motivo (D-08). Entradas con lote y caducidad (artículos con lote) y costo opcional; salidas con lote elegido (`app-lot-select`, con existencia y caducidad) o automático FEFO, sin costo. Confirmación con resumen; el 409 de existencia insuficiente abre el diálogo de faltantes y el formulario se conserva.
+- Compartidos: `app-stock-level` (nivel en palabras y barra, rango para lector de pantalla), `shared/data-access/document-links.ts` (ruta por tipo de documento; solo enlaza las pantallas ya construidas), `shared/data-access/item-lookup.ts` (búsqueda y artículo por id; ahora lo usa `app-item-picker`), `shared/forms/dates.ts` (fecha `yyyy-MM-dd` local e inicio/fin de día; también lo usa la bitácora).
+- **Backend corregido (B-26d):** las listas de ajustes, conteos y consumos filtraban la ubicación exacta, así que una planta no mostraba lo registrado en sus subalmacenes; ahora incluyen los subalmacenes (prueba de integración nueva en `WarehouseTotalsTests`). Commit aparte.
+- Probado en Chrome: existencias iniciales con error (artículo sin lotes) y válida (AJ-000001 en PLANTA-PT para `E2E-GRANEL`, lotes L-A y L-B), existencias con lotes y "por caducar", kardex con saldo corrido y folio enlazado, ajuste de merma sin existencia con diálogo de faltantes, lista y detalle del ajuste.
+- **E2E 3 en verde** (suite completa 14/14, escritorio y 390 px): ajuste de merma de `E2E-SIN-EXISTENCIA` (lo crea por API si falta, nunca tiene existencia) en el subalmacén de producto terminado → diálogo "Existencia insuficiente" con lo que falta; no se guarda nada.
+- Pruebas: 83 unitarias (signo y lote del ajuste, subalmacén obligatorio, nivel de existencia, textos de caducidad, enlaces a documentos). Backend: 230 unitarias y 149 de integración. Sin paquetes nuevos.
+- Datos de prueba en la BD de desarrollo: AJ-000001 (existencia inicial de `E2E-GRANEL` en PLANTA-PT) y el artículo `E2E-SIN-EXISTENCIA`.

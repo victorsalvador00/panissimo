@@ -1,0 +1,195 @@
+<app-page-header title="Nuevo ajuste" />
+
+@if (location(); as location) {
+  <form
+    id="adjustment-form"
+    class="pan-has-action-bar layout"
+    [formGroup]="form"
+    (ngSubmit)="save()"
+    novalidate
+  >
+    <section class="pan-card" aria-labelledby="adjustment-data">
+      <h2 id="adjustment-data">Datos del ajuste</h2>
+      <div class="fields">
+        <mat-form-field>
+          <mat-label>Ubicación</mat-label>
+          <input matInput [value]="location.name" disabled />
+          <mat-hint>La ubicación activa; cámbiala en la barra superior.</mat-hint>
+        </mat-form-field>
+        @if (stockWarehouses().length > 0) {
+          <mat-form-field>
+            <mat-label>Subalmacén</mat-label>
+            <mat-select formControlName="warehouseId">
+              @for (warehouse of stockWarehouses(); track warehouse.id) {
+                <mat-option [value]="warehouse.id">{{ warehouse.name }}</mat-option>
+              }
+            </mat-select>
+            <mat-error>{{ controlError(form.controls.warehouseId) }}</mat-error>
+          </mat-form-field>
+        }
+        <mat-form-field>
+          <mat-label>Motivo</mat-label>
+          <mat-select formControlName="reason">
+            @for (option of reasons; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>
+            @switch (direction()) {
+              @case ('both') {
+                Corrección: cada línea puede ser entrada o salida.
+              }
+              @case ('in') {
+                Solo entradas; puedes mandar parte a merma.
+              }
+              @default {
+                Solo salidas: captura la cantidad en positivo.
+              }
+            }
+          </mat-hint>
+        </mat-form-field>
+        <mat-form-field class="wide">
+          <mat-label>Notas</mat-label>
+          <input matInput formControlName="notes" />
+          <mat-error>{{ controlError(form.controls.notes) }}</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
+
+    <section class="pan-card" aria-labelledby="adjustment-lines">
+      <h2 id="adjustment-lines">Líneas</h2>
+      <app-lines-editor [lines]="lines" [newLine]="newLine" addLabel="Agregar artículo">
+        <ng-template
+          appLineColumn="item"
+          header="Artículo"
+          [appLineColumnOf]="lines"
+          let-line
+          let-i="index"
+        >
+          <app-item-picker [formControl]="line.controls.itemId" label="Artículo" />
+        </ng-template>
+
+        <ng-template
+          appLineColumn="quantity"
+          header="Cantidad"
+          width="15rem"
+          [appLineColumnOf]="lines"
+          let-line
+          let-i="index"
+        >
+          @if (direction() === 'both') {
+            <mat-button-toggle-group
+              class="direction"
+              [formControl]="line.controls.direction"
+              [attr.aria-label]="'Entrada o salida, línea ' + (i + 1)"
+            >
+              <mat-button-toggle value="in">Entrada</mat-button-toggle>
+              <mat-button-toggle value="out">Salida</mat-button-toggle>
+            </mat-button-toggle-group>
+          }
+          <app-qty-input
+            [formControl]="line.controls.quantity"
+            [unit]="line.controls.itemId.value?.baseUomCode ?? null"
+            [ariaLabel]="'Cantidad de la línea ' + (i + 1)"
+          />
+        </ng-template>
+
+        <ng-template
+          appLineColumn="lot"
+          header="Lote y costo"
+          width="18rem"
+          [appLineColumnOf]="lines"
+          let-line
+          let-i="index"
+        >
+          @if (line.controls.itemId.value; as item) {
+            @if (isEntry(line)) {
+              @if (item.tracksLots) {
+                <mat-form-field>
+                  <mat-label>Lote</mat-label>
+                  <input matInput [formControl]="line.controls.lotNumber" />
+                  <mat-hint>Vacío: el sistema le asigna uno.</mat-hint>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Caducidad</mat-label>
+                  <input
+                    matInput
+                    [matDatepicker]="expiry"
+                    [formControl]="line.controls.expirationDate"
+                  />
+                  <mat-datepicker-toggle matIconSuffix [for]="expiry" />
+                  <mat-datepicker #expiry />
+                </mat-form-field>
+              }
+              <app-qty-input
+                [formControl]="line.controls.unitCost"
+                label="Costo unitario"
+                unit="$"
+                [decimals]="4"
+                allowZero
+              />
+            } @else if (item.tracksLots && stockLocationId(); as stockLocationId) {
+              <app-lot-select
+                [formControl]="line.controls.lotId"
+                [locationId]="stockLocationId"
+                [itemId]="item.id"
+                [unit]="item.baseUomCode"
+              />
+            } @else {
+              <span class="muted">Se valúa al costo promedio.</span>
+            }
+          }
+        </ng-template>
+
+        @if (direction() === 'in') {
+          <ng-template
+            appLineColumn="waste"
+            header="Merma de la devolución"
+            width="16rem"
+            [appLineColumnOf]="lines"
+            let-line
+            let-i="index"
+          >
+            <app-qty-input
+              [formControl]="line.controls.wasteQty"
+              label="Cantidad a merma"
+              [unit]="line.controls.itemId.value?.baseUomCode ?? null"
+              [max]="line.controls.quantity.value"
+            />
+            @if (line.controls.wasteQty.value) {
+              <mat-form-field>
+                <mat-label>Motivo de la merma</mat-label>
+                <mat-select [formControl]="line.controls.wasteReason">
+                  @for (option of wasteReasons; track option.value) {
+                    <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+          </ng-template>
+        }
+
+        <ng-template
+          appLineColumn="notes"
+          header="Notas"
+          [appLineColumnOf]="lines"
+          let-line
+          let-i="index"
+        >
+          <mat-form-field>
+            <mat-label>Notas</mat-label>
+            <input matInput [formControl]="line.controls.notes" />
+          </mat-form-field>
+        </ng-template>
+      </app-lines-editor>
+    </section>
+  </form>
+
+  <div class="pan-action-bar">
+    <button matButton="filled" type="submit" form="adjustment-form" [disabled]="saving()">
+      Registrar ajuste
+    </button>
+  </div>
+} @else {
+  <p class="pan-card">Elige una ubicación activa en la barra superior para registrar un ajuste.</p>
+}

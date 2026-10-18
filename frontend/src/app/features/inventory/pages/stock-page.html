@@ -1,0 +1,136 @@
+<app-page-header title="Existencias">
+  <a matButton="tonal" routerLink="/inventario/kardex">
+    <mat-icon>receipt_long</mat-icon>
+    Kardex
+  </a>
+</app-page-header>
+
+@if (location(); as location) {
+  <p class="context">
+    <mat-icon aria-hidden="true">location_on</mat-icon>
+    {{ location.name }}
+    <span class="muted">· cambia la ubicación activa en la barra superior</span>
+  </p>
+
+  @if (expiring().length > 0) {
+    <details class="pan-card expiring" open>
+      <summary>
+        <strong>Lotes por caducar</strong>
+        <span class="muted"
+          >({{ expiring().length }}, en los próximos {{ alerts.value()?.expiryAlertDays }} días o
+          vencidos)</span
+        >
+      </summary>
+      <ul>
+        @for (lot of expiring(); track $index) {
+          <li [class.expired]="lot.isExpired">
+            <strong>{{ lot.sku }}</strong> {{ lot.itemName }} · lote {{ lot.lotNumber }} ·
+            {{ lot.quantity | qty: lot.baseUomCode }} ·
+            @if (lot.isExpired) {
+              <app-status-tag text="Vencido" color="red" />
+            } @else {
+              caduca {{ lot.expirationDate | date: 'dd/MM/yyyy' }} ({{ expiry(lot.daysToExpire) }})
+            }
+            @if (lot.locationId !== location.id) {
+              <span class="muted">· {{ lot.locationCode }}</span>
+            }
+          </li>
+        }
+      </ul>
+    </details>
+  }
+
+  <div class="filters">
+    <mat-form-field class="search">
+      <mat-label>Buscar por SKU o nombre</mat-label>
+      <input matInput type="search" [formControl]="search" />
+      <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Tipo</mat-label>
+      <mat-select [value]="filters()['type'] ?? null" (valueChange)="setFilter('type', $event)">
+        <mat-option [value]="null">Todos</mat-option>
+        @for (option of typeOptions; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Categoría</mat-label>
+      <mat-select
+        [value]="filters()['categoryId'] ?? null"
+        (valueChange)="setFilter('categoryId', $event)"
+      >
+        <mat-option [value]="null">Todas</mat-option>
+        @for (category of categories.value(); track category.id) {
+          <mat-option [value]="category.id">{{ category.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-slide-toggle
+      [checked]="!!filters()['belowMin']"
+      (change)="setFilter('belowMin', $event.checked)"
+    >
+      Solo bajo mínimo
+    </mat-slide-toggle>
+  </div>
+
+  <app-data-table
+    label="Existencias"
+    [rows]="rows()"
+    [total]="total()"
+    [query]="query()"
+    [loading]="stock.isLoading()"
+    [rowKey]="rowKey"
+    emptyMessage="No hay existencias con estos filtros."
+    (queryChange)="query.set($event)"
+  >
+    <ng-template appCell="sku" header="Artículo" sortable [appCellOf]="rows()" let-row>
+      <strong>{{ row.sku }}</strong> {{ row.itemName }}
+    </ng-template>
+    <ng-template appCell="location" header="Ubicación" [appCellOf]="rows()" let-row>
+      {{ row.locationId === location.id ? 'Total' : row.locationCode }}
+    </ng-template>
+    <ng-template appCell="onHand" header="Existencia" end [appCellOf]="rows()" let-row>
+      {{ row.onHand | qty: row.baseUomCode }}
+    </ng-template>
+    <ng-template appCell="level" header="Nivel" [appCellOf]="rows()" let-row>
+      <app-stock-level
+        [onHand]="row.onHand"
+        [min]="row.minQty"
+        [max]="row.maxQty"
+        [unit]="row.baseUomCode"
+      />
+    </ng-template>
+    <ng-template appCell="averageCost" header="Costo promedio" end [appCellOf]="rows()" let-row>
+      {{ row.averageCost | mxn }}
+    </ng-template>
+    <ng-template appCell="stockValue" header="Valor" end [appCellOf]="rows()" let-row>
+      {{ row.stockValue | mxn }}
+    </ng-template>
+    <ng-template appCell="kardex" header="" end [appCellOf]="rows()" let-row>
+      <a
+        matIconButton
+        routerLink="/inventario/kardex"
+        [queryParams]="{ locationId: row.locationId, itemId: row.itemId }"
+        [attr.aria-label]="'Kardex de ' + row.sku"
+      >
+        <mat-icon>receipt_long</mat-icon>
+      </a>
+    </ng-template>
+    <ng-template appRowDetail [appRowDetailOf]="rows()" let-row>
+      @if (row.tracksLots) {
+        <app-stock-lots
+          [locationId]="row.locationId"
+          [itemId]="row.itemId"
+          [itemName]="row.itemName"
+          [unit]="row.baseUomCode"
+        />
+      } @else {
+        <p class="muted">Este artículo no maneja lotes.</p>
+      }
+    </ng-template>
+  </app-data-table>
+} @else {
+  <p class="pan-card">Elige una ubicación activa en la barra superior para ver sus existencias.</p>
+}

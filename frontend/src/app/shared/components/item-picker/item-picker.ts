@@ -1,4 +1,3 @@
-import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
@@ -6,12 +5,12 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Observable } from 'rxjs';
-import type { ApiEnum, Schemas } from '../../../core/api/api';
-import { httpParams } from '../../data-access/list-query';
+import type { ApiEnum } from '../../../core/api/api';
+import { ItemLookupApi, ItemOption } from '../../data-access/item-lookup';
 import { enumLabel } from '../../pipes/labels';
 import { LookupPicker } from '../lookup-picker/lookup-picker';
 
-export type ItemOption = Schemas['ItemLookupDto'];
+export type { ItemOption };
 
 /**
  * Item autocomplete by SKU or name (`GET /items/lookup`, frontend §8), filterable by type, presentation and area.
@@ -35,17 +34,14 @@ export class ItemPicker extends LookupPicker<ItemOption> {
   readonly presentation = input<ApiEnum<'ItemPresentation'> | null>(null);
   readonly areaId = input<string | null>(null);
 
-  private readonly http = inject(HttpClient);
+  private readonly lookup = inject(ItemLookupApi);
 
   protected override runSearch(q: string): Observable<ItemOption[]> {
-    const params = httpParams({
-      q,
+    return this.lookup.search(q, {
       type: this.type(),
       presentation: this.presentation(),
       areaId: this.areaId(),
-      limit: 20,
     });
-    return this.http.get<ItemOption[]>('items/lookup', { params });
   }
 
   protected override display(item: ItemOption): string {

@@ -20,6 +20,7 @@ import {
   formatChanges,
 } from '../../../shared/data-access/audit';
 import { ListQuery } from '../../../shared/data-access/list-query';
+import { endOfDayIso, startOfDayIso } from '../../../shared/forms/dates';
 import { UserListItem, UsersApi } from '../data-access/admin-api';
 
 /** /admin/bitacora (frontend §7.8): filters by entity, user and dates; the detail shows the formatted changes. */
@@ -70,8 +71,8 @@ export class AuditPage {
       this.api.list(params.query, {
         entityType: params.filters.entityType,
         userId: params.filters.user?.id,
-        from: startOfDay(params.filters.from),
-        to: endOfDay(params.filters.to),
+        from: startOfDayIso(params.filters.from),
+        to: endOfDayIso(params.filters.to),
       }),
   });
   protected readonly rows = computed(() => (this.log.hasValue() ? this.log.value().items : []));
@@ -99,18 +100,4 @@ export class AuditPage {
   protected clear(): void {
     this.filters.reset();
   }
-}
-
-function startOfDay(date: Date | null): string | null {
-  if (!date) return null;
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  return start.toISOString();
-}
-
-function endOfDay(date: Date | null): string | null {
-  if (!date) return null;
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
-  return end.toISOString();
 }

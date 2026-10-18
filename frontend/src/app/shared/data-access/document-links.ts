@@ -25,6 +25,7 @@ const AVAILABLE = new Set([
   'Consumption',
   'Transfer',
   'InternalTransfer',
+  'BranchOrder',
   'ProductionOrder',
   'ProductionClose',
   'ProductionOrderImport',

@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-15, compras; fase 3 del frontend completa).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-17 (F-16, pedidos de sucursal).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,16 +9,16 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4: B-17..B-20 terminadas.
 - Pruebas en verde: 230 unitarias y 148 de integración (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `ProcessesChooseWarehouse` (B-26c).
-- Backend fases 1-4 completas. Frontend: F-01..F-15 y F-25 terminadas (fases 1, 2 y 3) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-16 y F-25 terminadas (fases 1, 2 y 3; F-16 de la 4) (fase 1 completa) (proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** fase 4 del frontend desde F-16 (★ pedidos de sucursal con sugerido y aprobación) según `docs/specs/frontend.md` §11. La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
+**Siguiente:** F-17 (clientes y pedidos de cliente) según `docs/specs/frontend.md` §11. La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul". Backend fase 5 (B-22..B-25) queda para después.
 
 **Después**
 - Fase 5: B-22 tablero, B-23 costos y análisis de consumo, B-24 fotos, B-25 endurecimiento.
-- Frontend F-16..F-24.
+- Frontend F-17..F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
@@ -26,7 +26,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-16). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-17). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -85,7 +85,8 @@
 | 3 | F-13 Proveedores y artículos de proveedor | ✅ | (ver `git log`) |
 | 3 | F-14 Requisiciones y conversión a OC | ✅ | (ver `git log`) |
 | 3 | F-15 Órdenes de compra y recepciones | ✅ | (ver `git log`) |
-| 4 | F-16..F-20 | ⏳ | |
+| 4 | F-16 Pedidos de sucursal con sugerido y aprobación | ✅ | (ver `git log`) |
+| 4 | F-17..F-20 | ⏳ | |
 | 5 | F-21..F-24 | ⏳ | |
 | + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
 
@@ -536,3 +537,12 @@
 - Corrección en el formulario: el selector de proveedor emite cambios al escribir y al reescribir su valor; las líneas solo se reinician cuando cambia de verdad el proveedor (antes se recreaban y el selector de artículos perdía el foco y las opciones).
 - **E2E 9 en verde** (`12-purchase-receipt`, suite 24/24): OC por el formulario con el precio del catálogo → enviar → aprobar → recibir a 390 px (prellenado con lo pendiente, factura, sin scroll horizontal) → recepción con OC "Recibida" → la existencia de PLANTA-MP sube 5 kg. **Mueve inventario.** `support/api.ts` ganó `ensureSupplierOffer`.
 - Pruebas: 124 unitarias (redondeo igual al backend, acciones de OC, tolerancia de recepción). Sin paquetes nuevos.
+
+### F-16 (2026-10-17)
+
+- ★ **Pedidos de sucursal** (`/logistica/pedidos`, RN-20): sin permiso de aprobar, los de la sucursal activa; con `logistics.orders.approve`, todos los del alcance con **filtro de sucursal** y pestaña **Por aprobar** (en `?tab=`).
+- **Formulario** (`/nuevo`, `/:id/editar`): la sucursal activa pide a la Planta, "Se necesita para" mañana, notas; artículos **producto terminado o insumo** (D-05) con la **existencia de la sucursal** (con sus subalmacenes); **"Sugerir por mín/máx"** agrega solo los artículos en o bajo su mínimo que faltan, con la cantidad para llegar al máximo, y muestra mín, máx, en camino y pedido.
+- **Detalle** (`/:id`): solicitado / aprobado / despachado, traspasos ligados con su estado e **"Ir a despachar"**, sellos y motivo de rechazo. **Aprobar en la misma pantalla**: existencia de la Planta por línea, cantidad aprobada (0 a lo solicitado, aviso si pasa de la existencia, no se permite todo en 0: se rechaza con motivo), confirmación; crea el traspaso en borrador. Acciones por estado y permiso en `ui/branch-order-rules.ts` (`branchOrderActions`, `checkApproval`).
+- **E2E 10 en verde** (`13-branch-order`, suite 25/25): pedido de 4 pza de `E2E-INSUMO` (insumo nuevo) hecho y enviado a 390 px → aprobado 3 en escritorio → "Ir a despachar" → despacho desde Producto terminado → recibido 2 con motivo "Faltante" a 390 px sin scroll horizontal → "Recibido con diferencias". **Mueve inventario** (mete 4 pza en PLANTA-PT por corrida). `support/api.ts` ganó `put`.
+- Revisado aparte el sugerido a 390 px: con mín 10, máx 30 y existencia 2 en SUC-E2E sugiere 28 y muestra los datos (deja ese mín/máx de `E2E-INSUMO` en SUC-E2E en la BD de desarrollo).
+- Pruebas: 130 unitarias (acciones por estado y permiso; aprobación: rango, todo en 0, arriba de la existencia). Sin paquetes nuevos.

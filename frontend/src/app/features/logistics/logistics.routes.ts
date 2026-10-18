@@ -1,8 +1,44 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Logistics (frontend §7.5). F-16 adds the branch orders. */
+/** Logistics (frontend §7.5): branch orders and transfers. */
 export const LOGISTICS_ROUTES: Routes = [
+  {
+    path: 'pedidos',
+    canActivate: [permissionGuard],
+    data: { permission: 'logistics.view', breadcrumb: 'Pedidos de sucursal' },
+    children: [
+      {
+        path: '',
+        title: 'Pedidos de sucursal · SGO Paníssimo',
+        loadComponent: () =>
+          import('./pages/branch-orders-list-page').then((m) => m.BranchOrdersListPage),
+      },
+      {
+        path: 'nuevo',
+        title: 'Nuevo pedido · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'logistics.orders.create', breadcrumb: 'Nuevo pedido' },
+        loadComponent: () =>
+          import('./pages/branch-order-form-page').then((m) => m.BranchOrderFormPage),
+      },
+      {
+        path: ':id',
+        title: 'Pedido de sucursal · SGO Paníssimo',
+        data: { breadcrumb: 'Pedido' },
+        loadComponent: () =>
+          import('./pages/branch-order-detail-page').then((m) => m.BranchOrderDetailPage),
+      },
+      {
+        path: ':id/editar',
+        title: 'Editar pedido · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'logistics.orders.create', breadcrumb: 'Editar pedido' },
+        loadComponent: () =>
+          import('./pages/branch-order-form-page').then((m) => m.BranchOrderFormPage),
+      },
+    ],
+  },
   {
     path: 'traspasos',
     canActivate: [permissionGuard],

@@ -32,6 +32,13 @@ export class AdminApi {
     return (text ? JSON.parse(text) : undefined) as T;
   }
 
+  async put<T>(path: string, data: unknown): Promise<T> {
+    const response = await this.context.put(`${apiBase}/${path}`, { headers: this.headers(), data });
+    expect(response.ok(), `PUT ${path}: ${await response.text()}`).toBeTruthy();
+    const text = await response.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  }
+
   /**
    * A user with one system role and the given locations; created the first time and with a fresh temporary password
    * on every run, so the test can sign in. Does not move inventory.

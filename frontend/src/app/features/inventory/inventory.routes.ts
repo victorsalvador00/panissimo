@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Inventory (frontend §7.3). F-22 adds the consumption analysis. */
+/** Inventory (frontend §7.3). */
 export const INVENTORY_ROUTES: Routes = [
   {
     path: 'existencias',
@@ -9,6 +9,14 @@ export const INVENTORY_ROUTES: Routes = [
     canActivate: [permissionGuard],
     data: { permission: 'inventory.view', breadcrumb: 'Existencias' },
     loadComponent: () => import('./pages/stock-page').then((m) => m.StockPage),
+  },
+  {
+    path: 'analisis-consumo',
+    title: 'Análisis de consumo · SGO Paníssimo',
+    canActivate: [permissionGuard],
+    data: { permission: 'inventory.view', breadcrumb: 'Análisis de consumo' },
+    loadComponent: () =>
+      import('./pages/consumption-analysis-page').then((m) => m.ConsumptionAnalysisPage),
   },
   {
     path: 'kardex',

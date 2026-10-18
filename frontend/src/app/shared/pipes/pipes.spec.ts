@@ -17,6 +17,10 @@ describe('formats', () => {
   it('formats pesos', () => {
     expect(formatMxn(1234.5)).toBe('$1,234.50');
     expect(formatMxn(undefined)).toBe('');
+    // Unit costs keep up to the decimals asked for, never fewer than two.
+    expect(formatMxn(0.045, 4)).toBe('$0.045');
+    expect(formatMxn(1.32145, 4)).toBe('$1.3215');
+    expect(formatMxn(12, 4)).toBe('$12.00');
   });
 
   it('labels every enum value and keeps unknown ones visible', () => {

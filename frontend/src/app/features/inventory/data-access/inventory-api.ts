@@ -18,6 +18,8 @@ export type AdjustmentListItem = Schemas['AdjustmentListItemDto'];
 export type Adjustment = Schemas['AdjustmentDto'];
 export type InitialStockResult = Schemas['InitialStockImportResult'];
 export type WarehouseOption = Schemas['WarehouseDto'];
+export type ConsumptionAnalysis = Schemas['ConsumptionAnalysisDto'];
+export type ConsumptionAnalysisRow = Schemas['ConsumptionAnalysisRowDto'];
 
 /** Stock by location and item, its lots and the alerts (`/stock`, `/alerts`). */
 @Injectable({ providedIn: 'root' })
@@ -149,5 +151,17 @@ export class ConsumptionsApi {
   /** Posts at once, first to expire first unless a lot is chosen. */
   create(request: Schemas['CreateConsumptionRequest']): Observable<Consumption> {
     return this.http.post<Consumption>('consumptions', request);
+  }
+}
+
+/** Consumption analysis (`/consumption-analysis`, RN-52): whole weeks up to yesterday, suggested min/max. */
+@Injectable({ providedIn: 'root' })
+export class ConsumptionAnalysisApi {
+  private readonly http = inject(HttpClient);
+
+  get(locationId: string, weeks: number, q: string | null): Observable<ConsumptionAnalysis> {
+    return this.http.get<ConsumptionAnalysis>('consumption-analysis', {
+      params: httpParams({ locationId, weeks, q }),
+    });
   }
 }

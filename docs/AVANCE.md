@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-21, tablero y resumen de producción).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-22, costos de receta y análisis de consumo).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,15 +9,15 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5 completa (B-22..B-25): **backend terminado**.
 - Pruebas en verde: 270 unitarias y 159 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `AddCloseListIndex` (B-25).
-- Backend fases 1-4 completas. Frontend: F-01..F-21 y F-25 terminadas (fases 1 a 4 y F-21 de la 5; proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-22 y F-25 terminadas (fases 1 a 4 y F-21, F-22 de la 5; proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** **F-22** (costos de receta y análisis de consumo, B-23), F-23 (fotos, B-24) y F-24 (pulido); después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
+**Siguiente:** **F-23** (fotos, B-24) y F-24 (pulido); después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
 
 **Después**
-- Frontend F-22..F-24.
+- Frontend F-23 y F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
@@ -25,7 +25,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-22). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-23). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -93,6 +93,8 @@
 | 4 | F-19 Plan de producción con generación de OP | ✅ | (ver `git log`) |
 | 4 | F-20 Requerimiento de materia prima y requisición sugerida | ✅ | (ver `git log`) |
 | 5 | F-21 Tablero y resumen de producción | ✅ | (ver `git log`) |
+| 5 | F-22 Costos de receta y análisis de consumo | ✅ | (ver `git log`) |
+| 5 | F-23..F-24 Fotos, pulido | ⏳ | |
 | + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
 
 ## Notas por tarea
@@ -660,3 +662,18 @@
 - **Corrección de la E2E 12 (plan):** con el cambio de día, los pedidos E2E de corridas anteriores caen hoy y había dos renglones de E2E-PAN; ahora toma el de mañana, el último.
 - Pruebas: 149 unitarias (tarjetas por tipo de ubicación, permisos, alertas y enlaces; acciones rápidas; rótulo del resumen). Suite E2E 33/33.
 - Paquete nuevo: `chart.js` 4.5.1 (MIT) y su dependencia `@kurkle/color` 0.3.4 (MIT), anotados en `docs/licencias.md`.
+
+### F-22 (2026-10-18)
+
+- **Pestaña Costos de la receta** (`/produccion/recetas/:id?tab=costos`, RN-51; pestañas Receta / Costos con `mat-tab-nav-bar`):
+  - Todas las versiones del producto, la más nueva primero, costeadas con el costo promedio vigente de la Planta: costo por unidad base, costo del rendimiento y **cambio contra la versión anterior** (`unitCostChangePct`).
+  - Por componente: cantidad, merma, costo promedio ("Sin costo" en naranja si no tiene), costo y **alza** (%, costo anterior → último, fecha). Etiqueta naranja con cuántos insumos subieron.
+  - La versión abierta va resaltada y las otras enlazan a su propia pestaña de costos. La tarjeta "Recetas con alza de insumos" del tablero abre esta pestaña.
+- **`mxn` con decimales opcionales:** `| mxn: 4` muestra costos unitarios con hasta 4 decimales sin ceros sobrantes ($0.045, $11.6039); sin argumento sigue igual.
+- **Análisis de consumo** (`/inventario/analisis-consumo`, RN-52) de la ubicación activa:
+  - Semanas (4, 8, 12 o 26) y búsqueda. Por artículo: total, promedio diario, tendencia (flecha y %), mín/máx actual y sugerido.
+  - Al expandir: **barras por día de la semana**.
+  - **Aplicar sugerido** (con `catalog.manage`, confirmación con actual contra sugerido) guarda el mín/máx de esa ubicación con el PUT normal; si ya coincide dice "Aplicado".
+  - El promedio de un artículo en `pza` muestra decimales (es un promedio, no un conteo; 21 pza en 56 días = 0.38 pza y no "0 pza").
+- **E2E de F-22 en verde** (`19-costs-analysis`): la receta de E2E-PAN muestra una sección por versión con su costo por pza y la harina; en el análisis, el día de la semana de E2E-HARINA y "Aplicar sugerido" → "Aplicado". Restaura el mín/máx anterior al final. No mueve inventario. En una BD recién creada, sin salidas antes de hoy, la parte del análisis termina en el estado vacío.
+- Pruebas: 152 unitarias (cambio entre versiones, sugerido distinto del actual, `mxn` con decimales). Suite E2E 34/34. Sin paquetes nuevos.

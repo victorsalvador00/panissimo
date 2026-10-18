@@ -25,9 +25,26 @@ export function formatQty(
   return unit ? `${text} ${unit}` : text;
 }
 
-/** Pesos: `$1,234.56`. */
-export function formatMxn(value: number | null | undefined): string {
-  return value === null || value === undefined || Number.isNaN(value) ? '' : currency.format(value);
+const unitCurrencies = new Map<number, Intl.NumberFormat>();
+
+/**
+ * Pesos: `$1,234.56`. With `maxDecimals` > 2 (unit costs), up to that many decimals without trailing zeros:
+ * `$0.045`, `$1.3214`.
+ */
+export function formatMxn(value: number | null | undefined, maxDecimals = 2): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '';
+  if (maxDecimals <= 2) return currency.format(value);
+  let format = unitCurrencies.get(maxDecimals);
+  if (!format) {
+    format = new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: maxDecimals,
+    });
+    unitCurrencies.set(maxDecimals, format);
+  }
+  return format.format(value);
 }
 
 /** `{{ line.qty | qty: line.unit }}` */
@@ -41,8 +58,8 @@ export class QtyPipe implements PipeTransform {
 /** `{{ order.total | mxn }}` */
 @Pipe({ name: 'mxn' })
 export class MxnPipe implements PipeTransform {
-  transform(value: number | null | undefined): string {
-    return formatMxn(value);
+  transform(value: number | null | undefined, maxDecimals?: number): string {
+    return formatMxn(value, maxDecimals);
   }
 }
 

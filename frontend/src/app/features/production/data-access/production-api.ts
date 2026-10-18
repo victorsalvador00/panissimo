@@ -14,6 +14,8 @@ export type Recipe = Schemas['RecipeDto'];
 export type RecipeLine = Schemas['RecipeLineDto'];
 export type RecipeListItem = Schemas['RecipeListItemDto'];
 export type Explosion = Schemas['ExplosionDto'];
+export type RecipeCosts = Schemas['RecipeCostsDto'];
+export type RecipeVersionCost = Schemas['RecipeVersionCostDto'];
 export type ProductionOrder = Schemas['ProductionOrderDto'];
 export type ProductionOrderListItem = Schemas['ProductionOrderListItemDto'];
 export type ProductionOrderTab = ApiEnum<'ProductionOrderTab'>;
@@ -70,6 +72,13 @@ export class RecipesApi {
   explode(id: string, qty: number, locationId: string | null): Observable<Explosion> {
     return this.http.get<Explosion>(`recipes/${id}/explode`, {
       params: httpParams({ qty, locationId }),
+    });
+  }
+
+  /** RN-51: every version of the recipe's product at the location's current average costs, with recent increases. */
+  costs(id: string, locationId: string): Observable<RecipeCosts> {
+    return this.http.get<RecipeCosts>(`recipes/${id}/costs`, {
+      params: httpParams({ locationId }),
     });
   }
 }

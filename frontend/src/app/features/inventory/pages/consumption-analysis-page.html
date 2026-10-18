@@ -1,0 +1,160 @@
+<app-page-header title="Análisis de consumo" />
+
+@if (location(); as location) {
+  <div class="filters">
+    <span class="place">{{ location.name }}</span>
+    <mat-form-field class="weeks">
+      <mat-label>Semanas</mat-label>
+      <mat-select [formControl]="weeks">
+        @for (option of weekOptions; track option) {
+          <mat-option [value]="option">{{ option }} semanas</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field class="search">
+      <mat-label>Buscar por SKU o artículo</mat-label>
+      <input matInput [formControl]="search" />
+      <mat-icon matIconSuffix aria-hidden="true">search</mat-icon>
+    </mat-form-field>
+  </div>
+
+  @if (analysis.error()) {
+    <section class="pan-card state" role="alert">
+      <p>No se pudo calcular el análisis.</p>
+      <button matButton="tonal" type="button" (click)="analysis.reload()">Reintentar</button>
+    </section>
+  } @else if (data(); as data) {
+    <p class="muted">
+      Salidas (consumo, producción, traspasos y remisiones; sin vales internos) del
+      {{ data.from.split('-').reverse().join('/') }} al
+      {{ data.to.split('-').reverse().join('/') }}. Sugerido: promedio diario ×
+      {{ data.minCoverDays }} días para el mínimo y × {{ data.maxCoverDays }} para el máximo, hacia
+      arriba.
+    </p>
+    <section class="pan-card">
+      <div class="table-wrap">
+        <table aria-label="Análisis de consumo">
+          <thead>
+            <tr>
+              <th scope="col">Artículo</th>
+              <th scope="col" class="end">Total</th>
+              <th scope="col" class="end">Promedio diario</th>
+              <th scope="col" class="end">Tendencia</th>
+              <th scope="col" class="end">Mín / máx actual</th>
+              <th scope="col" class="end">Sugerido</th>
+              @if (canApply) {
+                <th scope="col"><span class="pan-sr-only">Aplicar</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of data.rows; track row.itemId) {
+              <tr>
+                <th scope="row">
+                  <button
+                    class="expand"
+                    type="button"
+                    [attr.aria-expanded]="expanded() === row.itemId"
+                    [attr.aria-label]="'Consumo por día de ' + row.sku"
+                    (click)="toggle(row)"
+                  >
+                    <mat-icon>{{
+                      expanded() === row.itemId ? 'expand_less' : 'expand_more'
+                    }}</mat-icon>
+                  </button>
+                  <a
+                    class="row-link"
+                    routerLink="/inventario/kardex"
+                    [queryParams]="{ locationId: location.id, itemId: row.itemId }"
+                    >{{ row.sku }}</a
+                  >
+                  <span class="name">{{ row.name }}</span>
+                </th>
+                <td class="end">{{ row.total | qty: row.baseUomCode }}</td>
+                <!-- An average is not a count: pieces keep their decimals here. -->
+                <td class="end strong">
+                  {{ row.dailyAverage | number: '1.0-2' }} {{ row.baseUomCode }}
+                </td>
+                <td class="end">
+                  @if (row.trendPct === null) {
+                    <span class="muted">—</span>
+                  } @else {
+                    <span
+                      class="trend"
+                      [class.up]="row.trendPct > 0"
+                      [class.down]="row.trendPct < 0"
+                    >
+                      <mat-icon aria-hidden="true">{{
+                        row.trendPct > 0
+                          ? 'trending_up'
+                          : row.trendPct < 0
+                            ? 'trending_down'
+                            : 'trending_flat'
+                      }}</mat-icon>
+                      {{ row.trendPct > 0 ? '+' : '' }}{{ row.trendPct | number: '1.0-1' }} %
+                    </span>
+                  }
+                </td>
+                <td class="end">
+                  @if (row.currentMin === null) {
+                    <span class="muted">Sin mín/máx</span>
+                  } @else {
+                    {{ row.currentMin | qty: row.baseUomCode }} /
+                    {{ row.currentMax | qty: row.baseUomCode }}
+                  }
+                </td>
+                <td class="end" [class.strong]="differs(row)">
+                  {{ row.suggestedMin | qty: row.baseUomCode }} /
+                  {{ row.suggestedMax | qty: row.baseUomCode }}
+                </td>
+                @if (canApply) {
+                  <td class="end">
+                    @if (differs(row)) {
+                      <button
+                        matButton
+                        type="button"
+                        [disabled]="busy() === row.itemId"
+                        [attr.aria-label]="'Aplicar sugerido a ' + row.sku"
+                        (click)="apply(row)"
+                      >
+                        Aplicar sugerido
+                      </button>
+                    } @else {
+                      <span class="muted">Aplicado</span>
+                    }
+                  </td>
+                }
+              </tr>
+              @if (expanded() === row.itemId && weekdayChart(); as chart) {
+                <tr class="detail">
+                  <td [attr.colspan]="canApply ? 7 : 6">
+                    <app-bar-chart
+                      [label]="
+                        'Promedio por día de la semana de ' + row.sku + ' (' + row.baseUomCode + ')'
+                      "
+                      categoryLabel="Día"
+                      [categories]="weekdays"
+                      [series]="chart.series"
+                      [horizontal]="false"
+                      [showLegend]="false"
+                    />
+                  </td>
+                </tr>
+              }
+            } @empty {
+              <tr>
+                <td colspan="7" class="muted">
+                  No hubo salidas en esas semanas{{ search.value ? ' con esa búsqueda' : '' }}.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  } @else {
+    <p class="muted" role="status">Calculando el análisis…</p>
+  }
+} @else {
+  <p class="pan-card">No tienes una ubicación asignada.</p>
+}

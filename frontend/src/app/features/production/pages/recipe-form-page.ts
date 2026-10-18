@@ -13,6 +13,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatTabsModule } from '@angular/material/tabs';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import type { Schemas } from '../../../core/api/api';
@@ -32,7 +33,9 @@ import { Stamp } from '../../../shared/components/stamp/stamp';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { controlError } from '../../../shared/forms/control-error';
 import { FormErrors } from '../../../shared/forms/form-errors';
+import { LocationContextService } from '../../../core/context/location-context.service';
 import { Recipe, RecipesApi } from '../data-access/production-api';
+import { RecipeCosts } from '../ui/recipe-costs';
 import { COMPONENT_TYPES, OUTPUT_TYPES, savesNewVersion } from '../ui/recipe-rules';
 
 type ComponentLine = FormGroup<{
@@ -45,7 +48,7 @@ type ComponentLine = FormGroup<{
  * /produccion/recetas/nueva and /:id (frontend §7.4, RN-10): product (semi-finished or finished), yield and components
  * (raw material, supply or semi-finished; quantity and waste %). Only the active version is edited; one already used by
  * an order is saved as version N+1 after confirming. Deactivate / activate this version and the version history.
- * The costs tab arrives with F-22.
+ * **Costos** (`?tab=costos`, RN-51): every version costed at the plant's current average costs, with increases.
  */
 @Component({
   selector: 'app-recipe-form-page',
@@ -65,6 +68,8 @@ type ComponentLine = FormGroup<{
     QtyInput,
     Stamp,
     StatusTag,
+    MatTabsModule,
+    RecipeCosts,
   ],
   templateUrl: './recipe-form-page.html',
   styleUrl: './recipe-form-page.scss',
@@ -72,6 +77,10 @@ type ComponentLine = FormGroup<{
 export class RecipeFormPage {
   /** Present for an existing version (`/:id`). */
   readonly id = input<string>();
+  /** `?tab=costos` opens the costs of the versions. */
+  readonly tab = input<string>();
+  protected readonly costsTab = computed(() => this.tab() === 'costos');
+  protected readonly plant = inject(LocationContextService).plant;
 
   private readonly api = inject(RecipesApi);
   private readonly router = inject(Router);

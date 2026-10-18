@@ -117,7 +117,11 @@ public sealed class PhysicalCountService(
         var allowed = scope.AllowedLocationIds;
         var counts = db.PhysicalCounts.AsNoTracking().Where(c => allowed.Contains(c.LocationId));
         if (query.LocationId is { } locationId)
-            counts = counts.Where(c => c.LocationId == locationId);
+        {
+            // RN-46: a plant or branch also lists the counts of its sub-warehouses.
+            var locations = await InventoryLocations.WithWarehousesAsync(db, locationId, ct);
+            counts = counts.Where(c => locations.Contains(c.LocationId));
+        }
         if (query.Status is { } status)
             counts = counts.Where(c => c.Status == status);
         if (query.SearchTerm() is { } term)

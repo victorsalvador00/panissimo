@@ -86,4 +86,24 @@ public class WarehouseTotalsTests(ApiFactory factory)
         var row = suggestion.Single(s => s.ItemId == bread.Id);
         Assert.Equal((7m, 43m), (row.Stock, row.SuggestedQty));
     }
+
+    [Fact]
+    public async Task Plant_adjustment_and_count_lists_include_those_of_its_warehouses()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var (plant, a, _) = await WithWarehousesAsync(admin, LocationType.Plant);
+        var flour = await factory.CreateItemAsync("HAR");
+        await factory.AddStockAsync(a.Id, flour.Id, 30, 18m);
+
+        var adjustment = await admin.PostJsonAsync("/api/v1/adjustments", new CreateAdjustmentRequest(
+            a.Id, Domain.Inventory.AdjustmentReason.Waste, null, [new AdjustmentLineRequest(flour.Id, null, null, null, -2, null, null)]));
+        Assert.Equal(HttpStatusCode.Created, adjustment.StatusCode);
+        var count = await admin.PostJsonAsync("/api/v1/physical-counts", new CreatePhysicalCountRequest(a.Id, null, null));
+        Assert.Equal(HttpStatusCode.Created, count.StatusCode);
+
+        var adjustments = (await admin.GetJsonAsync<PagedResult<AdjustmentListItemDto>>($"/api/v1/adjustments?locationId={plant.Id}"))!;
+        Assert.Equal([a.Code], adjustments.Items.Select(x => x.LocationCode));
+        var counts = (await admin.GetJsonAsync<PagedResult<PhysicalCountListItemDto>>($"/api/v1/physical-counts?locationId={plant.Id}"))!;
+        Assert.Equal([a.Code], counts.Items.Select(x => x.LocationCode));
+    }
 }

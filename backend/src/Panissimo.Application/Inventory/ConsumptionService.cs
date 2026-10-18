@@ -73,7 +73,11 @@ public sealed class ConsumptionService(
         var allowed = scope.AllowedLocationIds;
         var entries = db.Consumptions.AsNoTracking().Where(c => allowed.Contains(c.LocationId));
         if (query.LocationId is { } locationId)
-            entries = entries.Where(c => c.LocationId == locationId);
+        {
+            // RN-46: a branch also lists the consumptions of its sub-warehouses.
+            var locations = await InventoryLocations.WithWarehousesAsync(db, locationId, ct);
+            entries = entries.Where(c => locations.Contains(c.LocationId));
+        }
         if (query.From is { } from)
             entries = entries.Where(c => c.BusinessDate >= from);
         if (query.To is { } to)

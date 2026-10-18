@@ -107,7 +107,11 @@ public sealed class AdjustmentService(
         var allowed = scope.AllowedLocationIds;
         var adjustments = db.InventoryAdjustments.AsNoTracking().Where(a => allowed.Contains(a.LocationId));
         if (query.LocationId is { } locationId)
-            adjustments = adjustments.Where(a => a.LocationId == locationId);
+        {
+            // RN-46: a plant or branch also lists the adjustments of its sub-warehouses.
+            var locations = await InventoryLocations.WithWarehousesAsync(db, locationId, ct);
+            adjustments = adjustments.Where(a => locations.Contains(a.LocationId));
+        }
         if (query.Reason is { } reason)
             adjustments = adjustments.Where(a => a.Reason == reason);
         if (query.From is { } from)

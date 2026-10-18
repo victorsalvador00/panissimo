@@ -127,6 +127,14 @@
                         expanded().has(key(row)) ? 'expand_less' : 'expand_more'
                       }}</mat-icon>
                     </button>
+                    <app-item-photo
+                      class="photo"
+                      [itemId]="row.itemId"
+                      [revision]="row.photoRevision"
+                      [name]="row.name"
+                      [sku]="row.sku"
+                      [px]="32"
+                    />
                     <strong>{{ row.sku }}</strong> {{ row.name }}
                     <span class="muted">
                       · {{ row.type | statusLabel: 'ItemType' }}

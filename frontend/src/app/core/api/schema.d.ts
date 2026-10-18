@@ -17030,6 +17030,8 @@ export interface components {
       /** Format: double */
       suggestedQty: number;
       demandLines: components['schemas']['PlanDemandLineDto'][];
+      /** Format: int64 */
+      photoRevision?: null | number;
     };
     ProductionSummaryDto: {
       /** Format: uuid */

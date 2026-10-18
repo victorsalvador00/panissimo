@@ -4,6 +4,10 @@
       <mat-icon>upload_file</mat-icon>
       Importar CSV
     </a>
+    <a matButton="tonal" routerLink="fotos">
+      <mat-icon>add_photo_alternate</mat-icon>
+      Importar fotos
+    </a>
     <a matButton="filled" routerLink="nuevo">
       <mat-icon>add</mat-icon>
       Nuevo artículo
@@ -75,6 +79,15 @@
   [loading]="items.isLoading()"
   (queryChange)="query.set($event)"
 >
+  <ng-template appCell="photo" header="Foto" [appCellOf]="rows()" let-item>
+    <app-item-photo
+      [itemId]="item.id"
+      [revision]="item.photoRevision"
+      [name]="item.name"
+      [sku]="item.sku"
+      [px]="36"
+    />
+  </ng-template>
   <ng-template appCell="sku" header="SKU" sortable [appCellOf]="rows()" let-item>
     <a class="row-link" [routerLink]="item.id">{{ item.sku }}</a>
   </ng-template>

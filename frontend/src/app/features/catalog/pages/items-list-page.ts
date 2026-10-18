@@ -11,6 +11,7 @@ import { RouterLink } from '@angular/router';
 import { debounceTime, map } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { CellDef, DataTable } from '../../../shared/components/data-table/data-table';
+import { ItemPhoto } from '../../../shared/components/item-photo/item-photo';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ListQuery } from '../../../shared/data-access/list-query';
@@ -26,6 +27,7 @@ import { ITEM_TYPE_OPTIONS, PRESENTATION_OPTIONS } from '../ui/item-options';
   selector: 'app-items-list-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ItemPhoto,
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,

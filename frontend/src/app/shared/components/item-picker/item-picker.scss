@@ -1,0 +1,11 @@
+@use '../lookup-picker/lookup-picker';
+
+.with-photo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.prefix {
+  margin: 0 8px 0 12px;
+}

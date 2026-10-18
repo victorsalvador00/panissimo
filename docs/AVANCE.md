@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-22, costos de receta y análisis de consumo).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-23, fotos de artículos).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,15 +9,15 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5 completa (B-22..B-25): **backend terminado**.
 - Pruebas en verde: 270 unitarias y 159 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `AddCloseListIndex` (B-25).
-- Backend fases 1-4 completas. Frontend: F-01..F-22 y F-25 terminadas (fases 1 a 4 y F-21, F-22 de la 5; proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-23 y F-25 terminadas (fases 1 a 4 y F-21..F-23 de la 5; proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** **F-23** (fotos, B-24) y F-24 (pulido); después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
+**Siguiente:** **F-24** (pulido); después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
 
 **Después**
-- Frontend F-23 y F-24.
+- Frontend F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
@@ -25,7 +25,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-23). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-24). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -94,7 +94,8 @@
 | 4 | F-20 Requerimiento de materia prima y requisición sugerida | ✅ | (ver `git log`) |
 | 5 | F-21 Tablero y resumen de producción | ✅ | (ver `git log`) |
 | 5 | F-22 Costos de receta y análisis de consumo | ✅ | (ver `git log`) |
-| 5 | F-23..F-24 Fotos, pulido | ⏳ | |
+| 5 | F-23 Fotos de artículos | ✅ | (ver `git log`) |
+| 5 | F-24 Pulido | ⏳ | |
 | + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
 
 ## Notas por tarea
@@ -677,3 +678,25 @@
   - El promedio de un artículo en `pza` muestra decimales (es un promedio, no un conteo; 21 pza en 56 días = 0.38 pza y no "0 pza").
 - **E2E de F-22 en verde** (`19-costs-analysis`): la receta de E2E-PAN muestra una sección por versión con su costo por pza y la harina; en el análisis, el día de la semana de E2E-HARINA y "Aplicar sugerido" → "Aplicado". Restaura el mín/máx anterior al final. No mueve inventario. En una BD recién creada, sin salidas antes de hoy, la parte del análisis termina en el estado vacío.
 - Pruebas: 152 unitarias (cambio entre versiones, sugerido distinto del actual, `mxn` con decimales). Suite E2E 34/34. Sin paquetes nuevos.
+
+### F-23 (2026-10-18)
+
+- **`app-item-photo`:** miniatura del artículo o sus iniciales ("Concha de vainilla" → CV) cuando no tiene foto.
+  - Se descarga con la sesión como blob (`ItemPhotosApi`) y se muestra por un object URL guardado por artículo, **revisión** y tamaño (máx. 400). Una carga nueva cambia la revisión, así que nunca se ve una foto vieja; el navegador revalida con el ETag (304).
+  - Sin revisión no pregunta al servidor. Si una descarga falla no se guarda en caché, para no esconder la foto por un corte de red.
+  - Es decorativa salvo que reciba `alt`.
+- **Pestaña Foto del artículo:** foto actual a 240 px; **Elegir foto**, **Tomar foto** (cámara del celular o tableta, `capture="environment"`) y **Quitar foto** con confirmación.
+  - Se redimensiona en el navegador con `canvas` (sin librerías): JPEG de 512 px y miniatura de 96 px, bajando la calidad hasta caber en 300 KB y 50 KB; la transparencia queda en blanco (`shared/forms/image-resize.ts`).
+  - Al cambiar, el artículo toma la revisión nueva.
+- **Fotos en:** opciones del selector de artículos y el artículo elegido (el selector tiene su propia plantilla), lista de artículos (columna Foto) y tabla del plan.
+- **Importación masiva** (`/catalogos/articulos/fotos`, `catalog.manage`, enlace "Importar fotos" en la lista): cada archivo se liga al artículo activo con el SKU de su nombre (`TRENZA.jpg`, sin importar mayúsculas ni la carpeta). Se suben **una por una** con estado por archivo (Por subir, Sin artículo, Subiendo, Lista, Error); un error no detiene a las demás.
+- **Backend (pequeño):**
+  - `ProductionPlanRowDto` trae `photoRevision`.
+  - **Corrección de B-24:** la lista de artículos leía la revisión con `ToDictionaryAsync(p => p.ItemId, p => p.Revision)`, que carga la entidad completa **con las imágenes** (hasta ~7 MB por página de 25). Ahora proyecta solo `ItemId` y `Revision`, igual que el plan.
+- **Corrección del script de íconos:** tomaba el `/*` de `accept="image/*"` como inicio de comentario y se saltaba el resto de la plantilla; `upload` y `photo_camera` no entraban al subconjunto y `icons:check` pasaba. Ahora un comentario de bloque solo empieza al inicio de línea o tras un espacio. Subconjunto: 83 íconos.
+- **E2E de F-23 en verde** (`20-item-photos`):
+  - Una foto de 900 × 600 px subida desde E2E-PAN llega a 512 × 341 px y se ve en el selector del ajuste.
+  - `e2e-harina.png` en la importación masiva se liga a E2E-HARINA → "Lista".
+  - No mueve inventario; las fotos se quedan.
+  - El PNG de prueba (`e2e/fixtures/foto-e2e.png`) lo genera `scripts/e2e-fixtures.py` solo con la biblioteca estándar.
+- Pruebas: 157 unitarias (tamaño proporcional, SKU del nombre de archivo, iniciales). Backend 270 + 159 en verde. Sin paquetes nuevos.

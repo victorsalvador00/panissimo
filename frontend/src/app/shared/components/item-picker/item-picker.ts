@@ -8,14 +8,15 @@ import { Observable, forkJoin, map } from 'rxjs';
 import type { ApiEnum } from '../../../core/api/api';
 import { ItemLookupApi, ItemOption } from '../../data-access/item-lookup';
 import { enumLabel } from '../../pipes/labels';
+import { ItemPhoto } from '../item-photo/item-photo';
 import { LookupPicker } from '../lookup-picker/lookup-picker';
 
 export type { ItemOption };
 
 /**
  * Item autocomplete by SKU or name (`GET /items/lookup`, frontend §8), filterable by type, presentation and area.
- * The value is the chosen ItemLookupDto (with its unit). `types` allows several types (one search per type). The
- * photo arrives with app-item-photo (F-23).
+ * The value is the chosen ItemLookupDto (with its unit). `types` allows several types (one search per type). Each
+ * option and the chosen item show their photo (app-item-photo, F-23).
  */
 @Component({
   selector: 'app-item-picker',
@@ -26,9 +27,10 @@ export type { ItemOption };
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
+    ItemPhoto,
   ],
-  templateUrl: '../lookup-picker/lookup-picker.html',
-  styleUrl: '../lookup-picker/lookup-picker.scss',
+  templateUrl: './item-picker.html',
+  styleUrl: './item-picker.scss',
 })
 export class ItemPicker extends LookupPicker<ItemOption> {
   readonly type = input<ApiEnum<'ItemType'> | null>(null);
@@ -45,6 +47,12 @@ export class ItemPicker extends LookupPicker<ItemOption> {
     return forkJoin(types.map((type) => this.lookup.search(q, { ...filters, type }))).pipe(
       map((results) => results.flat().sort((a, b) => a.sku.localeCompare(b.sku))),
     );
+  }
+
+  /** The chosen item (the field holds text while the user types). */
+  protected chosen(): ItemOption | null {
+    const value = this.text.value;
+    return value && typeof value === 'object' ? value : null;
   }
 
   protected override display(item: ItemOption): string {

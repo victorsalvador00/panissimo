@@ -25,6 +25,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { LocationContextService } from '../../../core/context/location-context.service';
 import { Notifier } from '../../../core/http/notifier';
 import { ConfirmService } from '../../../shared/components/confirm-summary/confirm-summary';
+import { ItemPhoto } from '../../../shared/components/item-photo/item-photo';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { QtyInput } from '../../../shared/components/qty-input/qty-input';
 import { documentLink } from '../../../shared/data-access/document-links';
@@ -60,6 +61,7 @@ const DEMAND_DOCS = {
   selector: 'app-plan-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ItemPhoto,
     DatePipe,
     ReactiveFormsModule,
     RouterLink,

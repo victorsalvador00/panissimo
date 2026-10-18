@@ -74,7 +74,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         var uoms = await db.UnitsOfMeasure.Where(u => uomIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Code, ct);
         var areas = await db.ProductionAreas.Where(a => areaIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Name, ct);
         var itemIds = page.Items.Select(i => i.Id).ToList();
-        var photos = await db.ItemPhotos.Where(p => itemIds.Contains(p.ItemId)).ToDictionaryAsync(p => p.ItemId, p => p.Revision, ct);
+        var photos = await db.ItemPhotos.Where(p => itemIds.Contains(p.ItemId)).Select(p => new { p.ItemId, p.Revision }).ToDictionaryAsync(p => p.ItemId, p => p.Revision, ct);
 
         return new PagedResult<ItemListItemDto>(
             page.Items.Select(i => new ItemListItemDto(i.Id, i.Sku, i.InternalSku, i.Name, i.Type, i.Presentation, i.CategoryId,

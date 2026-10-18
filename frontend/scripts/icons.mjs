@@ -22,7 +22,8 @@ const patterns = [
 function stripComments(text) {
   return text
     .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
+    // A block comment starts a line or follows a space: accept="image/*" is not one.
+    .replace(/(^|\s)\/\*[\s\S]*?\*\//g, '$1')
     .replace(/(^|[^:'"])\/\/.*$/gm, '$1');
 }
 

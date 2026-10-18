@@ -35,6 +35,13 @@ export const CATALOG_ROUTES: Routes = [
         loadComponent: () => import('./pages/items-import-page').then((m) => m.ItemsImportPage),
       },
       {
+        path: 'fotos',
+        title: 'Importar fotos · SGO Paníssimo',
+        canActivate: [permissionGuard],
+        data: { permission: 'catalog.manage', breadcrumb: 'Importar fotos' },
+        loadComponent: () => import('./pages/items-photos-page').then((m) => m.ItemsPhotosPage),
+      },
+      {
         path: ':id',
         title: 'Artículo · SGO Paníssimo',
         data: { breadcrumb: 'Artículo' },

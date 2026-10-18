@@ -46,6 +46,7 @@ import {
   TAX_OPTIONS,
   isProduced,
 } from '../ui/item-options';
+import { ItemPhotoEditor } from '../ui/item-photo-editor';
 import { PackagedVersions } from '../ui/packaged-versions';
 
 type ItemType = ApiEnum<'ItemType'>;
@@ -85,6 +86,7 @@ function skuFormat(control: AbstractControl<string>): ValidationErrors | null {
     AuditPanel,
     ItemLocationSettings,
     PackagedVersions,
+    ItemPhotoEditor,
   ],
   templateUrl: './item-form-page.html',
   styleUrl: './item-form-page.scss',
@@ -212,6 +214,11 @@ export class ItemFormPage {
     this.form.controls.purchaseUomId.valueChanges.pipe(takeUntilDestroyed()).subscribe((unit) => {
       if (!unit) this.form.controls.purchaseToBaseFactor.setValue(null);
     });
+  }
+
+  /** The photo changed in its tab: the item (and its title, lists and pickers) shows the new revision. */
+  protected photoChanged(revision: number | null): void {
+    this.item.update((item) => (item ? { ...item, photoRevision: revision } : item));
   }
 
   protected async save(): Promise<void> {

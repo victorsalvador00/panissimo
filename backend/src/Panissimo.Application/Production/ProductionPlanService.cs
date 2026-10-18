@@ -39,7 +39,7 @@ public sealed record ProductionPlanRowDto(
     Guid ItemId, string Sku, string Name, ItemType Type, ItemPresentation? Presentation, Guid? AreaId, string? AreaName, string UomCode,
     decimal ProductionMultiple, bool HasActiveRecipe, DateOnly Date, decimal BranchOrders, decimal CustomerOrders,
     decimal StockReplenishment, decimal ParentOrders, decimal TotalDemand, decimal Stock, decimal OpenOrders, decimal SuggestedQty,
-    IReadOnlyList<PlanDemandLineDto> DemandLines);
+    IReadOnlyList<PlanDemandLineDto> DemandLines, long? PhotoRevision = null);
 
 public sealed record ProductionPlanDto(Guid LocationId, DateOnly From, DateOnly To, IReadOnlyList<ProductionPlanRowDto> Rows);
 
@@ -202,6 +202,7 @@ public sealed class ProductionPlanService(
         var withRecipe = (await db.Recipes.AsNoTracking().Where(r => r.IsActive && itemIds.Contains(r.OutputItemId))
             .Select(r => r.OutputItemId).ToListAsync(ct)).ToHashSet();
         var areas = await db.ProductionAreas.AsNoTracking().ToDictionaryAsync(a => a.Id, ct);
+        var photos = await db.ItemPhotos.AsNoTracking().Where(p => itemIds.Contains(p.ItemId)).Select(p => new { p.ItemId, p.Revision }).ToDictionaryAsync(p => p.ItemId, p => p.Revision, ct);
         var demandsByItem = demands.ToLookup(d => d.ItemId);
         var suppliesByItem = supplies.ToLookup(s => s.ItemId);
 
@@ -217,7 +218,7 @@ public sealed class ProductionPlanService(
                     item.AreaId, area?.Name, item.Uom, item.Multiple, withRecipe.Contains(item.Id), day.Date, day.BranchOrders,
                     day.CustomerOrders, day.StockReplenishment, day.ParentOrders, day.TotalDemand, day.StartingStock, day.OpenOrders,
                     day.SuggestedQty, day.DemandLines.Select(d => new PlanDemandLineDto(d.Type, d.SourceLineId, d.DocumentId, d.Folio,
-                        d.PartyName, d.RequiredDate, d.Quantity)).ToList())));
+                        d.PartyName, d.RequiredDate, d.Quantity)).ToList(), photos.TryGetValue(item.Id, out var revision) ? revision : null)));
         }
 
         return new ProductionPlanDto(query.LocationId, from, to,

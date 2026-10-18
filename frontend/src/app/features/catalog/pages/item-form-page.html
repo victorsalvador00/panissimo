@@ -212,6 +212,16 @@
   </mat-tab>
 
   @if (item(); as item) {
+    <mat-tab label="Foto">
+      <app-item-photo-editor
+        [itemId]="item.id"
+        [sku]="item.sku"
+        [name]="item.name"
+        [revision]="item.photoRevision"
+        [readonly]="!canManage"
+        (changed)="photoChanged($event)"
+      />
+    </mat-tab>
     <mat-tab label="Mín/Máx por ubicación">
       <app-item-location-settings
         [itemId]="item.id"

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { DateAdapter } from '@angular/material/core';
+import { MatDatepickerIntl } from '@angular/material/datepicker';
 import { ES_MX_DATE_FORMATS, provideEsMxDates } from './es-mx-date-adapter';
 
 describe('EsMxDateAdapter', () => {
@@ -27,5 +28,14 @@ describe('EsMxDateAdapter', () => {
     expect(adapter.format(new Date(2026, 9, 7), ES_MX_DATE_FORMATS.display.dateInput)).toBe(
       '07/10/2026',
     );
+  });
+});
+
+describe('EsMxDatepickerIntl', () => {
+  it('announces the date picker in Spanish', () => {
+    TestBed.configureTestingModule({ providers: provideEsMxDates() });
+    const intl = TestBed.inject(MatDatepickerIntl);
+    expect(intl.openCalendarLabel).toBe('Abrir el calendario');
+    expect(intl.nextMonthLabel).toBe('Mes siguiente');
   });
 });

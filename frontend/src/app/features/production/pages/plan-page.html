@@ -1,0 +1,206 @@
+<app-page-header title="Plan de producción">
+  @if (canGenerate && selected().size > 0) {
+    <button matButton="filled" type="button" [disabled]="busy()" (click)="generate()">
+      <mat-icon>playlist_add</mat-icon>
+      Generar OP ({{ selected().size }})
+    </button>
+  }
+</app-page-header>
+
+@if (plant(); as plant) {
+  <form class="filters" [formGroup]="filters" novalidate>
+    <span class="plant">{{ plant.name }}</span>
+    <mat-form-field>
+      <mat-label>Desde</mat-label>
+      <input matInput [matDatepicker]="fromPicker" formControlName="from" />
+      <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+      <mat-datepicker #fromPicker />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Hasta</mat-label>
+      <input matInput [matDatepicker]="toPicker" formControlName="to" />
+      <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+      <mat-datepicker #toPicker />
+    </mat-form-field>
+    <mat-form-field>
+      <mat-label>Área</mat-label>
+      <mat-select formControlName="areaId">
+        <mat-option [value]="null">Todas</mat-option>
+        @for (area of areas.value(); track area.id) {
+          <mat-option [value]="area.id">{{ area.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field class="search">
+      <mat-label>Buscar por SKU o producto</mat-label>
+      <input matInput type="search" formControlName="q" />
+      <mat-icon matSuffix aria-hidden="true">search</mat-icon>
+    </mat-form-field>
+  </form>
+
+  @if (generated(); as orders) {
+    <section class="pan-card result" role="status" aria-labelledby="generated-title">
+      <h2 id="generated-title">
+        {{ orders.length === 1 ? 'Orden generada' : orders.length + ' órdenes generadas' }} en
+        borrador
+      </h2>
+      <ul>
+        @for (order of orders; track order.id) {
+          <li>
+            <a class="row-link" [routerLink]="['/produccion/ordenes', order.id]">{{
+              order.folio
+            }}</a>
+            {{ order.sku }} · {{ order.plannedQty | qty }} ·
+            {{ order.scheduledDate | date: 'dd/MM/yyyy' }}
+            @if (order.linkedLines > 0) {
+              <span class="muted">
+                · atiende {{ order.linkedLines }}
+                {{ order.linkedLines === 1 ? 'línea de pedido' : 'líneas de pedido' }}
+              </span>
+            }
+          </li>
+        }
+      </ul>
+      <div class="buttons">
+        <button matButton type="button" (click)="generated.set(null)">Cerrar</button>
+        <a matButton="tonal" routerLink="/produccion/ordenes" [queryParams]="{ tab: 'Drafts' }">
+          Ver órdenes en borrador
+        </a>
+      </div>
+    </section>
+  }
+
+  @if (plan.isLoading() && groups().length === 0) {
+    <p class="muted" role="status">Calculando el plan…</p>
+  } @else if (groups().length === 0) {
+    <p class="pan-card muted">No hay nada por producir en este rango.</p>
+  }
+
+  @for (group of groups(); track group.date) {
+    <section
+      class="pan-card day"
+      [attr.aria-label]="'Plan del ' + (group.date | date: 'dd/MM/yyyy')"
+    >
+      <h2>{{ group.date | date: "EEEE d 'de' MMMM" }}</h2>
+      @for (area of group.areas; track area.areaName) {
+        <h3>{{ area.areaName }}</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col" class="check"><span class="pan-sr-only">Elegir</span></th>
+                <th scope="col" class="product">Producto</th>
+                <th scope="col" class="end">Sucursales</th>
+                <th scope="col" class="end">Clientes</th>
+                <th scope="col" class="end">Stock</th>
+                <th scope="col" class="end">OP padre</th>
+                <th scope="col" class="end">Existencia</th>
+                <th scope="col" class="end">OP pendientes</th>
+                <th scope="col" class="end">Por producir</th>
+                @if (canGenerate) {
+                  <th scope="col" class="generate">Generar</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of area.rows; track key(row)) {
+                <tr [class.todo]="row.suggestedQty > 0">
+                  <td class="check">
+                    @if (selectable(row)) {
+                      <mat-checkbox
+                        [checked]="isSelected(row)"
+                        (change)="toggle(row, $event.checked)"
+                        [aria-label]="'Elegir ' + row.sku"
+                      />
+                    }
+                  </td>
+                  <td class="product">
+                    <button
+                      class="expand"
+                      type="button"
+                      [attr.aria-expanded]="expanded().has(key(row))"
+                      [attr.aria-label]="'Pedidos de ' + row.sku"
+                      (click)="toggleExpanded(row)"
+                      [disabled]="row.demandLines.length === 0"
+                    >
+                      <mat-icon>{{
+                        expanded().has(key(row)) ? 'expand_less' : 'expand_more'
+                      }}</mat-icon>
+                    </button>
+                    <strong>{{ row.sku }}</strong> {{ row.name }}
+                    <span class="muted">
+                      · {{ row.type | statusLabel: 'ItemType' }}
+                      @if (row.presentation) {
+                        {{ row.presentation | statusLabel: 'ItemPresentation' }}
+                      }
+                    </span>
+                    @if (!row.hasActiveRecipe) {
+                      <span class="exit">· sin receta activa</span>
+                    }
+                  </td>
+                  <td class="end">{{ row.branchOrders | qty: row.uomCode }}</td>
+                  <td class="end">{{ row.customerOrders | qty: row.uomCode }}</td>
+                  <td class="end">{{ row.stockReplenishment | qty: row.uomCode }}</td>
+                  <td class="end">{{ row.parentOrders | qty: row.uomCode }}</td>
+                  <td class="end">{{ row.stock | qty: row.uomCode }}</td>
+                  <td class="end">{{ row.openOrders | qty: row.uomCode }}</td>
+                  <td class="end suggested">{{ row.suggestedQty | qty: row.uomCode }}</td>
+                  @if (canGenerate) {
+                    <td class="generate">
+                      @if (selection(row); as s) {
+                        <div class="choice">
+                          <app-qty-input
+                            [formControl]="s.quantity"
+                            [unit]="row.uomCode"
+                            [ariaLabel]="'Cantidad a producir de ' + row.sku"
+                          />
+                          <mat-form-field>
+                            <mat-label>Turno</mat-label>
+                            <mat-select [formControl]="s.shift">
+                              <mat-option [value]="null">Sin turno</mat-option>
+                              @for (option of shifts; track option.value) {
+                                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                              }
+                            </mat-select>
+                          </mat-form-field>
+                        </div>
+                        @if (multipleHint(row)) {
+                          <span class="hint"
+                            >Múltiplo de producción: {{ row.productionMultiple }}</span
+                          >
+                        }
+                      }
+                    </td>
+                  }
+                </tr>
+                @if (expanded().has(key(row))) {
+                  <tr class="demand">
+                    <td></td>
+                    <td [attr.colspan]="canGenerate ? 9 : 8">
+                      <ul>
+                        @for (line of row.demandLines; track line.lineId) {
+                          <li>
+                            @if (demandLink(line.type, line.documentId); as link) {
+                              <a class="row-link" [routerLink]="link">{{ line.folio }}</a>
+                            } @else {
+                              <strong>{{ line.folio }}</strong>
+                            }
+                            {{ line.type | statusLabel: 'DemandType' }} · {{ line.partyName }} ·
+                            {{ line.requiredDate | date: 'dd/MM/yyyy' }} ·
+                            {{ line.quantity | qty: row.uomCode }}
+                          </li>
+                        }
+                      </ul>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+} @else {
+  <p class="pan-card">El plan es de la Planta y no tienes acceso a una.</p>
+}

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import type { ApiEnum, Schemas } from '../../../core/api/api';
 import {
   ListQuery,
@@ -24,6 +24,9 @@ export type ImportPreview = Schemas['ImportPreviewDto'];
 export type ImportResult = Schemas['ImportResultDto'];
 export type OrderImport = Schemas['ProductionOrderImportDto'];
 export type OrderImportListItem = Schemas['ProductionOrderImportListItemDto'];
+export type ProductionPlan = Schemas['ProductionPlanDto'];
+export type PlanRow = Schemas['ProductionPlanRowDto'];
+export type GeneratedOrder = Schemas['GeneratedProductionOrderDto'];
 
 /** Versioned recipes (`/recipes`, RN-10). */
 @Injectable({ providedIn: 'root' })
@@ -175,5 +178,23 @@ export class OrderImportsApi {
 
   get(id: string): Observable<OrderImport> {
     return this.http.get<OrderImport>(`production-order-imports/${id}`);
+  }
+}
+
+/** Production plan of the plant (`/production-plan`, RN-70, RN-71): a query; generating creates draft orders. */
+@Injectable({ providedIn: 'root' })
+export class ProductionPlanApi {
+  private readonly http = inject(HttpClient);
+
+  /** Without dates: today + `production.plan_default_days`; the answer brings the range used. */
+  get(filters: ParamValues): Observable<ProductionPlan> {
+    return this.http.get<ProductionPlan>('production-plan', { params: httpParams(filters) });
+  }
+
+  /** One draft order per product, date, area and shift, linked to the order lines it attends. All or nothing. */
+  generate(request: Schemas['GenerateProductionPlanRequest']): Observable<GeneratedOrder[]> {
+    return this.http
+      .post<Schemas['GenerateProductionPlanResult']>('production-plan/generate', request)
+      .pipe(map((result) => result.orders));
   }
 }

@@ -1,4 +1,5 @@
 import { Injectable, Provider } from '@angular/core';
+import { MatDatepickerIntl } from '@angular/material/datepicker';
 import {
   DateAdapter,
   MAT_DATE_FORMATS,
@@ -42,10 +43,30 @@ export const ES_MX_DATE_FORMATS: MatDateFormats = {
   },
 };
 
+/** Texts of the date picker that screen readers announce ("Open calendar"…), in Spanish. */
+@Injectable()
+export class EsMxDatepickerIntl extends MatDatepickerIntl {
+  override calendarLabel = 'Calendario';
+  override openCalendarLabel = 'Abrir el calendario';
+  override closeCalendarLabel = 'Cerrar el calendario';
+  override prevMonthLabel = 'Mes anterior';
+  override nextMonthLabel = 'Mes siguiente';
+  override prevYearLabel = 'Año anterior';
+  override nextYearLabel = 'Año siguiente';
+  override prevMultiYearLabel = 'Años anteriores';
+  override nextMultiYearLabel = 'Años siguientes';
+  override switchToMonthViewLabel = 'Elegir día';
+  override switchToMultiYearViewLabel = 'Elegir mes y año';
+  override startDateLabel = 'Fecha inicial';
+  override endDateLabel = 'Fecha final';
+  override comparisonDateLabel = 'Fecha de comparación';
+}
+
 export function provideEsMxDates(): Provider[] {
   return [
     { provide: MAT_DATE_LOCALE, useValue: 'es-MX' },
     { provide: DateAdapter, useClass: EsMxDateAdapter },
     { provide: MAT_DATE_FORMATS, useValue: ES_MX_DATE_FORMATS },
+    { provide: MatDatepickerIntl, useClass: EsMxDatepickerIntl },
   ];
 }

@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Production (frontend §7.4). F-19 adds the plan and F-21 the summary. */
+/** Production (frontend §7.4). F-21 adds the summary. */
 export const PRODUCTION_ROUTES: Routes = [
   {
     path: 'recetas',
@@ -27,6 +27,13 @@ export const PRODUCTION_ROUTES: Routes = [
         loadComponent: () => import('./pages/recipe-form-page').then((m) => m.RecipeFormPage),
       },
     ],
+  },
+  {
+    path: 'plan',
+    title: 'Plan de producción · SGO Paníssimo',
+    canActivate: [permissionGuard],
+    data: { permission: 'production.view', breadcrumb: 'Plan' },
+    loadComponent: () => import('./pages/plan-page').then((m) => m.PlanPage),
   },
   {
     path: 'ordenes',

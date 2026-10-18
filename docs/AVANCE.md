@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-23, fotos de artículos).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (F-24, pulido: frontend completo).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-17)
@@ -9,15 +9,14 @@
 - Backend fase 1 (B-01..B-09) y fase 2 (B-10..B-13) terminadas y en `main`. Fase 3 (B-14..B-16) terminada. Fase 4 completa. Fase 5 completa (B-22..B-25): **backend terminado**.
 - Pruebas en verde: 270 unitarias y 159 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers).
 - Migraciones hasta `AddCloseListIndex` (B-25).
-- Backend fases 1-4 completas. Frontend: F-01..F-23 y F-25 terminadas (fases 1 a 4 y F-21..F-23 de la 5; proyecto Angular 22 en `/frontend`).
+- Backend fases 1-4 completas. Frontend: F-01..F-25 terminadas (las cinco fases; proyecto Angular 22 en `/frontend`).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las 23 migraciones vigentes.
 
 **Revisión de decisiones (2026-10-17):** D-01..D-10 revisadas con el usuario; ver `docs/specs/dominio.md` §8. Cambian D-01 (subalmacenes), D-03 (tolerancia informativa), D-05 (granel y empaquetado para todos), D-07 (código de la Matriz) y D-08 (devolución con merma); más motivo al cerrar OC, código de cliente editable y requisición con artículo repetido + nota. D-10 sigue abierta (no bloquea).
 
-**Siguiente:** **F-24** (pulido); después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
+**Siguiente:** la ampliación de trazabilidad: **B-28** y luego **F-26**; después la trazabilidad (B-28, F-26), en ese orden (pedido del usuario, 2026-10-18). Después las pantallas F-21 (usa B-22), F-22 (B-23), F-23 (B-24) y F-24 (pulido). La ampliación de trazabilidad (B-28, F-26) sigue registrada abajo. El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
 
 **Después**
-- Frontend F-24.
 - **Ampliación: trazabilidad de lotes** (`docs/specs/trazabilidad.md` y su pantalla `docs/specs/trazabilidad-ui.md`, requerimiento agregado por el usuario el 2026-10-17, fuera de la definición inicial): **B-28** (backend; sus dependencias B-12, B-16, B-17 y B-19 ya están hechas) y **F-26** (pantalla; depende de B-28, F-11, F-15, F-16 y F-18). Al cerrar B-28 se aplican los cambios a los otros specs de su §8.
 
 **Para arrancar mañana**
@@ -25,7 +24,7 @@
 2. `docker compose -f deploy/docker-compose.dev.yml up -d` (API en 8090, Postgres en 5433; `deploy/.env` ya existe localmente).
 3. `cd backend && dotnet build && dotnet test -nologo -v q` para confirmar verde.
 4. `cd frontend && npm ci && npm test && npm run lint`; `npm start` abre http://localhost:4200 con proxy a la API (8090).
-5. Leer la siguiente tarea en `docs/specs/frontend.md` §11 (F-24). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
+5. Leer `docs/specs/trazabilidad.md` (B-28) y `docs/specs/trazabilidad-ui.md` (F-26). E2E: `cd frontend && npm run e2e` (usa el Chrome instalado y `deploy/.env` para el admin; levanta `npm start` si no está corriendo). Los componentes compartidos se ven en `/demo/componentes` (permiso `settings.manage`).
 
 **Recordatorios**
 - D-01..D-10 siguen como propuesta; `deploy/seed/locations.csv` solo trae encabezados (falta la lista real de sucursales, D-01).
@@ -95,7 +94,7 @@
 | 5 | F-21 Tablero y resumen de producción | ✅ | (ver `git log`) |
 | 5 | F-22 Costos de receta y análisis de consumo | ✅ | (ver `git log`) |
 | 5 | F-23 Fotos de artículos | ✅ | (ver `git log`) |
-| 5 | F-24 Pulido | ⏳ | |
+| 5 | F-24 Pulido | ✅ | (ver `git log`) |
 | + | F-26 Pantalla de trazabilidad (`docs/specs/trazabilidad.md`) | ⏳ | |
 
 ## Notas por tarea
@@ -700,3 +699,29 @@
   - No mueve inventario; las fotos se quedan.
   - El PNG de prueba (`e2e/fixtures/foto-e2e.png`) lo genera `scripts/e2e-fixtures.py` solo con la biblioteca estándar.
 - Pruebas: 157 unitarias (tamaño proporcional, SKU del nombre de archivo, iniciales). Backend 270 + 159 en verde. Sin paquetes nuevos.
+
+### F-24 (2026-10-18)
+
+- **Ayuda contextual** (frontend §4.3, `core/help/`):
+  - `HelpService` resuelve el manual por el patrón de la ruta (`produccion/ordenes/:id/cerrar`). `help-content.ts` trae un tema para **cada una de las 87 rutas** (descripción, pasos, campos y consejos en español, con las reglas del negocio), y una prueba unitaria recorre todas las rutas, las diferidas incluidas, y falla si falta alguna o sobra un tema.
+  - Botón flotante con **anillos tipo HUD en SVG** que giran, se detienen al abrir y quedan quietos con "reducir movimiento"; sube sobre la barra de acción fija del celular.
+  - El panel se cierra con X, Esc, el botón o al cambiar de pantalla, y el foco vuelve al botón. En oscuro usa el "neón azul" del menú.
+  - Se carga con `@defer (on idle)` (chunk de 29 KB; el inicial sigue en 393 KB) y aparece también en el login.
+  - **Corrección durante la prueba:** el panel se cerraba si se abría antes de que terminara la primera navegación de la app (el guard espera el refresh). Ahora solo lo cierra una navegación que empezó con el panel abierto (prueba unitaria).
+- **Videos de ayuda** (`npm run help:record`, `playwright.help.config.ts`, `help-recording/`):
+  - Cinco pantallas de captura a 1024 × 640 en `public/help/`: ajuste, consumo, pedido de sucursal, conteo y cierre de producción (5.6 MB en total). Se descargan solo al abrir el panel; si falta uno, el panel lo oculta.
+  - Las escenas **no guardan nada**: se detienen antes de confirmar y cancelan el conteo y la OP que usan.
+  - Recepción de traspaso y de compra quedan sin video: grabarlas exigiría mover inventario antes.
+  - Requiere el ffmpeg de Playwright (`npx playwright install ffmpeg`, instalado con permiso del usuario el 2026-10-18).
+- **Accesibilidad con axe** (E2E 14, `21-accessibility`): WCAG 2.1 A/AA, falla con serious/critical, en **claro y oscuro**, sobre login, tablero, existencias, órdenes, plan, resumen, traspasos, OC, artículos, nuevo ajuste, nuevo pedido de cliente y análisis de consumo. Correcciones de contraste:
+  - Selector de ubicación de la barra verde: el velo pasa de blanco a negro en claro.
+  - Token `--pan-link`: el primario en claro y #90BEFE en oscuro, porque el #4F86FF sobre tarjeta oscura no llega a 4.5:1. Lo usan `.row-link`, el "por producir" del plan, las versiones empaquetadas, la opción elegida del menú de tema y los botones de texto y delineados (`mat.button-overrides`).
+- **Lighthouse** (`npm run lighthouse`, `playwright.lighthouse.config.ts`): accesibilidad con emulación móvil sobre un Chrome con la sesión abierta. **100** en login, tablero, recepción de traspaso y cierre de producción, verificando que cada pantalla no terminó en el login. La OP que necesita se cancela.
+- **Sin scroll horizontal a 360 px** (`23-responsive`, 52 pantallas, página y contenedor del shell). Tres pantallas nuevas lo tenían:
+  - El tablero: la tabla oculta de la gráfica; ahora el `pan-sr-only` va en un contenedor.
+  - El análisis de consumo y el resumen: su `:host` en grid crecía al ancho mínimo de la tabla; ahora `minmax(0, 1fr)`.
+  - `.pan-sr-only` ahora lleva `left: 0`, para que una etiqueta oculta dentro de una tabla con scroll propio no ensanche la página.
+- **Tema** (E2E 15): elegir Oscuro persiste al recargar; "Según el sistema" sigue al sistema en vivo y tras recargar. **Ayuda** (E2E 16): abrir, foco en el título, video que carga, Esc devuelve el foco, se cierra al navegar y el tema sigue a la pantalla.
+- El build de producción con Caddy quedó verificado en B-25.
+- Pruebas: 162 unitarias; suite E2E 45 en verde (21 omitidas por diseño: las que solo aplican a un ancho). Paquetes nuevos (dev): `@axe-core/playwright` 4.14.0 (MPL-2.0) y `lighthouse` 13.5.0 (Apache-2.0), anotados en `docs/licencias.md`.
+- **Frontend completo** (F-01..F-25). Sigue la ampliación de trazabilidad: B-28 y F-26.

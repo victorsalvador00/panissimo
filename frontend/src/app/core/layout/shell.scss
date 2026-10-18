@@ -53,7 +53,8 @@
   max-width: 260px;
   padding: 6px 16px;
   border-radius: 999px;
-  background: rgb(255 255 255 / 16%);
+  // Darkens the green in light (white text ≥ 4.5:1); lightens the navy in dark.
+  background: light-dark(rgb(0 0 0 / 22%), rgb(255 255 255 / 16%));
   font-size: 0.9rem;
   --mat-select-enabled-trigger-text-color: currentColor;
   --mat-select-enabled-arrow-color: currentColor;

@@ -135,6 +135,7 @@ import { unitCostChangePct } from './recipe-cost-rules';
   styles: `
     :host {
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 16px;
     }
     .muted {

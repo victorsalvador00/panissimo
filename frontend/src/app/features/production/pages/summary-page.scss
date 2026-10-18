@@ -1,5 +1,7 @@
 :host {
   display: grid;
+  // The column never grows past the screen: wide tables scroll inside their frame.
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 

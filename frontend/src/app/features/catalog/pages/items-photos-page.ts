@@ -117,6 +117,7 @@ const STATE_TAGS: Record<
   styles: `
     :host {
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
       gap: 16px;
     }
     .intro {

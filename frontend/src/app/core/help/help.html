@@ -1,0 +1,85 @@
+@if (help.topic(); as topic) {
+  <button
+    #button
+    class="help-button"
+    type="button"
+    [class.open]="help.open()"
+    [attr.aria-expanded]="help.open()"
+    aria-controls="pan-help"
+    [attr.aria-label]="help.open() ? 'Cerrar la ayuda' : 'Ayuda de esta pantalla'"
+    (click)="help.toggle()"
+  >
+    <svg class="rings" viewBox="0 0 64 64" aria-hidden="true">
+      <circle class="ring outer" cx="32" cy="32" r="29" />
+      <circle class="ring middle" cx="32" cy="32" r="23" />
+      <circle class="ring inner" cx="32" cy="32" r="17" />
+    </svg>
+    <mat-icon class="glyph" aria-hidden="true">{{
+      help.open() ? 'close' : 'question_mark'
+    }}</mat-icon>
+  </button>
+
+  @if (help.open()) {
+    <aside
+      id="pan-help"
+      class="panel"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="pan-help-title"
+    >
+      <header>
+        <h2 id="pan-help-title" #heading tabindex="-1">
+          <span class="kicker">Ayuda</span>
+          {{ topic.title }}
+        </h2>
+        <button mat-icon-button type="button" aria-label="Cerrar la ayuda" (click)="help.close()">
+          <mat-icon>close</mat-icon>
+        </button>
+      </header>
+      <div class="body">
+        <p class="summary">{{ topic.summary }}</p>
+
+        @if (topic.video && !videoFailed()) {
+          <video
+            class="video"
+            [src]="'help/' + topic.video"
+            autoplay
+            loop
+            muted
+            playsinline
+            controls
+            preload="metadata"
+            [attr.aria-label]="'Video: ' + topic.title"
+            (error)="videoFailed.set(true)"
+          ></video>
+        }
+
+        @if (topic.steps?.length) {
+          <h3>Pasos</h3>
+          <ol>
+            @for (step of topic.steps; track $index) {
+              <li>{{ step }}</li>
+            }
+          </ol>
+        }
+        @if (topic.fields?.length) {
+          <h3>Campos</h3>
+          <dl>
+            @for (field of topic.fields; track field.name) {
+              <dt>{{ field.name }}</dt>
+              <dd>{{ field.text }}</dd>
+            }
+          </dl>
+        }
+        @if (topic.tips?.length) {
+          <h3>Consejos</h3>
+          <ul>
+            @for (tip of topic.tips; track $index) {
+              <li>{{ tip }}</li>
+            }
+          </ul>
+        }
+      </div>
+    </aside>
+  }
+}

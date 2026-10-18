@@ -74,7 +74,7 @@ import { ItemsApi } from '../data-access/catalog-api';
     }
 
     .row-link {
-      color: var(--mat-sys-primary);
+      color: var(--pan-link);
       font-weight: 600;
       text-decoration: none;
     }

@@ -51,31 +51,34 @@ function loadChart(): Promise<ChartModule> {
     <div class="canvas" [style.height.px]="height()">
       <canvas #canvas aria-hidden="true"></canvas>
     </div>
-    <table class="pan-sr-only">
-      <caption>
-        {{
-          label()
-        }}
-      </caption>
-      <thead>
-        <tr>
-          <th scope="col">{{ categoryLabel() }}</th>
-          @for (s of series(); track s.label) {
-            <th scope="col">{{ s.label }}</th>
-          }
-        </tr>
-      </thead>
-      <tbody>
-        @for (category of categories(); track $index; let i = $index) {
+    <!-- pan-sr-only on a wrapper: a table does not shrink to 1 px and would widen the page. -->
+    <div class="pan-sr-only">
+      <table>
+        <caption>
+          {{
+            label()
+          }}
+        </caption>
+        <thead>
           <tr>
-            <th scope="row">{{ category }}</th>
+            <th scope="col">{{ categoryLabel() }}</th>
             @for (s of series(); track s.label) {
-              <td>{{ text(s.values[i], i) }}</td>
+              <th scope="col">{{ s.label }}</th>
             }
           </tr>
-        }
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          @for (category of categories(); track $index; let i = $index) {
+            <tr>
+              <th scope="row">{{ category }}</th>
+              @for (s of series(); track s.label) {
+                <td>{{ text(s.values[i], i) }}</td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
   `,
   styles: `
     :host {

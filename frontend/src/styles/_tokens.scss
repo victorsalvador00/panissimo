@@ -59,6 +59,8 @@
   --pan-neon-text: #90befe;
   --pan-neon-secondary: #6f9dff;
   --pan-neon-primary: #4f86ff;
+  // Text links (.row-link): the primary in light; in dark the neon text, since #4f86ff on a dark card is under 4.5:1.
+  --pan-link: light-dark(var(--mat-sys-primary), #90befe);
   --pan-glow: light-dark(none, 0 0 10px rgb(79 134 255 / 45%));
   --pan-focus-glow: light-dark(none, 0 0 0 3px rgb(79 134 255 / 40%));
 

@@ -70,6 +70,8 @@ Herramientas de desarrollo directas, todas libres:
 
 | Paquete | Versión | Licencia |
 |---|---|---|
+| @axe-core/playwright (y axe-core) | 4.14.0 | MPL-2.0 (F-24, pruebas de accesibilidad) |
+| lighthouse | 13.5.0 | Apache-2.0 (F-24, `npm run lighthouse`) |
 | @angular/build, @angular/cli, @angular/compiler-cli | 22.2.3 | MIT |
 | @playwright/test | 1.64.1 | Apache-2.0 |
 | typescript | 6.0.3 | Apache-2.0 |
@@ -81,7 +83,7 @@ Herramientas de desarrollo directas, todas libres:
 
 Todo `node_modules` (442 paquetes) es MIT, Apache-2.0, ISC, BSD, MIT-0, BlueOak, 0BSD o similar. Las únicas licencias distintas son de herramientas de compilación que no se distribuyen con la aplicación:
 
-- `lightningcss` (MPL-2.0, a través de Vite).
+- `lightningcss` (MPL-2.0, a través de Vite) y `axe-core` (MPL-2.0, pruebas): MPL es libre; ninguno llega al navegador.
 - `caniuse-lite` (CC-BY-4.0, datos de compatibilidad de navegadores).
 - `argparse` (Python-2.0).
 

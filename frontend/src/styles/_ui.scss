@@ -46,6 +46,13 @@ html {
       active-indicator-height: 3px,
     )
   );
+  // Text and outlined buttons are text in the primary: in dark it takes the link tone for 4.5:1 on cards.
+  @include mat.button-overrides(
+    (
+      text-label-text-color: var(--pan-link),
+      outlined-label-text-color: var(--pan-link),
+    )
+  );
 }
 
 .mat-mdc-form-field .mdc-text-field--filled {
@@ -134,6 +141,8 @@ input.pan-uppercase.mat-mdc-input-element {
 // Visually hidden but read by screen readers.
 .pan-sr-only {
   position: absolute;
+  // Anchored to the left: inside a table that scrolls in its frame, the static position could widen the page.
+  left: 0;
   width: 1px;
   height: 1px;
   margin: -1px;
@@ -146,7 +155,7 @@ input.pan-uppercase.mat-mdc-input-element {
 // Selected option of a menu with radio items (theme).
 .mat-mdc-menu-item.pan-menu-selected,
 .mat-mdc-menu-item.pan-menu-selected .mat-icon {
-  color: var(--mat-sys-primary);
+  color: var(--pan-link);
   font-weight: 700;
 }
 
@@ -158,7 +167,7 @@ input.pan-uppercase.mat-mdc-input-element {
 
 // Folio or name that opens the record, in tables and lists.
 .row-link {
-  color: var(--mat-sys-primary);
+  color: var(--pan-link);
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;

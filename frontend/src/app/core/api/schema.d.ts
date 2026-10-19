@@ -6831,6 +6831,94 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/production-orders/component-sources': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Subalmacenes de los que puede salir cada componente de la receta, con su existencia libre (utilizable menos
+     *     reservado) y el que toma por omisión según su tipo (RN-111).
+     */
+    get: {
+      parameters: {
+        query?: {
+          locationId?: string;
+          recipeId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ComponentSourceOptionDto'][];
+            'application/json': components['schemas']['ComponentSourceOptionDto'][];
+            'text/json': components['schemas']['ComponentSourceOptionDto'][];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unprocessable Entity */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/production-orders/{id}/release': {
     parameters: {
       query?: never;
@@ -6840,7 +6928,10 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Libera la orden para producir. */
+    /**
+     * Libera la orden para producir. Con fábrica en la receta reserva cada componente en su subalmacén de origen y
+     *     genera un vale de ingredientes por origen hacia la fábrica (RN-110, RN-112); sin existencia libre no se libera.
+     */
     post: {
       parameters: {
         query?: never;
@@ -14753,6 +14844,23 @@ export interface components {
       version: number;
       reason: string;
     };
+    ComponentSourceOptionDto: {
+      /** Format: uuid */
+      componentItemId: string;
+      /** Format: uuid */
+      locationId: string;
+      code: string;
+      name: string;
+      /** Format: double */
+      free: number;
+      isDefault: boolean;
+    };
+    ComponentSourceRequest: {
+      /** Format: uuid */
+      componentItemId: string;
+      /** Format: uuid */
+      sourceLocationId: string;
+    };
     ConsumptionAnalysisDto: {
       /** Format: uuid */
       locationId: string;
@@ -15295,6 +15403,7 @@ export interface components {
       productionAreaId: null | string;
       shift: null | components['schemas']['Shift'];
       notes: null | string;
+      sources?: null | components['schemas']['ComponentSourceRequest'][];
     };
     /**
      * @example {
@@ -16405,6 +16514,7 @@ export interface components {
       canSellToCustomers: boolean;
       /** Format: uint32 */
       version: number;
+      suppliesTypes?: null | components['schemas']['ItemType'][];
     };
     LocationLookupDto: {
       /** Format: uuid */
@@ -17120,6 +17230,7 @@ export interface components {
       factoryId?: null | string;
       factoryCode?: null | string;
       factoryName?: null | string;
+      vouchers?: null | components['schemas']['ProductionOrderVoucherDto'][];
     };
     ProductionOrderImportDto: {
       /** Format: uuid */
@@ -17169,6 +17280,9 @@ export interface components {
       available: null | number;
       /** Format: double */
       shortage: null | number;
+      /** Format: uuid */
+      sourceLocationId?: null | string;
+      sourceLocationCode?: null | string;
     };
     ProductionOrderListItemDto: {
       /** Format: uuid */
@@ -17211,6 +17325,16 @@ export interface components {
     ProductionOrderStatus: 'Draft' | 'Released' | 'InProgress' | 'Completed' | 'Cancelled';
     /** @enum {unknown} */
     ProductionOrderTab: 'ToProduce' | 'InProgress' | 'Drafts' | 'All' | null;
+    ProductionOrderVoucherDto: {
+      /** Format: uuid */
+      id: string;
+      folio: string;
+      status: components['schemas']['TransferStatus'];
+      fromLocationCode: string;
+      toLocationCode: string;
+      /** Format: int32 */
+      lineCount: number;
+    };
     ProductionPlanDto: {
       /** Format: uuid */
       locationId: string;
@@ -17841,6 +17965,11 @@ export interface components {
       /** Format: double */
       stockValue: number;
       belowMin: boolean;
+      /**
+       * Format: double
+       * @default 0
+       */
+      reserved: number;
     };
     /** @enum {unknown} */
     StorageCondition: 'Ambient' | 'Refrigerated' | 'Frozen';
@@ -18327,6 +18456,9 @@ export interface components {
       createdByName: null | string;
       /** Format: uint32 */
       version: number;
+      /** Format: uuid */
+      productionOrderId?: null | string;
+      productionOrderFolio?: null | string;
     };
     /** @enum {unknown} */
     TransferKind: 'Standard' | 'Internal';
@@ -18636,6 +18768,7 @@ export interface components {
       name: string;
       address: null | string;
       isActive: boolean;
+      suppliesTypes?: null | components['schemas']['ItemType'][];
     };
     /**
      * @example {
@@ -18710,6 +18843,7 @@ export interface components {
       productionAreaId: null | string;
       shift: null | components['schemas']['Shift'];
       notes: null | string;
+      sources?: null | components['schemas']['ComponentSourceRequest'][];
     };
     /**
      * @example {

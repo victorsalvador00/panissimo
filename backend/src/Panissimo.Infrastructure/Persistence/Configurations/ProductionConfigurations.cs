@@ -73,6 +73,8 @@ internal sealed class ProductionOrderLineConfiguration : IEntityTypeConfiguratio
         builder.HasIndex(l => new { l.ProductionOrderId, l.ComponentItemId }).IsUnique();
         builder.HasIndex(l => l.ComponentItemId);
         builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ComponentItemId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Location>().WithMany().HasForeignKey(l => l.SourceLocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(l => l.SourceLocationId);
     }
 }
 

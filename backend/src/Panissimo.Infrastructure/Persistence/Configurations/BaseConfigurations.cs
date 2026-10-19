@@ -18,6 +18,7 @@ internal sealed class LocationConfiguration : IEntityTypeConfiguration<Location>
         builder.Property(l => l.Name).HasMaxLength(150);
         builder.Property(l => l.Type).HasMaxLength(20);
         builder.Property(l => l.Address).HasMaxLength(500);
+        builder.Property(l => l.SuppliesTypes).HasColumnType("text[]");
         builder.HasIndex(l => l.Code).IsUnique();
     }
 }

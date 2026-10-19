@@ -80,7 +80,6 @@ public sealed class ProductionOrderImportService(
     ILocationScope scope,
     UserAccessContext access,
     IClock clock,
-    ICurrentUser currentUser,
     IFolioGenerator folios,
     IUserDirectory userDirectory,
     IProductionOrderService orders) : IProductionOrderImportService
@@ -145,7 +144,7 @@ public sealed class ProductionOrderImportService(
         var created = await orders.CreateManyInTransactionAsync(validation.Requests, ProductionOrderSource.Import, import.Id, ct);
         if (releaseOnImport)
             foreach (var order in created)
-                order.Release(clock.UtcNow, currentUser.UserId);
+                await orders.ReleaseInTransactionAsync(order, ct); // RN-110/RN-112: reserves and creates the vouchers
 
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

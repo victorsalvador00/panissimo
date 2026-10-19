@@ -30,7 +30,9 @@ public enum ShortfallReason
 }
 
 /// <summary>Editable data of a production order (RN-60: only while in draft).</summary>
-public sealed record ProductionOrderPlan(Recipe Recipe, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes);
+/// <param name="Sources">RN-111: sub-warehouse each component comes from (component → location); missing = none yet.</param>
+public sealed record ProductionOrderPlan(Recipe Recipe, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes,
+    IReadOnlyDictionary<Guid, Guid>? Sources = null);
 
 /// <summary>
 /// Production order (dominio §4.4, RN-60): Draft → Released → InProgress → Completed; Cancelled from Draft, or from
@@ -100,6 +102,15 @@ public class ProductionOrder : AuditableEntity, IVersioned
         if (Status != ProductionOrderStatus.Draft)
             throw new BusinessRuleException("production_order_not_draft", "Solo una orden en borrador puede editarse (RN-60).");
         Apply(plan, today);
+    }
+
+    /// <summary>RN-111: fills the origin of the lines that have none (the default sub-warehouse of their type).</summary>
+    public void AssignMissingSources(Func<Guid, Guid?> defaultSource)
+    {
+        if (Status != ProductionOrderStatus.Draft)
+            throw new BusinessRuleException("production_order_not_draft", "Solo una orden en borrador cambia de origen.");
+        foreach (var line in _lines.Where(l => l.SourceLocationId is null))
+            line.SetSource(defaultSource(line.ComponentItemId));
     }
 
     public void Release(DateTimeOffset now, Guid? userId)
@@ -216,7 +227,8 @@ public class ProductionOrder : AuditableEntity, IVersioned
 
         // RN-11 for the planned quantity.
         _lines.Clear();
-        _lines.AddRange(plan.Recipe.Explode(plan.PlannedQty).Select(c => new ProductionOrderLine(Id, c.ComponentItemId, c.Quantity)));
+        _lines.AddRange(plan.Recipe.Explode(plan.PlannedQty).Select(c =>
+            new ProductionOrderLine(Id, c.ComponentItemId, c.Quantity, plan.Sources?.GetValueOrDefault(c.ComponentItemId) is { } s && s != Guid.Empty ? s : null)));
     }
 }
 
@@ -224,11 +236,12 @@ public class ProductionOrderLine : Entity
 {
     private ProductionOrderLine() { }
 
-    internal ProductionOrderLine(Guid orderId, Guid componentItemId, decimal theoreticalQty)
+    internal ProductionOrderLine(Guid orderId, Guid componentItemId, decimal theoreticalQty, Guid? sourceLocationId = null)
     {
         ProductionOrderId = orderId;
         ComponentItemId = componentItemId;
         TheoreticalQty = theoreticalQty;
+        SourceLocationId = sourceLocationId;
     }
 
     public Guid ProductionOrderId { get; private set; }
@@ -237,8 +250,13 @@ public class ProductionOrderLine : Entity
     /// <summary>RN-11 for the planned quantity.</summary>
     public decimal TheoreticalQty { get; private set; }
 
+    /// <summary>RN-111: sub-warehouse it comes from; releasing the order reserves it there and asks for it with a voucher.</summary>
+    public Guid? SourceLocationId { get; private set; }
+
     /// <summary>Real consumption accumulated over the closes.</summary>
     public decimal ActualQty { get; private set; }
 
     internal void AddActual(decimal quantity) => ActualQty += quantity;
+
+    internal void SetSource(Guid? locationId) => SourceLocationId = locationId;
 }

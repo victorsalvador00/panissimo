@@ -2,22 +2,27 @@ using System.Linq.Expressions;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Panissimo.Application.Common;
+using Panissimo.Application.Inventory;
 using Panissimo.Application.Security;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 
 namespace Panissimo.Application.Production;
 
 /// <param name="ProductionAreaId">Null = the item's default area.</param>
+/// <param name="Sources">RN-111: origin per component; a component not listed takes the default of its type.</param>
 public sealed record CreateProductionOrderRequest(
-    Guid LocationId, Guid OutputItemId, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes);
+    Guid LocationId, Guid OutputItemId, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes,
+    IReadOnlyList<ComponentSourceRequest>? Sources = null);
 
 /// <summary>Draft only (RN-60). Changing the product takes its active recipe.</summary>
 public sealed record UpdateProductionOrderRequest(
-    uint Version, Guid OutputItemId, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes);
+    uint Version, Guid OutputItemId, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes,
+    IReadOnlyList<ComponentSourceRequest>? Sources = null);
 
 /// <summary>Tabs of the production orders screen (frontend §7.4).</summary>
 public enum ProductionOrderTab
@@ -49,9 +54,12 @@ public sealed record ProductionOrderListItemDto(
     ProductionOrderStatus Status, DateTimeOffset CreatedAt);
 
 /// <param name="Available">Usable stock at the plant while the order is open (RN-12); null once finished.</param>
+/// <param name="Available">Draft with origin: free stock there (RN-110); otherwise usable stock where the close consumes.</param>
+/// <param name="SourceLocationId">RN-111: sub-warehouse it comes from.</param>
 public sealed record ProductionOrderLineDto(
     Guid Id, Guid ComponentItemId, string Sku, string Name, ItemType Type, string BaseUomCode, bool HasRecipe,
-    decimal TheoreticalQty, decimal ActualQty, decimal? Available, decimal? Shortage);
+    decimal TheoreticalQty, decimal ActualQty, decimal? Available, decimal? Shortage, Guid? SourceLocationId = null,
+    string? SourceLocationCode = null);
 
 /// <summary>An order line the OP serves (RN-72, informative).</summary>
 public sealed record ProductionOrderDemandDto(DemandType DemandType, Guid DemandLineId, Guid DocumentId, string Folio, string PartyName,
@@ -66,7 +74,8 @@ public sealed record ProductionOrderDto(
     DateTimeOffset? ReleasedAt, string? ReleasedByName, DateTimeOffset? CompletedAt, string? CompletedByName,
     ShortfallReason? ShortfallReason, string? ShortfallNotes, DateTimeOffset? CancelledAt,
     IReadOnlyList<ProductionOrderLineDto> Lines, IReadOnlyList<ProductionOrderDemandDto> Demands, DateTimeOffset CreatedAt,
-    string? CreatedByName, uint Version, Guid? FactoryId = null, string? FactoryCode = null, string? FactoryName = null);
+    string? CreatedByName, uint Version, Guid? FactoryId = null, string? FactoryCode = null, string? FactoryName = null,
+    IReadOnlyList<ProductionOrderVoucherDto>? Vouchers = null);
 
 public sealed class CreateProductionOrderRequestValidator : AbstractValidator<CreateProductionOrderRequest>
 {
@@ -110,6 +119,15 @@ public interface IProductionOrderService
     Task<ProductionOrderDto> UpdateAsync(Guid id, UpdateProductionOrderRequest request, CancellationToken ct = default);
     Task<ProductionOrderDto> ReleaseAsync(Guid id, uint version, CancellationToken ct = default);
     Task<ProductionOrderDto> CancelAsync(Guid id, uint version, CancellationToken ct = default);
+
+    /// <summary>
+    /// RN-110/RN-112 inside the caller's transaction: releases a draft and, when its recipe has a factory, reserves each
+    /// component at its origin and creates one ingredients voucher per origin to the factory.
+    /// </summary>
+    Task ReleaseInTransactionAsync(ProductionOrder order, CancellationToken ct = default);
+
+    /// <summary>RN-111: the sub-warehouses each component of the recipe may come from, with free stock and the default.</summary>
+    Task<IReadOnlyList<ComponentSourceOptionDto>> SourcesAsync(Guid locationId, Guid recipeId, CancellationToken ct = default);
 }
 
 public sealed class ProductionOrderService(
@@ -118,7 +136,8 @@ public sealed class ProductionOrderService(
     IFolioGenerator folios,
     IClock clock,
     ICurrentUser currentUser,
-    IUserDirectory userDirectory) : IProductionOrderService
+    IUserDirectory userDirectory,
+    IInventoryPostingService posting) : IProductionOrderService
 {
     private static readonly Dictionary<string, Expression<Func<ProductionOrder, object?>>> SortColumns = new()
     {
@@ -204,6 +223,8 @@ public sealed class ProductionOrderService(
             await EnsurePlantAsync(locationId, ct);
 
         var catalogs = await LoadPlanCatalogsAsync(requests.Select(r => r.OutputItemId), ct);
+        var sources = await ComponentSources.LoadAsync(db, requests.Select(r => r.LocationId),
+            catalogs.ActiveRecipes.Values.SelectMany(rc => rc.Lines.Select(l => l.ComponentItemId)), ct);
         var numbers = await folios.NextManyAsync(DocType.ProductionOrder, requests.Count, ct);
         var today = clock.BusinessDate();
         var created = new List<ProductionOrder>(requests.Count);
@@ -212,6 +233,7 @@ public sealed class ProductionOrderService(
         {
             var r = requests[i];
             var plan = BuildPlan(catalogs, r.OutputItemId, r.PlannedQty, r.ScheduledDate, r.ProductionAreaId, r.Shift, r.Notes);
+            plan = plan with { Sources = sources.Resolve(r.LocationId, plan.Recipe, r.Sources) };
             // RN-49, checked once per plant and factory (an import brings up to 3,000 rows).
             if (checkedFloors.Add((r.LocationId, plan.Recipe.FactoryId)))
                 await ProductionFloor.EnsureAsync(db, r.LocationId, plan.Recipe.FactoryId, catalogs.Items[r.OutputItemId].Sku, ct);
@@ -231,6 +253,8 @@ public sealed class ProductionOrderService(
             request.Shift, request.Notes, ct);
 
         var sku = await db.Items.Where(i => i.Id == plan.Recipe.OutputItemId).Select(i => i.Sku).SingleAsync(ct);
+        var sources = await ComponentSources.LoadAsync(db, [order.LocationId], plan.Recipe.Lines.Select(l => l.ComponentItemId), ct);
+        plan = plan with { Sources = sources.Resolve(order.LocationId, plan.Recipe, request.Sources) };
         await ProductionFloor.EnsureAsync(db, order.LocationId, plan.Recipe.FactoryId, sku, ct);
         order.UpdateDraft(plan, clock.BusinessDate());
         plan.Recipe.MarkUsed();
@@ -244,18 +268,126 @@ public sealed class ProductionOrderService(
         var order = await FindAsync(id, ct);
         db.EnsureVersion(order, version);
         // The recipe may have been replaced since the draft was created: a draft is released with its own version.
-        order.Release(clock.UtcNow, currentUser.UserId);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        db.Entry(order).State = EntityState.Modified; // claims the row with its version first (RN-66 style)
         await db.SaveChangesAsync(ct);
+        await ReleaseInTransactionAsync(order, ct);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return await ToDtoAsync(order, ct);
+    }
+
+    public async Task ReleaseInTransactionAsync(ProductionOrder order, CancellationToken ct = default)
+    {
+        var recipe = await db.Recipes.AsNoTracking().SingleAsync(r => r.Id == order.RecipeId, ct);
+        var outputSku = await db.Items.AsNoTracking().Where(i => i.Id == order.OutputItemId).Select(i => i.Sku).SingleAsync(ct);
+        var floor = await ProductionFloor.EnsureAsync(db, order.LocationId, recipe.FactoryId, outputSku, ct);
+        if (floor is null)
+        {
+            // Without a factory there is nothing to bring: the close consumes where it is (RN-45).
+            order.Release(clock.UtcNow, currentUser.UserId);
+            return;
+        }
+
+        // RN-111: every component needs its origin; the ones without one take the default of their type.
+        var componentIds = order.Lines.Select(l => l.ComponentItemId).ToList();
+        var sources = await ComponentSources.LoadAsync(db, [order.LocationId], componentIds, ct);
+        order.AssignMissingSources(component => sources.DefaultFor(order.LocationId, component));
+        var items = await (from i in db.Items.AsNoTracking()
+                           join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
+                           where componentIds.Contains(i.Id)
+                           select new { i.Id, i.Sku, IsPiece = u.Code == UnitOfMeasure.PieceCode, Uom = u.Code }).ToDictionaryAsync(i => i.Id, ct);
+        var withoutSource = order.Lines.Where(l => l.SourceLocationId is not { } s || !sources.IsWarehouseOf(order.LocationId, s))
+            .Select(l => items[l.ComponentItemId].Sku).Order().ToList();
+        if (withoutSource.Count > 0)
+            throw new BusinessRuleException("production_source_required",
+                $"Elige el subalmacén de origen activo de {string.Join(", ", withoutSource)} antes de liberar la orden (RN-111).");
+
+        // RN-110: what is asked for (whole pieces) must be free at its origin; the rows stay locked until commit.
+        var needs = order.Lines.Where(l => l.TheoreticalQty > 0)
+            .Select(l => (LocationId: l.SourceLocationId!.Value, ItemId: l.ComponentItemId,
+                Needed: items[l.ComponentItemId].IsPiece ? Math.Ceiling(l.TheoreticalQty) : l.TheoreticalQty))
+            .ToList();
+        await posting.LockAsync(needs.Select(n => (n.LocationId, n.ItemId)), ct);
+        var free = await FreeStockAsync(needs.Select(n => (n.LocationId, n.ItemId)).ToList(), null, ct);
+        var shortages = StockReservationRules.Shortages(needs, (location, item) => free.GetValueOrDefault((location, item)));
+        if (shortages.Count > 0)
+        {
+            var codes = await db.Locations.AsNoTracking().Where(l => shortages.Select(s => s.LocationId).Contains(l.Id))
+                .ToDictionaryAsync(l => l.Id, l => l.Code, ct);
+            throw new BusinessRuleException("release_insufficient_stock",
+                "No hay existencia libre para liberar la orden (RN-110): " + string.Join("; ", shortages.Select(s =>
+                    $"{items[s.ItemId].Sku} en {codes[s.LocationId]} necesita {s.Needed:0.####} {items[s.ItemId].Uom} y hay {s.Free:0.####} libres")) + ".");
+        }
+
+        // RN-112: one ingredients voucher per origin, to the recipe's factory; each line reserved until it is sent.
+        var now = clock.UtcNow;
+        foreach (var group in needs.GroupBy(n => n.LocationId).OrderBy(g => g.Key))
+        {
+            var voucher = Transfer.ForProductionOrder(await folios.NextAsync(DocType.InternalTransfer, ct), group.Key, floor.Id, order.Id, order.Folio,
+                group.Select(n => new TransferLineInput(n.ItemId, null, n.Needed)).ToList());
+            db.Transfers.Add(voucher);
+            db.StockReservations.AddRange(group.Select(n => new StockReservation(n.LocationId, n.ItemId, n.Needed, order.Id, voucher.Id, now)));
+        }
+        order.Release(now, currentUser.UserId);
     }
 
     public async Task<ProductionOrderDto> CancelAsync(Guid id, uint version, CancellationToken ct = default)
     {
         var order = await FindAsync(id, ct);
         db.EnsureVersion(order, version);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         order.Cancel(clock.UtcNow);
+        // RN-112: its vouchers still in draft are cancelled and free their reservations; sent ones already moved stock.
+        foreach (var voucher in await db.Transfers.Where(t => t.ProductionOrderId == order.Id && t.Status == TransferStatus.Draft).ToListAsync(ct))
+            voucher.Cancel();
+        db.StockReservations.RemoveRange(await db.StockReservations.Where(r => r.ProductionOrderId == order.Id).ToListAsync(ct));
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
         return await ToDtoAsync(order, ct);
+    }
+
+    public async Task<IReadOnlyList<ComponentSourceOptionDto>> SourcesAsync(Guid locationId, Guid recipeId, CancellationToken ct = default)
+    {
+        await EnsurePlantAsync(locationId, ct);
+        var recipe = await db.Recipes.AsNoTracking().Include(r => r.Lines).SingleOrDefaultAsync(r => r.Id == recipeId, ct)
+                     ?? throw new NotFoundException("la receta", recipeId);
+        var componentIds = recipe.Lines.Select(l => l.ComponentItemId).ToList();
+        var sources = await ComponentSources.LoadAsync(db, [locationId], componentIds, ct);
+        var warehouses = sources.WarehousesOf(locationId).ToList();
+        var free = await FreeStockAsync(warehouses.SelectMany(w => componentIds.Select(c => (w.Id, c))).ToList(), null, ct);
+        return componentIds.SelectMany(component => warehouses.Select(w => new ComponentSourceOptionDto(component, w.Id, w.Code, w.Name,
+                free.GetValueOrDefault((w.Id, component)), sources.DefaultFor(locationId, component) == w.Id)))
+            .ToList();
+    }
+
+    /// <summary>RN-110: usable stock (expired lots excluded) minus what is reserved, per (location, item).</summary>
+    /// <param name="exceptOrderId">Reservations of this order do not count (its own lines).</param>
+    private async Task<Dictionary<(Guid, Guid), decimal>> FreeStockAsync(IReadOnlyList<(Guid LocationId, Guid ItemId)> pairs, Guid? exceptOrderId,
+        CancellationToken ct)
+    {
+        var result = new Dictionary<(Guid, Guid), decimal>();
+        if (pairs.Count == 0)
+            return result;
+        var today = clock.BusinessDate();
+        var locationIds = pairs.Select(p => p.LocationId).Distinct().ToList();
+        var itemIds = pairs.Select(p => p.ItemId).Distinct().ToList();
+        var usable = await (from b in db.StockBalances.AsNoTracking()
+                            where locationIds.Contains(b.LocationId) && itemIds.Contains(b.ItemId) && b.Quantity > 0
+                            join l in db.Lots on b.LotId equals l.Id into lots
+                            from l in lots.DefaultIfEmpty()
+                            where l == null || l.ExpirationDate == null || l.ExpirationDate >= today
+                            group b by new { b.LocationId, b.ItemId } into g
+                            select new { g.Key.LocationId, g.Key.ItemId, Qty = g.Sum(b => b.Quantity) })
+            .ToDictionaryAsync(x => (x.LocationId, x.ItemId), x => x.Qty, ct);
+        var reserved = await db.StockReservations.AsNoTracking()
+            .Where(r => locationIds.Contains(r.LocationId) && itemIds.Contains(r.ItemId) && r.ProductionOrderId != exceptOrderId)
+            .GroupBy(r => new { r.LocationId, r.ItemId })
+            .Select(g => new { g.Key.LocationId, g.Key.ItemId, Qty = g.Sum(r => r.Quantity) })
+            .ToDictionaryAsync(x => (x.LocationId, x.ItemId), x => x.Qty, ct);
+        foreach (var pair in pairs.Distinct())
+            result[pair] = StockReservationRules.Free(usable.GetValueOrDefault(pair), reserved.GetValueOrDefault(pair));
+        return result;
     }
 
     /// <summary>RN-14: production only at the plant, in the caller's scope.</summary>
@@ -357,14 +489,28 @@ public sealed class ProductionOrderService(
             ? await RecipeService.UsableStockAsync(db, await RecipeService.StockLocationAsync(db, recipe.FactoryId, o.LocationId, ct),
                 componentIds, clock.BusinessDate(), ct)
             : null;
+        // RN-110: a draft with origins shows what is free there (what releasing would reserve).
+        var sourced = o.Lines.Where(l => l.SourceLocationId is not null).Select(l => (l.SourceLocationId!.Value, l.ComponentItemId)).ToList();
+        var free = o.Status == ProductionOrderStatus.Draft ? await FreeStockAsync(sourced, o.Id, ct) : [];
+        var sourceIds = sourced.Select(s => s.Item1).Distinct().ToList();
+        var sourceCodes = await db.Locations.AsNoTracking().Where(l => sourceIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
+        var vouchers = await (from t in db.Transfers.AsNoTracking()
+                              where t.ProductionOrderId == o.Id
+                              join f in db.Locations on t.FromLocationId equals f.Id
+                              join d in db.Locations on t.ToLocationId equals d.Id
+                              orderby t.Folio
+                              select new ProductionOrderVoucherDto(t.Id, t.Folio, t.Status, f.Code, d.Code, t.Lines.Count)).ToListAsync(ct);
 
         var lines = o.Lines.Select(l =>
         {
             var c = components[l.ComponentItemId];
-            decimal? avail = available is null ? null : available.GetValueOrDefault(l.ComponentItemId);
+            decimal? avail = l.SourceLocationId is { } source && free.TryGetValue((source, l.ComponentItemId), out var atSource)
+                ? atSource
+                : available is null ? null : available.GetValueOrDefault(l.ComponentItemId);
             var pending = Math.Max(0, l.TheoreticalQty - l.ActualQty);
             return new ProductionOrderLineDto(l.Id, l.ComponentItemId, c.Sku, c.Name, c.Type, c.Uom, c.HasRecipe, l.TheoreticalQty, l.ActualQty,
-                avail, avail is null ? null : Math.Max(0, pending - avail.Value));
+                avail, avail is null ? null : Math.Max(0, pending - avail.Value), l.SourceLocationId,
+                l.SourceLocationId is { } s ? sourceCodes.GetValueOrDefault(s) : null);
         }).OrderBy(l => l.Sku).ToList();
 
         var users = await userDirectory.GetNamesAsync([o.CreatedBy, o.ReleasedBy, o.CompletedBy], ct);
@@ -375,7 +521,7 @@ public sealed class ProductionOrderService(
             o.ScheduledDate,
             o.ProductionAreaId, areaName, o.Shift, o.Source, o.ImportId, importFolio, o.Notes, o.Status, o.TotalCost, o.UnitCost, o.CloseCount,
             o.ReleasedAt, users.Of(o.ReleasedBy), o.CompletedAt, users.Of(o.CompletedBy), o.ShortfallReason, o.ShortfallNotes, o.CancelledAt,
-            lines, demands, o.CreatedAt, users.Of(o.CreatedBy), o.Version, recipe.FactoryId, factory?.Code, factory?.Name);
+            lines, demands, o.CreatedAt, users.Of(o.CreatedBy), o.Version, recipe.FactoryId, factory?.Code, factory?.Name, vouchers);
     }
 
     private async Task<List<ProductionOrderDemandDto>> DemandsAsync(Guid orderId, CancellationToken ct)

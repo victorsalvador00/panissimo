@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (receta ligada a fábrica, RN-49).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-19 (origen por renglón, reserva y vales de ingredientes, RN-110..112).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-18)
@@ -8,7 +8,7 @@
 **Dónde quedamos**
 - **Plan completo:** backend B-01..B-28 y frontend F-01..F-26 terminados y en `main`, incluida la ampliación de trazabilidad (B-28 y F-26).
 - Pruebas en verde: backend 282 unitarias y 167 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers); frontend 187 unitarias, lint y build; E2E: suite completa 45 en verde y 22 omitidas por diseño (escritorio y celular); la E2E 7 falló una vez por el botón de ayuda (corregido abajo) y se volvió a correr en verde con las que usan barra de acciones.
-- Migraciones hasta `AddRecipeFactory` (RN-49).
+- Migraciones hasta `AddProductionSupply` (RN-110..112).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las migraciones vigentes.
 
 **Decisiones:** D-01..D-11 en `docs/specs/dominio.md` §8. D-11 (roles de la trazabilidad) decidida con el usuario el 2026-10-18. D-10 sigue abierta (no bloquea). El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
@@ -910,4 +910,41 @@
 - **Pendiente:**
   - La E2E corre contra la BD de desarrollo. Si esa BD tiene fábrica en PLANTA (la local sí, FABRICA), las E2E que crean recetas sin `factoryId` (`e2e/support/api.ts`) fallarán. Hay que mandar la fábrica o correrlas en una BD limpia.
   - La importación de OP no marca RN-49 por renglón en la vista previa; el error sale al importar.
+
+### Origen por renglón, reserva y vales de ingredientes, RN-110..112 (2026-10-19)
+
+- **Pedido del usuario:** elegir el subalmacén de origen por componente de la OP, reservar lo necesario para que otro proceso no lo tome, y generar vales hacia la fábrica para que el panadero pida los ingredientes.
+- **Decisiones del usuario:**
+  - Se reserva y se generan los vales **al liberar** (no al crear el borrador). Así la importación de planes futuros sigue funcionando.
+  - Sin existencia libre no se libera.
+  - Un vale por origen.
+  - Flujo enviar/recibir.
+  - Origen por omisión según el tipo del componente, editable.
+- **Numeración:** RN-50 ya era el requerimiento de materia prima y RN-107..109 estaban ocupadas; las reglas nuevas son RN-110 (reserva), RN-111 (origen) y RN-112 (vale).
+- **Backend:**
+  - `StockReservation` (`inventory.stock_reservation`), `ProductionOrderLine.SourceLocationId`, `Transfer.ProductionOrderId` y `Location.SuppliesTypes` (`text[]`).
+  - `InventoryPostingService`: después de calcular, rechaza (422 `stock_reserved`) cualquier salida que deje un (ubicación, artículo) por debajo de lo reservado, salvo el conteo físico. Las reservas borradas en la misma unidad de trabajo, como el envío del vale, ya no cuentan.
+  - `LockAsync` nuevo: bloquea las mismas filas (`item_location_cost`, en el mismo orden) para serializar la liberación con las salidas.
+  - `ComponentSources`: valida el origen elegido (subalmacén activo de la planta, no fábrica) y da el de omisión por tipo. Lo usan alta y edición manual, plan e importación (`Sources` opcional en los requests).
+  - `ReleaseInTransactionAsync` (liberar y "Liberar al importar"): con fábrica en la receta, completa los orígenes faltantes y exige que todos los renglones tengan uno (`production_source_required`). Bloquea, calcula lo libre (sin vencidos − reservado), rechaza con `release_insufficient_stock` y crea un vale por origen con sus reservas. Sin fábrica libera como antes.
+  - Cancelar la OP cancela sus vales en borrador y libera las reservas. Enviar o cancelar el vale libera su reserva. Un vale de OP no se edita (`transfer_from_production_order`).
+  - `GET /production-orders/component-sources?locationId&recipeId`: opciones por componente con lo libre y la de omisión.
+  - DTOs: OP con `Vouchers` y renglones con `SourceLocationId/Code` (en borrador, `Available` = libre en el origen). Vale con `ProductionOrderId/Folio`. Existencias con `Reserved`. Ubicación con `SuppliesTypes`; `UpdateLocationRequest.SuppliesTypes` (null conserva) con un tipo por planta (`supplies_taken`).
+  - Migración `AddProductionSupply`: columnas, tabla, índices y FK; `supplies_types` con default `'{}'`. El seed y la migración asignan MP→materia prima, INS→insumo y SEMI→semiterminado en PLANTA.
+- **Frontend:**
+  - Nueva OP: columna "Origen" por renglón (`código · libre N`), "Libre en origen", faltante contra el origen y aviso de que no se podrá liberar. Sin subalmacenes, la tabla de antes.
+  - Detalle de OP: columna Origen y pestaña "Vales de ingredientes" con enlace a cada vale. La confirmación de liberar y de cancelar explica la reserva.
+  - Vale: "Orden de producción" con enlace y sin "Editar" si es de OP.
+  - Ubicaciones: "Surte por omisión a producción" (selección múltiple; `RecordField.multiple`) y "· surte …" en la lista.
+  - Existencias: "N reservado · libre M" bajo la existencia.
+- **Migración probada en BD limpia:** `dotnet ef` sin `deploy/.env` usó el respaldo de diseño (`Host=localhost;Database=panissimo_design_time`) y creó esa BD en el Postgres local. Ahí corrieron las 29 migraciones desde cero, y la nueva hacia abajo y hacia arriba. Esa BD sobra: se puede borrar. Después se aplicó a la BD de desarrollo.
+- **Pruebas:**
+  - Backend 293 unitarias en verde (`StockReservationTests`).
+  - Integración `WarehouseProcessTests.Releasing_an_order_reserves_its_ingredients_and_asks_for_them_with_vouchers` (mueve inventario): orígenes por omisión y elegidos, reserva, `stock_reserved`, `release_insufficient_stock`, vale no editable, envío y recepción, cancelación. También se ajustó la de RN-49. No se corrieron (sin Docker).
+  - Frontend 192 unitarias, lint y build en verde.
+  - API local: 32 opciones de origen para la receta de la dona (MP e INS por omisión); liberar rechazado porque falta IN-001 en PLANTA-INS. La OP de prueba (OP-000002) quedó cancelada.
+  - Revisado en Chrome: tabla de orígenes de la nueva OP.
+- **Pendiente:**
+  - La vista previa de la importación no avisa de la falta de existencia libre; "Liberar al importar" falla al importar.
+  - El aviso de faltantes de la nueva OP se calcula en el navegador con las opciones; la validación real es la del backend al liberar.
 

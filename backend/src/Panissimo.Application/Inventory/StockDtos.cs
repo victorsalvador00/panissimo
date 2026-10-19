@@ -22,7 +22,7 @@ public sealed record StockQuery : PageQuery
 public sealed record StockLevelDto(
     Guid LocationId, string LocationCode, Guid ItemId, string Sku, string ItemName, ItemType ItemType, Guid CategoryId,
     string BaseUomCode, bool TracksLots, decimal OnHand, decimal? MinQty, decimal? MaxQty, decimal AverageCost,
-    decimal StockValue, bool BelowMin);
+    decimal StockValue, bool BelowMin, decimal Reserved = 0);
 
 public sealed record LotStockDto(
     Guid? LotId, string? LotNumber, DateOnly? ExpirationDate, decimal Quantity, int? DaysToExpire, bool IsExpired);

@@ -110,6 +110,14 @@
     </ng-template>
     <ng-template appCell="onHand" header="Existencia" end [appCellOf]="rows()" let-row>
       {{ row.onHand | qty: row.baseUomCode }}
+      @if (row.reserved > 0) {
+        <span class="reserved"
+          >{{ row.reserved | qty: row.baseUomCode }} reservado · libre
+          {{
+            (row.onHand > row.reserved ? row.onHand - row.reserved : 0) | qty: row.baseUomCode
+          }}</span
+        >
+      }
     </ng-template>
     <ng-template appCell="level" header="Nivel" [appCellOf]="rows()" let-row>
       <app-stock-level

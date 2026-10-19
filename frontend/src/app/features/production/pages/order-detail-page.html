@@ -104,6 +104,9 @@
               <thead>
                 <tr>
                   <th scope="col">Componente</th>
+                  @if (hasSources()) {
+                    <th scope="col">Origen</th>
+                  }
                   <th scope="col" class="end">Teórico</th>
                   <th scope="col" class="end">Real acumulado</th>
                   <th scope="col" class="end">Merma</th>
@@ -120,6 +123,9 @@
                       <strong>{{ line.sku }}</strong> {{ line.name }}
                       <span class="muted">· {{ line.type | statusLabel: 'ItemType' }}</span>
                     </td>
+                    @if (hasSources()) {
+                      <td>{{ line.sourceLocationCode ?? '—' }}</td>
+                    }
                     <td class="end">{{ line.theoreticalQty | qty: line.baseUomCode }}</td>
                     <td class="end">{{ line.actualQty | qty: line.baseUomCode }}</td>
                     <td class="end">
@@ -139,6 +145,43 @@
             </table>
           </div>
         </mat-tab>
+
+        @if (o.vouchers?.length) {
+          <mat-tab [label]="'Vales de ingredientes (' + o.vouchers!.length + ')'">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Vale</th>
+                    <th scope="col">Sale de</th>
+                    <th scope="col">Entra a</th>
+                    <th scope="col" class="end">Renglones</th>
+                    <th scope="col">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (voucher of o.vouchers; track voucher.id) {
+                    <tr>
+                      <td>
+                        <a [routerLink]="['/inventario/vales-internos', voucher.id]">{{
+                          voucher.folio
+                        }}</a>
+                      </td>
+                      <td>{{ voucher.fromLocationCode }}</td>
+                      <td>{{ voucher.toLocationCode }}</td>
+                      <td class="end">{{ voucher.lineCount }}</td>
+                      <td>{{ voucher.status | statusLabel: 'TransferStatus' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <p class="muted">
+              Lo de cada vale queda reservado en su origen hasta que se envía. Al recibirlo en la
+              fábrica, el cierre puede consumirlo.
+            </p>
+          </mat-tab>
+        }
 
         <mat-tab [label]="'Cierres (' + o.closeCount + ')'">
           <app-close-timeline [closes]="closes.value()" />

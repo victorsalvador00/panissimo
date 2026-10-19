@@ -15,6 +15,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import type { Schemas } from '../../../core/api/api';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, firstValueFrom, map, of, startWith } from 'rxjs';
 import type { ApiEnum } from '../../../core/api/api';
@@ -130,6 +131,20 @@ export class OrderFormPage {
   protected readonly noRecipe = computed(
     () => !!this.output() && this.recipe.hasValue() && this.recipe.value() === null,
   );
+  /** RN-111: the sub-warehouses each component may come from (free stock, default by type). */
+  protected readonly sourceOptions = rxResource({
+    params: () => {
+      const recipe = this.recipe.hasValue() ? this.recipe.value() : null;
+      const locationId = this.explosionInput().locationId;
+      return recipe && locationId ? { recipeId: recipe.id, locationId } : undefined;
+    },
+    stream: ({ params }) =>
+      params ? this.api.componentSources(params.locationId, params.recipeId) : of([]),
+    defaultValue: [],
+  });
+  /** The origin the user picked per component; the others take the default. */
+  protected readonly chosenSources = signal<Record<string, string>>({});
+
   protected readonly explosion = rxResource({
     params: () => {
       const recipe = this.recipe.hasValue() ? this.recipe.value() : null;
@@ -152,12 +167,51 @@ export class OrderFormPage {
       const active = this.context.active();
       control.setValue(active?.type === 'Plant' ? active.id : (this.plants()[0]?.id ?? null));
     });
+    // Another product starts with the default origins.
+    this.form.controls.output.valueChanges.subscribe(() => {
+      if (!this.order()) this.chosenSources.set({});
+    });
     // The area defaults to the product's while the user has not chosen one.
     this.form.controls.output.valueChanges.subscribe((item) => {
       const area = this.form.controls.productionAreaId;
       if (item?.productionAreaId && !area.dirty) area.setValue(item.productionAreaId);
     });
   }
+
+  protected optionsFor(componentItemId: string): Schemas['ComponentSourceOptionDto'][] {
+    return this.sourceOptions.value().filter((o) => o.componentItemId === componentItemId);
+  }
+
+  /** The chosen origin of a component, else the default of its type. */
+  protected sourceOf(componentItemId: string): string | null {
+    const options = this.optionsFor(componentItemId);
+    const chosen = this.chosenSources()[componentItemId];
+    return (
+      options.find((o) => o.locationId === chosen)?.locationId ??
+      options.find((o) => o.isDefault)?.locationId ??
+      null
+    );
+  }
+
+  /** Free stock at the origin of a component (RN-110); null without origins. */
+  protected freeAt(componentItemId: string): number | null {
+    const source = this.sourceOf(componentItemId);
+    return this.optionsFor(componentItemId).find((o) => o.locationId === source)?.free ?? null;
+  }
+
+  protected chooseSource(componentItemId: string, locationId: string): void {
+    this.chosenSources.update((sources) => ({ ...sources, [componentItemId]: locationId }));
+  }
+
+  /** Lines whose theoretical exceeds what is free at their origin: releasing would be refused. */
+  protected readonly sourceShortages = computed(() => {
+    const e = this.explosion.value();
+    if (!e || this.sourceOptions.value().length === 0) return 0;
+    return e.lines.filter((l) => {
+      const free = this.freeAt(l.componentItemId);
+      return free === null || l.theoreticalQty > free;
+    }).length;
+  });
 
   protected back(): void {
     const order = this.order();
@@ -178,6 +232,12 @@ export class OrderFormPage {
       productionAreaId: v.productionAreaId,
       shift: v.shift,
       notes: v.notes.trim() || null,
+      sources: (this.explosion.value()?.lines ?? [])
+        .map((l) => ({
+          componentItemId: l.componentItemId,
+          sourceLocationId: this.sourceOf(l.componentItemId),
+        }))
+        .filter((s): s is Schemas['ComponentSourceRequest'] => s.sourceLocationId !== null),
     };
 
     this.saving.set(true);
@@ -208,6 +268,13 @@ export class OrderFormPage {
       shift: order.shift,
       notes: order.notes ?? '',
     });
+    this.chosenSources.set(
+      Object.fromEntries(
+        order.lines
+          .filter((l) => l.sourceLocationId)
+          .map((l) => [l.componentItemId, l.sourceLocationId!]),
+      ),
+    );
     // The plant of an order does not change.
     this.form.controls.locationId.disable();
     this.order.set(order);

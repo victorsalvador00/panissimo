@@ -61,6 +61,17 @@ import { stockWarehouses } from '../ui/stock-warehouses';
             <dd>
               {{ v.to.name }} <span class="muted">({{ v.to.code }})</span>
             </dd>
+            @if (v.productionOrderId) {
+              <dt>Orden de producción</dt>
+              <dd>
+                <a [routerLink]="['/produccion/ordenes', v.productionOrderId]">{{
+                  v.productionOrderFolio
+                }}</a>
+                <span class="muted"
+                  >· vale de ingredientes; lo reservado se libera al enviarlo</span
+                >
+              </dd>
+            }
             @if (v.notes) {
               <dt>Notas</dt>
               <dd>{{ v.notes }}</dd>
@@ -149,10 +160,12 @@ import { stockWarehouses } from '../ui/stock-warehouses';
             <button matButton type="button" [disabled]="busy()" (click)="cancel(v)">
               Cancelar vale
             </button>
-            <a matButton="tonal" routerLink="editar">
-              <mat-icon>edit</mat-icon>
-              Editar
-            </a>
+            @if (!v.productionOrderId) {
+              <a matButton="tonal" routerLink="editar">
+                <mat-icon>edit</mat-icon>
+                Editar
+              </a>
+            }
             <button matButton="filled" type="button" [disabled]="busy()" (click)="send(v)">
               Enviar
             </button>

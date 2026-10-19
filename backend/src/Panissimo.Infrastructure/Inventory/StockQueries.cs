@@ -29,6 +29,9 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
         public decimal? MaxQty { get; init; }
         public decimal AverageCost { get; init; }
 
+        /// <summary>RN-110: held for ingredients vouchers (a parent row adds its sub-warehouses).</summary>
+        public decimal Reserved { get; init; }
+
         /// <summary>Σ quantity × average cost of each stock location (RN-46: a parent row adds its sub-warehouses).</summary>
         public decimal Value { get; init; }
     }
@@ -112,6 +115,9 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
                        MinQty = db.ItemLocationSettings.Where(s => s.LocationId == k.LocationId && s.ItemId == k.ItemId).Select(s => (decimal?)s.MinQty).FirstOrDefault(),
                        MaxQty = db.ItemLocationSettings.Where(s => s.LocationId == k.LocationId && s.ItemId == k.ItemId).Select(s => (decimal?)s.MaxQty).FirstOrDefault(),
                        AverageCost = db.ItemLocationCosts.Where(c => c.LocationId == k.LocationId && c.ItemId == k.ItemId).Select(c => c.AverageCost).FirstOrDefault(),
+                       Reserved = db.StockReservations.Where(r => r.ItemId == k.ItemId && (r.LocationId == k.LocationId
+                               || db.Locations.Any(w => w.Id == r.LocationId && w.ParentLocationId == k.LocationId)))
+                           .Sum(r => r.Quantity),
                    };
 
         if (query.CategoryId is { } categoryId)
@@ -126,7 +132,7 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
         return await rows.ApplySort(query.Sort, StockSort, "sku").ToPagedResultAsync(query, r => new StockLevelDto(
             r.LocationId, r.LocationCode, r.ItemId, r.Sku, r.ItemName, r.ItemType, r.CategoryId, r.BaseUomCode, r.TracksLots,
             r.OnHand, r.MinQty, r.MaxQty, r.OnHand != 0 ? decimal.Round(r.Value / r.OnHand, 4) : r.AverageCost, decimal.Round(r.Value, 2),
-            r.MinQty is { } min && r.OnHand < min), ct);
+            r.MinQty is { } min && r.OnHand < min, r.Reserved), ct);
     }
 
     public async Task<IReadOnlyList<LotStockDto>> LotsAsync(Guid locationId, Guid itemId, CancellationToken ct = default)

@@ -49,7 +49,21 @@ public sealed class ProductionOrdersController(IProductionOrderService orders, I
     public Task<ProductionOrderDto> Update(Guid id, UpdateProductionOrderRequest request, CancellationToken ct) =>
         orders.UpdateAsync(id, request, ct);
 
-    /// <summary>Libera la orden para producir.</summary>
+    /// <summary>
+    /// Subalmacenes de los que puede salir cada componente de la receta, con su existencia libre (utilizable menos
+    /// reservado) y el que toma por omisión según su tipo (RN-111).
+    /// </summary>
+    [HttpGet("component-sources")]
+    [RequirePermission(Permissions.ProductionOrdersManage)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public Task<IReadOnlyList<ComponentSourceOptionDto>> Sources([FromQuery] Guid locationId, [FromQuery] Guid recipeId, CancellationToken ct) =>
+        orders.SourcesAsync(locationId, recipeId, ct);
+
+    /// <summary>
+    /// Libera la orden para producir. Con fábrica en la receta reserva cada componente en su subalmacén de origen y
+    /// genera un vale de ingredientes por origen hacia la fábrica (RN-110, RN-112); sin existencia libre no se libera.
+    /// </summary>
     [HttpPost("{id:guid}/release")]
     [RequirePermission(Permissions.ProductionOrdersManage)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]

@@ -47,6 +47,12 @@ p {
   margin-bottom: 8px;
   color: var(--pan-status-orange-fg);
   font-weight: 600;
+
+  // A long message stays beside its icon.
+  > span {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 .wide.muted {
@@ -81,4 +87,8 @@ table {
 .exit {
   color: var(--pan-status-red-fg);
   font-weight: 600;
+}
+
+.source-select {
+  min-width: 180px;
 }

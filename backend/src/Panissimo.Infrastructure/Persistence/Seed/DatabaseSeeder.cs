@@ -93,12 +93,13 @@ public sealed class DatabaseSeeder(
     }
 
     /// <summary>D-01 starting sub-warehouses of the plant (editable afterwards).</summary>
-    public static readonly IReadOnlyList<(string Suffix, string Name)> PlantWarehouses =
+    /// <summary>The Planta's sub-warehouses and the item types each supplies to production by default (RN-111).</summary>
+    public static readonly IReadOnlyList<(string Suffix, string Name, ItemType[] Supplies)> PlantWarehouses =
     [
-        ("MP", "Materias primas"),
-        ("INS", "Insumos y empaque"),
-        ("SEMI", "Semiterminados"),
-        ("PT", "Producto terminado"),
+        ("MP", "Materias primas", [ItemType.RawMaterial]),
+        ("INS", "Insumos y empaque", [ItemType.Supply]),
+        ("SEMI", "Semiterminados", [ItemType.SemiFinished]),
+        ("PT", "Producto terminado", []),
     ];
 
     /// <summary>Only on a plant without sub-warehouses and without stock (RN-44); never touches existing ones.</summary>
@@ -108,7 +109,12 @@ public sealed class DatabaseSeeder(
         if (await db.Locations.AnyAsync(l => l.ParentLocationId == plant.Id, ct)
             || await db.StockBalances.AnyAsync(b => b.LocationId == plant.Id && b.Quantity != 0, ct))
             return;
-        db.Locations.AddRange(PlantWarehouses.Select(w => Location.Warehouse($"{Location.PlantCode}-{w.Suffix}", w.Name, plant)));
+        foreach (var (suffix, name, supplies) in PlantWarehouses)
+        {
+            var warehouse = Location.Warehouse($"{Location.PlantCode}-{suffix}", name, plant);
+            warehouse.SetSuppliesTypes(supplies);
+            db.Locations.Add(warehouse);
+        }
         await db.SaveChangesAsync(ct);
     }
 

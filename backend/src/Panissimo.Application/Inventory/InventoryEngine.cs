@@ -12,6 +12,12 @@ public interface IInventoryPostingService
     /// <exception cref="InsufficientStockException">RN-02, with every shortage.</exception>
     /// <exception cref="BusinessRuleException">RN-03b, RN-05 lot rules and invalid quantities.</exception>
     Task<IReadOnlyList<InventoryMovement>> PostAsync(IEnumerable<MovementRequest> requests, CancellationToken ct);
+
+    /// <summary>
+    /// Locks the (location, item) rows a posting would lock, in the same order, so a use case that reserves stock
+    /// (RN-110) reads and holds it without racing a concurrent exit. Inside the use case's transaction.
+    /// </summary>
+    Task LockAsync(IEnumerable<(Guid LocationId, Guid ItemId)> pairs, CancellationToken ct);
 }
 
 public sealed record LotAllocation(Guid LotId, decimal Quantity);

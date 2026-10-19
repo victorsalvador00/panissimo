@@ -23,6 +23,14 @@ import { StatusLabelPipe } from '../../../shared/pipes/pipes';
 import { Location, LocationsApi } from '../data-access/catalog-api';
 
 type LocationType = ApiEnum<'LocationType'>;
+type ItemType = ApiEnum<'ItemType'>;
+
+/** RN-111: the component types a sub-warehouse may supply to production by default. */
+const SUPPLY_TYPE_OPTIONS: { value: ItemType; label: string }[] = [
+  { value: 'RawMaterial', label: 'Materia prima' },
+  { value: 'Supply', label: 'Insumo' },
+  { value: 'SemiFinished', label: 'Semiterminado' },
+];
 
 /** /catalogos/ubicaciones (frontend §7.2): plants, branches and sub-warehouses; name and address editable. */
 @Component({
@@ -92,6 +100,9 @@ type LocationType = ApiEnum<'LocationType'>;
       </ng-template>
       <ng-template appCell="type" header="Tipo" [appCellOf]="rows()" let-location>
         {{ location.type | statusLabel: 'LocationType' }}
+        @if (location.suppliesTypes?.length) {
+          <span class="muted">· surte {{ suppliesLabel(location.suppliesTypes) }}</span>
+        }
       </ng-template>
       <ng-template appCell="address" header="Dirección" [appCellOf]="rows()" let-location>
         {{ location.address ?? '—' }}
@@ -163,6 +174,12 @@ export class LocationsPage {
     this.search.valueChanges
       .pipe(debounceTime(300), takeUntilDestroyed())
       .subscribe((q) => this.query.update((x) => ({ ...x, page: 1, q: q.trim() || undefined })));
+  }
+
+  protected suppliesLabel(types: readonly ItemType[]): string {
+    return SUPPLY_TYPE_OPTIONS.filter((o) => types.includes(o.value))
+      .map((o) => o.label.toLowerCase())
+      .join(', ');
   }
 
   protected parentName(id: string): string {
@@ -242,15 +259,31 @@ export class LocationsPage {
         { key: 'code', label: 'Código', type: 'text', readonly: true },
         { key: 'name', label: 'Nombre', type: 'text', required: true, maxLength: 100 },
         { key: 'address', label: 'Dirección', type: 'textarea', maxLength: 300 },
+        ...(location.type === 'Warehouse'
+          ? [
+              {
+                key: 'suppliesTypes',
+                label: 'Surte por omisión a producción',
+                type: 'select',
+                multiple: true,
+                options: SUPPLY_TYPE_OPTIONS,
+                hint: 'Las órdenes de producción toman de aquí estos tipos de componente (se puede cambiar por renglón).',
+              } satisfies RecordField,
+            ]
+          : []),
         { key: 'isActive', label: 'Activa', type: 'toggle' },
       ],
-      value: { ...location },
+      value: { ...location, suppliesTypes: location.suppliesTypes ?? [] },
       save: (value) =>
         this.api.update(location.id, {
           version: location.version,
           name: value['name'] as string,
           address: (value['address'] as string | null) ?? null,
           isActive: value['isActive'] as boolean,
+          suppliesTypes:
+            location.type === 'Warehouse'
+              ? ((value['suppliesTypes'] as ItemType[] | null) ?? [])
+              : null,
         }),
     });
     if (saved) this.saved('Cambios guardados.');

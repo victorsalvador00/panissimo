@@ -32,6 +32,8 @@ export interface RecordField {
   /** Whole number at least this (sort order, days). */
   min?: number;
   options?: readonly { value: unknown; label: string }[];
+  /** A select with several values (an array). */
+  multiple?: boolean;
   hint?: string;
   /** Codes are stored in upper case. */
   uppercase?: boolean;
@@ -79,7 +81,7 @@ export interface RecordDialogData<T> {
               @case ('select') {
                 <mat-form-field>
                   <mat-label>{{ field.label }}</mat-label>
-                  <mat-select [formControlName]="field.key">
+                  <mat-select [formControlName]="field.key" [multiple]="!!field.multiple">
                     @for (option of field.options ?? []; track $index) {
                       <mat-option [value]="option.value">{{ option.label }}</mat-option>
                     }

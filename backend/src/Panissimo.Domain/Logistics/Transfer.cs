@@ -82,6 +82,10 @@ public class Transfer : AuditableEntity, IVersioned
     public Guid FromLocationId { get; private set; }
     public Guid ToLocationId { get; private set; }
     public Guid? BranchOrderId { get; private set; }
+
+    /// <summary>RN-112: the production order whose ingredients this internal voucher brings to the factory.</summary>
+    public Guid? ProductionOrderId { get; private set; }
+
     public TransferStatus Status { get; private set; }
     public string? Notes { get; private set; }
     public string? VehicleDescription { get; private set; }
@@ -93,8 +97,19 @@ public class Transfer : AuditableEntity, IVersioned
     public uint Version { get; private set; }
     public IReadOnlyList<TransferLine> Lines => _lines;
 
+    /// <summary>RN-112: an ingredients voucher generated when the order is released.</summary>
+    public static Transfer ForProductionOrder(string folio, Guid fromWarehouseId, Guid factoryId, Guid productionOrderId, string orderFolio,
+        IReadOnlyList<TransferLineInput> lines) =>
+        new(folio, fromWarehouseId, factoryId, null, $"Ingredientes de la {orderFolio}", lines, TransferKind.Internal)
+        {
+            ProductionOrderId = productionOrderId,
+        };
+
     public void UpdateDraft(Guid toLocationId, string? notes, IReadOnlyList<TransferLineInput> lines)
     {
+        if (ProductionOrderId is not null)
+            throw new BusinessRuleException("transfer_from_production_order",
+                $"El {Label} lo generó una orden de producción: no se edita; envíalo o cancélalo (RN-112).");
         EnsureDraft("Solo un traspaso en borrador puede editarse; uno despachado ya no (RN-23).");
         SetPlan(toLocationId, notes, lines);
     }

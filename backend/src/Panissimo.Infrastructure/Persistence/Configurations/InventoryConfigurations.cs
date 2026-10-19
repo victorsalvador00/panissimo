@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
+using Panissimo.Domain.Production;
 using Panissimo.Infrastructure.Identity;
 
 namespace Panissimo.Infrastructure.Persistence.Configurations;
@@ -31,6 +33,21 @@ internal sealed class StockBalanceConfiguration : IEntityTypeConfiguration<Stock
         builder.HasOne<Location>().WithMany().HasForeignKey(b => b.LocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Item>().WithMany().HasForeignKey(b => b.ItemId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Lot>().WithMany().HasForeignKey(b => b.LotId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class StockReservationConfiguration : IEntityTypeConfiguration<StockReservation>
+{
+    public void Configure(EntityTypeBuilder<StockReservation> builder)
+    {
+        builder.ToTable("stock_reservation", "inventory");
+        builder.HasIndex(r => new { r.LocationId, r.ItemId });
+        builder.HasIndex(r => r.TransferId);
+        builder.HasIndex(r => r.ProductionOrderId);
+        builder.HasOne<Location>().WithMany().HasForeignKey(r => r.LocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Item>().WithMany().HasForeignKey(r => r.ItemId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<ProductionOrder>().WithMany().HasForeignKey(r => r.ProductionOrderId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Transfer>().WithMany().HasForeignKey(r => r.TransferId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 

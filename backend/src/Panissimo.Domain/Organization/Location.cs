@@ -1,3 +1,4 @@
+using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 
 namespace Panissimo.Domain.Organization;
@@ -76,6 +77,12 @@ public class Location : AuditableEntity, IVersioned
     public Guid? ParentLocationId { get; private set; }
 
     public string? Address { get; private set; }
+
+    /// <summary>
+    /// RN-111: item types (<see cref="ItemType"/> names) a production order takes from this sub-warehouse by default.
+    /// </summary>
+    public List<string> SuppliesTypes { get; private set; } = [];
+
     public bool IsActive { get; private set; }
     public uint Version { get; private set; }
 
@@ -104,6 +111,17 @@ public class Location : AuditableEntity, IVersioned
     {
         Name = name.Trim();
         Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim();
+    }
+
+    public bool Supplies(ItemType type) => SuppliesTypes.Contains(type.ToString());
+
+    /// <summary>RN-111: only a (non-factory) sub-warehouse supplies production by default.</summary>
+    public void SetSuppliesTypes(IEnumerable<ItemType> types)
+    {
+        var list = types.Distinct().Select(t => t.ToString()).Order().ToList();
+        if (list.Count > 0 && Type != LocationType.Warehouse)
+            throw new BusinessRuleException("supplies_not_warehouse", "Solo un subalmacén surte por omisión a producción.");
+        SuppliesTypes = list;
     }
 
     public void Activate() => IsActive = true;

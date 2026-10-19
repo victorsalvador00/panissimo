@@ -80,6 +80,7 @@ public sealed class InventoryPostingService(AppDbContext db, IClock clock, ICurr
         try
         {
             result = InventoryPostingCalculator.Calculate(list, state);
+            await EnsureReservationsKeptAsync(list, balances, result.NewBalances, items, ct);
         }
         catch
         {
@@ -94,6 +95,64 @@ public sealed class InventoryPostingService(AppDbContext db, IClock clock, ICurr
         db.ItemLocationCosts.AddRange(result.NewCosts);
         db.InventoryMovements.AddRange(result.Movements);
         return result.Movements;
+    }
+
+    public async Task LockAsync(IEnumerable<(Guid LocationId, Guid ItemId)> pairs, CancellationToken ct)
+    {
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("IInventoryPostingService.LockAsync must run inside a transaction opened by the use case.");
+        var ordered = pairs.Distinct().OrderBy(p => p.LocationId).ThenBy(p => p.ItemId).ToList();
+        if (ordered.Count == 0)
+            return;
+        foreach (var (locationId, itemId) in ordered)
+            await db.Database.ExecuteSqlAsync(
+                $"INSERT INTO inventory.item_location_cost (location_id, item_id, average_cost) VALUES ({locationId}, {itemId}, 0) ON CONFLICT DO NOTHING", ct);
+        var locationIds = ordered.Select(p => p.LocationId).ToArray();
+        var itemIds = ordered.Select(p => p.ItemId).ToArray();
+        await db.Database.ExecuteSqlAsync($"""
+            SELECT 1 FROM inventory.item_location_cost
+            WHERE (location_id, item_id) IN (SELECT * FROM unnest({locationIds}, {itemIds}))
+            ORDER BY location_id, item_id
+            FOR UPDATE
+            """, ct);
+    }
+
+    /// <summary>
+    /// RN-110: after the exits, every (location, item) keeps at least what is reserved for production vouchers. The
+    /// cost rows locked above serialize this check with the release that creates reservations.
+    /// </summary>
+    private async Task EnsureReservationsKeptAsync(List<MovementRequest> list, List<StockBalance> balances,
+        IReadOnlyList<StockBalance> created, Dictionary<Guid, PostingItem> items, CancellationToken ct)
+    {
+        var exits = list.Where(r => r.Quantity < 0 && StockReservationRules.Applies(r.Type))
+            .Select(r => (r.LocationId, r.ItemId)).Distinct().ToList();
+        if (exits.Count == 0)
+            return;
+        var locationIds = exits.Select(e => e.LocationId).Distinct().ToList();
+        var itemIds = exits.Select(e => e.ItemId).Distinct().ToList();
+        var reserved = await db.StockReservations.AsNoTracking()
+            .Where(r => locationIds.Contains(r.LocationId) && itemIds.Contains(r.ItemId))
+            .GroupBy(r => new { r.LocationId, r.ItemId })
+            .Select(g => new { g.Key.LocationId, g.Key.ItemId, Qty = g.Sum(r => r.Quantity) })
+            .ToDictionaryAsync(x => (x.LocationId, x.ItemId), x => x.Qty, ct);
+        // Reservations removed in this same unit of work (a voucher being dispatched) no longer count.
+        foreach (var removed in db.ChangeTracker.Entries<StockReservation>().Where(e => e.State == EntityState.Deleted))
+            if (reserved.ContainsKey((removed.Entity.LocationId, removed.Entity.ItemId)))
+                reserved[(removed.Entity.LocationId, removed.Entity.ItemId)] -= removed.Entity.Quantity;
+
+        var shortages = new List<ReservedShortage>();
+        foreach (var (locationId, itemId) in exits)
+        {
+            if (!reserved.TryGetValue((locationId, itemId), out var held) || held <= 0)
+                continue;
+            var left = balances.Concat(created).Where(b => b.LocationId == locationId && b.ItemId == itemId).Sum(b => b.Quantity);
+            if (left < held)
+                shortages.Add(new ReservedShortage(locationId, itemId, items[itemId].Sku, held, left));
+        }
+        if (shortages.Count == 0)
+            return;
+        var codes = await db.Locations.AsNoTracking().Where(l => locationIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
+        throw new BusinessRuleException("stock_reserved", StockReservationRules.Message(shortages, id => codes[id]));
     }
 
     private async Task<Dictionary<Guid, PostingItem>> LoadItemsAsync(List<MovementRequest> list, CancellationToken ct)

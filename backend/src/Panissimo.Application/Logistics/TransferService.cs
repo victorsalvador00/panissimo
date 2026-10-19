@@ -89,7 +89,8 @@ public sealed record TransferDto(
     TransferStatus Status, string? Notes,
     string? VehicleDescription, string? DriverName, DateTimeOffset? DispatchedAt, Guid? DispatchedBy, string? DispatchedByName,
     DateTimeOffset? ReceivedAt, Guid? ReceivedBy, string? ReceivedByName, IReadOnlyList<TransferLineDto> Lines,
-    decimal ShippedValue, decimal TransitLossValue, DateTimeOffset CreatedAt, Guid? CreatedBy, string? CreatedByName, uint Version);
+    decimal ShippedValue, decimal TransitLossValue, DateTimeOffset CreatedAt, Guid? CreatedBy, string? CreatedByName, uint Version,
+    Guid? ProductionOrderId = null, string? ProductionOrderFolio = null);
 
 public sealed class TransferLineRequestValidator : AbstractValidator<TransferLineRequest>
 {
@@ -311,6 +312,7 @@ public sealed class TransferService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         transfer.Cancel();
+        await ReleaseReservationsAsync(transfer, ct);
         await links.OnCancelledAsync(transfer, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -333,6 +335,8 @@ public sealed class TransferService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await ClaimAsync(transfer, ct);
+        // RN-110: an ingredients voucher takes out what it reserved; the reservation goes before the exit is checked.
+        await ReleaseReservationsAsync(transfer, ct);
         var movements = await posting.PostAsync(requests, ct);
         transfer.Dispatch(request.VehicleDescription, request.DriverName, clock.UtcNow, currentUser.UserId, movements);
         await links.OnDispatchedAsync(transfer, ct);
@@ -389,6 +393,13 @@ public sealed class TransferService(
     }
 
     private static string Noun(TransferKind kind) => kind == TransferKind.Internal ? "el vale interno" : "el traspaso";
+
+    /// <summary>RN-110: dispatching or cancelling an ingredients voucher frees what it held.</summary>
+    private async Task ReleaseReservationsAsync(Transfer transfer, CancellationToken ct)
+    {
+        if (transfer.ProductionOrderId is not null)
+            db.StockReservations.RemoveRange(await db.StockReservations.Where(r => r.TransferId == transfer.Id).ToListAsync(ct));
+    }
 
     /// <summary>
     /// RN-47: two different active sub-warehouses of the same plant or branch; active items, whole pieces and lots of
@@ -502,6 +513,9 @@ public sealed class TransferService(
             t.VehicleDescription, t.DriverName, t.DispatchedAt, t.DispatchedBy, users.Of(t.DispatchedBy), t.ReceivedAt, t.ReceivedBy,
             users.Of(t.ReceivedBy), lines,
             lines.Sum(l => InventoryMath.Round(l.ShippedQty * (l.UnitCost ?? 0))), lines.Sum(l => l.ShortValue ?? 0),
-            t.CreatedAt, t.CreatedBy, users.Of(t.CreatedBy), t.Version);
+            t.CreatedAt, t.CreatedBy, users.Of(t.CreatedBy), t.Version, t.ProductionOrderId,
+            t.ProductionOrderId is { } orderId
+                ? await db.ProductionOrders.AsNoTracking().Where(o => o.Id == orderId).Select(o => o.Folio).SingleAsync(ct)
+                : null);
     }
 }

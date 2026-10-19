@@ -110,6 +110,20 @@ export class ProductionOrdersApi {
     return this.http.put<ProductionOrder>(`production-orders/${id}`, request);
   }
 
+  /** RN-111: where each component of the recipe may come from, with its free stock and the default of its type. */
+  componentSources(
+    locationId: string,
+    recipeId: string,
+  ): Observable<Schemas['ComponentSourceOptionDto'][]> {
+    return this.http.get<Schemas['ComponentSourceOptionDto'][]>(
+      'production-orders/component-sources',
+      {
+        params: httpParams({ locationId, recipeId }),
+      },
+    );
+  }
+
+  /** With a factory in the recipe: reserves the ingredients and creates their vouchers (RN-110/RN-112). */
   release(id: string, version: number): Observable<ProductionOrder> {
     const body: Schemas['VersionRequest'] = { version };
     return this.http.post<ProductionOrder>(`production-orders/${id}/release`, body);

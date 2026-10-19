@@ -89,7 +89,24 @@
     <section class="pan-card" aria-labelledby="order-explosion" aria-live="polite">
       <h2 id="order-explosion">Componentes y disponibilidad</h2>
       @if (explosion.value(); as e) {
-        @if (e.canProduce === false) {
+        @if (sourceOptions.value().length > 0) {
+          @if (sourceShortages() > 0) {
+            <p class="warning">
+              <mat-icon aria-hidden="true">warning</mat-icon>
+              <span>
+                {{ sourceShortages() }}
+                {{ sourceShortages() === 1 ? 'componente no tiene' : 'componentes no tienen' }}
+                existencia libre suficiente en su origen. Puedes guardar el borrador, pero no se
+                podrá liberar hasta que la haya (se reserva al liberar).
+              </span>
+            </p>
+          } @else {
+            <p class="muted">
+              Al liberar se reserva cada componente en su origen y se genera un vale de ingredientes
+              por origen hacia {{ recipe.value()?.factoryCode ?? 'la fábrica' }}.
+            </p>
+          }
+        } @else if (e.canProduce === false) {
           <p class="warning">
             <mat-icon aria-hidden="true">warning</mat-icon>
             Hay faltantes en
@@ -110,7 +127,12 @@
                 <th scope="col">Componente</th>
                 <th scope="col" class="end">Merma</th>
                 <th scope="col" class="end">Teórico</th>
-                <th scope="col" class="end">Disponible</th>
+                @if (sourceOptions.value().length > 0) {
+                  <th scope="col">Origen</th>
+                  <th scope="col" class="end">Libre en origen</th>
+                } @else {
+                  <th scope="col" class="end">Disponible</th>
+                }
                 <th scope="col" class="end">Faltante</th>
                 <th scope="col" class="end">Costo estimado</th>
               </tr>
@@ -126,10 +148,34 @@
                   </td>
                   <td class="end">{{ line.wastePct }} %</td>
                   <td class="end">{{ line.theoreticalQty | qty: line.baseUomCode }}</td>
-                  <td class="end">{{ line.available | qty: line.baseUomCode }}</td>
-                  <td class="end" [class.exit]="(line.shortage ?? 0) > 0">
-                    {{ (line.shortage ?? 0) > 0 ? (line.shortage | qty: line.baseUomCode) : '—' }}
-                  </td>
+                  @if (sourceOptions.value().length > 0) {
+                    @let free = freeAt(line.componentItemId);
+                    @let missing = free === null ? line.theoreticalQty : line.theoreticalQty - free;
+                    <td>
+                      <mat-select
+                        class="source-select"
+                        [attr.aria-label]="'Origen de ' + line.sku"
+                        placeholder="Elige el origen"
+                        [value]="sourceOf(line.componentItemId)"
+                        (valueChange)="chooseSource(line.componentItemId, $event)"
+                      >
+                        @for (option of optionsFor(line.componentItemId); track option.locationId) {
+                          <mat-option [value]="option.locationId">
+                            {{ option.code }} · libre {{ option.free | qty: line.baseUomCode }}
+                          </mat-option>
+                        }
+                      </mat-select>
+                    </td>
+                    <td class="end">{{ free | qty: line.baseUomCode }}</td>
+                    <td class="end" [class.exit]="missing > 0">
+                      {{ missing > 0 ? (missing | qty: line.baseUomCode) : '—' }}
+                    </td>
+                  } @else {
+                    <td class="end">{{ line.available | qty: line.baseUomCode }}</td>
+                    <td class="end" [class.exit]="(line.shortage ?? 0) > 0">
+                      {{ (line.shortage ?? 0) > 0 ? (line.shortage | qty: line.baseUomCode) : '—' }}
+                    </td>
+                  }
                   <td class="end">{{ line.estimatedCost | mxn }}</td>
                 </tr>
               }
@@ -137,7 +183,11 @@
             @if (e.estimatedTotalCost !== null) {
               <tfoot>
                 <tr>
-                  <th scope="row" colspan="5" class="end">
+                  <th
+                    scope="row"
+                    [attr.colspan]="sourceOptions.value().length > 0 ? 6 : 5"
+                    class="end"
+                  >
                     Costo estimado ({{ e.estimatedUnitCost | mxn }} por
                     {{ form.controls.output.value?.baseUomCode }})
                   </th>

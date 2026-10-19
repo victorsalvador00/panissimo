@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Panissimo.Application.Common;
 using Panissimo.Application.Security;
+using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Organization;
 
@@ -29,7 +30,8 @@ public sealed record LocationDto(
     bool CanProduce,
     bool CanSupplyBranches,
     bool CanSellToCustomers,
-    uint Version);
+    uint Version,
+    IReadOnlyList<ItemType>? SuppliesTypes = null);
 
 /// <summary>Active location for pickers (transfer destination, orders): any active location, not only the user's.</summary>
 public sealed record LocationLookupDto(Guid Id, string Code, string Name, LocationType Type);
@@ -60,7 +62,8 @@ public sealed class CreateLocationRequestValidator : AbstractValidator<CreateLoc
 }
 
 /// <summary>Code, type and parent are fixed once created (dominio §4.1).</summary>
-public sealed record UpdateLocationRequest(uint Version, string Name, string? Address, bool IsActive);
+/// <param name="SuppliesTypes">RN-111, sub-warehouses only: item types production orders take from it by default; null keeps them.</param>
+public sealed record UpdateLocationRequest(uint Version, string Name, string? Address, bool IsActive, IReadOnlyList<ItemType>? SuppliesTypes = null);
 
 public sealed class UpdateLocationRequestValidator : AbstractValidator<UpdateLocationRequest>
 {
@@ -75,7 +78,7 @@ public static class LocationMapping
 {
     public static LocationDto ToDto(this Location l) =>
         new(l.Id, l.Code, l.Name, l.Type, l.ParentLocationId, l.Address, l.IsActive, l.CanPurchase, l.CanProduce, l.CanSupplyBranches,
-            l.CanSellToCustomers, l.Version);
+            l.CanSellToCustomers, l.Version, l.SuppliesTypes.Select(Enum.Parse<ItemType>).ToList());
 }
 
 public interface ILocationService
@@ -182,6 +185,18 @@ public sealed class LocationService(IAppDbContext db, ILocationScope scope, IUse
             throw new BusinessRuleException("warehouse_has_stock",
                 $"El subalmacén {location.Code} tiene existencia: muévela antes de desactivarlo (RN-44).");
         if (request.IsActive) location.Activate(); else location.Deactivate();
+
+        if (request.SuppliesTypes is { } types)
+        {
+            location.SetSuppliesTypes(types);
+            // RN-111: one default per type within a plant or branch.
+            var siblings = await db.Locations.AsNoTracking()
+                .Where(l => l.ParentLocationId == location.ParentLocationId && l.Id != id && l.IsActive && l.Type == LocationType.Warehouse)
+                .ToListAsync(ct);
+            if (siblings.FirstOrDefault(sibling => types.Any(sibling.Supplies)) is { } taken)
+                throw new BusinessRuleException("supplies_taken",
+                    $"{taken.Code} ya surte por omisión alguno de esos tipos: quítaselo primero (RN-111).");
+        }
 
         await db.SaveChangesAsync(ct);
         return location.ToDto();

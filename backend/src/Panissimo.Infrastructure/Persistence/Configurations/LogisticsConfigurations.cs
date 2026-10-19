@@ -4,6 +4,7 @@ using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
+using Panissimo.Domain.Production;
 
 namespace Panissimo.Infrastructure.Persistence.Configurations;
 
@@ -24,6 +25,8 @@ internal sealed class TransferConfiguration : IEntityTypeConfiguration<Transfer>
         builder.HasIndex(t => new { t.FromLocationId, t.Status });
         builder.HasIndex(t => new { t.ToLocationId, t.Status });
         builder.HasIndex(t => t.BranchOrderId);
+        builder.HasIndex(t => t.ProductionOrderId);
+        builder.HasOne<ProductionOrder>().WithMany().HasForeignKey(t => t.ProductionOrderId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Location>().WithMany().HasForeignKey(t => t.FromLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Location>().WithMany().HasForeignKey(t => t.ToLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<BranchOrder>().WithMany().HasForeignKey(t => t.BranchOrderId).OnDelete(DeleteBehavior.Restrict);

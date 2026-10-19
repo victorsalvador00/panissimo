@@ -69,3 +69,10 @@
 .muted {
   color: var(--mat-sys-on-surface-variant);
 }
+
+// RN-110: stock held for production vouchers, under the quantity.
+.reserved {
+  display: block;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.8rem;
+}

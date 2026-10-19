@@ -117,7 +117,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 ### 4.1 Organización
 
 **Location**
-- `Code` (único, ej. `PLANTA`, `SUC-01`, `PLANTA-MP`), `Name`, `Type` (`Plant | Branch | Warehouse | Factory`), `ParentLocationId` (solo `Warehouse`: su planta o sucursal; `Factory`: su planta), `Address`, `IsActive`.
+- `Code` (único, ej. `PLANTA`, `SUC-01`, `PLANTA-MP`), `Name`, `Type` (`Plant | Branch | Warehouse | Factory`), `ParentLocationId` (solo `Warehouse`: su planta o sucursal; `Factory`: su planta), `Address`, `IsActive`, `SuppliesTypes` (solo `Warehouse`: tipos de componente que surte por omisión a producción, RN-111).
 - Derivados: `CanPurchase`, `CanProduce`, `CanSupplyBranches` y `CanSellToCustomers` son verdaderos solo para `Plant`.
 - El nombre es editable; el código, el tipo y la ubicación padre no cambian después del alta.
 - **Subalmacenes (D-01, B-26):** una planta o sucursal puede tener subalmacenes (catálogo editable, baja lógica). Los documentos (OP, OC, pedidos, plan) siguen ligados a la planta o sucursal; la existencia vive en los subalmacenes:
@@ -132,6 +132,14 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
     - La disponibilidad de la OP y de la explosión es la de esa fábrica (RN-12). Los costos siguen siendo los de la Planta (RN-64).
     - Migración: las recetas existentes toman la fábrica de la Planta cuando hay exactamente una activa.
     Decidido con el usuario el 2026-10-18 (obligatoria solo cuando la planta tiene fábrica).
+  - **RN-110 (reserva de ingredientes)**: liberar una OP cuya receta tiene fábrica (RN-49) **reserva** cada componente en su subalmacén de origen (RN-111), por el teórico de lo planeado (RN-11; en piezas, redondeado hacia arriba). La existencia **libre** = utilizable (sin lotes vencidos) − reservada.
+    - Si algún componente no tiene existencia libre suficiente en su origen, la OP **no se libera** (422 `release_insufficient_stock` con el detalle). Aplica igual a "Liberar al importar".
+    - Ninguna salida (traspaso, remisión, ajuste, merma, consumo, cierre u otro vale) puede dejar un (subalmacén, artículo) por debajo de lo reservado (422 `stock_reserved`). El conteo físico queda exento: registra lo que hay.
+    - La reserva se libera al **enviar** su vale (la salida ocurre en ese momento) o al cancelarlo; cancelar la OP cancela sus vales en borrador y libera lo reservado.
+    - Las consultas de existencias muestran lo reservado y lo libre.
+  - **RN-111 (origen por renglón)**: cada renglón de la OP elige su **subalmacén de origen** (uno por componente; no una fábrica). Por omisión toma el subalmacén de la planta que "surte por omisión" el tipo del componente (materia prima, insumo o semiterminado; configurable en cada subalmacén, uno por tipo y planta; el seed asigna Materias primas, Insumos y empaque y Semiterminados). En el alta y edición manual se cambia por renglón, viendo lo libre de cada subalmacén; la importación y el plan toman el de omisión. Liberar exige origen en todos los renglones.
+  - **RN-112 (vale de ingredientes)**: al liberar, la OP genera **un vale interno por subalmacén de origen**, en borrador, con destino la fábrica de la receta y ligado a la OP (`Transfer.ProductionOrderId`). El panadero lo usa para pedir los ingredientes; el almacén lo **envía** (sale del subalmacén) y la fábrica lo **recibe** (entra, con faltantes si los hay, RN-47). No se edita: solo se envía o se cancela. El cierre consume de la fábrica (RN-49).
+    Decidido con el usuario el 2026-10-18: reservar y generar vales **al liberar** (no al crear el borrador), bloquear sin existencia libre, un vale por origen, flujo enviar/recibir y origen por omisión según el tipo.
   - **RN-47 (vale interno)**: mueve producto entre subalmacenes de la misma ubicación con recepción, como un traspaso: `Draft → Dispatched → Received | ReceivedWithDiscrepancies`; `Cancelled` solo en `Draft`. Enviar exige el subalmacén origen y recibir el destino. El costo viaja con el producto (RN-04).
 
 **ProductionArea**: `Code` (único), `Name`, `SortOrder`, `IsActive`. Semilla (editable): Bizcocho Día, Pan de Sal Día, Pan de Sal Noche, Rondo, Repostería, Panquelería, Pastelería, Congelado, Bocadillos, Masas, Empaque.
@@ -171,6 +179,8 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 **StockBalance**: `LocationId`, `ItemId`, `LotId` (nullable), `Quantity`. Llave única `(LocationId, ItemId, LotId)`.
 
+**StockReservation** (RN-110): `LocationId`, `ItemId`, `Quantity`, `ProductionOrderId`, `TransferId` (el vale que la saca), `CreatedAt`.
+
 **ItemLocationCost**: `LocationId`, `ItemId`, `AverageCost`.
 
 **InventoryMovement** (inmutable, es el kardex)
@@ -205,7 +215,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - `Status`: `Draft → Released → InProgress → Completed`; además `Cancelled` (RN-60).
 - Acumulados (se recalculan con cada cierre): `ProducedQty`, `TotalCost`, `UnitCost` (= `TotalCost / ProducedQty`).
 - Cierre final: `CompletedAt`, `CompletedBy`, `ShortfallReason` (`MissingMaterial | MissingStaff | EquipmentFailure | DemandChange | Other`; requerido si `ProducedQty < PlannedQty`), `ShortfallNotes`.
-- Líneas (`ProductionOrderLine`): `ComponentItemId`, `TheoreticalQty` (para lo planeado, RN-11), `ActualQty` (acumulado de los cierres).
+- Líneas (`ProductionOrderLine`): `ComponentItemId`, `TheoreticalQty` (para lo planeado, RN-11), `ActualQty` (acumulado de los cierres), `SourceLocationId` (subalmacén de origen, RN-111).
 
 **ProductionClose** (cada cierre parcial o final)
 - `Folio` (`CP-…`), `ProductionOrderId`, `Sequence` (1, 2, 3… dentro de la OP), `Kind` (`Partial | Final`), `BusinessDate`, `Shift` (opcional), `ProducedQty` (≥ 0), `OutputLotId` (nulo si `ProducedQty = 0` o el producto no maneja lotes), `TotalCost`, `UnitCost`, `ClosedAt`, `ClosedBy`, `Notes`.
@@ -224,7 +234,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - Líneas: `ItemId`, `RequestedQty`, `ApprovedQty`, `ShippedQty`.
 
 **Transfer** (traspaso con datos de envío)
-- Encabezado: `Folio`, `FromLocationId`, `ToLocationId`, `BranchOrderId` (opcional), `Notes`.
+- Encabezado: `Folio`, `FromLocationId`, `ToLocationId`, `BranchOrderId` (opcional), `ProductionOrderId` (vale de ingredientes de una OP, RN-112), `Notes`.
 - `Status`: `Draft → Dispatched → Received | ReceivedWithDiscrepancies`; además `Cancelled` (solo desde `Draft`).
 - Envío: `VehicleDescription`, `DriverName`, `DispatchedAt`, `DispatchedBy`.
 - Recepción: `ReceivedAt`, `ReceivedBy`.
@@ -361,7 +371,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   - **Por producir** = faltante del día, redondeado **hacia arriba** al `ProductionMultiple` (y a entero si es `pza`).
   - El plan es una consulta: no guarda nada ni reserva existencia.
 - **RN-71 (generar OP desde el plan)**: el usuario elige renglones del plan y ajusta la cantidad (> 0). Se crea **una OP `Draft` por producto, fecha, área y turno**, con `Source = Plan`, la receta activa y una liga `ProductionOrderDemand` por línea de pedido que originó la demanda (repartiendo en orden de `RequiredDate`). Todo o nada; un producto sin receta activa lo bloquea.
-- **RN-72 (ligas informativas)**: las ligas muestran qué pedidos atiende una OP. **No reservan** producto: los pedidos se surten desde la existencia de la Planta con traspasos o remisiones. Cancelar una OP no cambia el pedido.
+- **RN-72 (ligas informativas)**: las ligas muestran qué pedidos atiende una OP. **No reservan** producto terminado (la reserva de RN-110 es solo de ingredientes de una OP liberada): los pedidos se surten desde la existencia de la Planta con traspasos o remisiones. Cancelar una OP no cambia el pedido.
 - **RN-73 (OP manual)**: también se crean OP sin pedido (para stock), con `Source = Manual`.
 
 ### Importación de OP desde Excel

@@ -93,6 +93,10 @@ export class OrderDetailPage {
     const order = this.order();
     return order ? productionOrderActions(order, (p) => this.auth.can(p)) : [];
   });
+  /** RN-111: the order's components come from sub-warehouses. */
+  protected readonly hasSources = computed(
+    () => !!this.order()?.lines.some((l) => l.sourceLocationId),
+  );
   /** Availability is shown while the order is open. */
   protected readonly open = computed(() => {
     const status = this.order()?.status;
@@ -127,10 +131,22 @@ export class OrderDetailPage {
   protected async release(order: ProductionOrder): Promise<void> {
     const confirmed = await this.confirmService.confirm({
       title: 'Liberar orden',
-      message: 'La orden queda lista para producir y ya no se edita.',
+      message: order.factoryId
+        ? `La orden queda lista para producir y ya no se edita. Se reserva cada componente en su origen y se genera un vale de ingredientes por origen hacia ${order.factoryCode}.`
+        : 'La orden queda lista para producir y ya no se edita.',
       summary: [
         { label: 'Producto', value: `${order.sku} · ${order.itemName}` },
         { label: 'Cantidad', value: formatQty(order.plannedQty, order.baseUomCode) },
+        ...(order.factoryId
+          ? [
+              {
+                label: 'Orígenes',
+                value: [
+                  ...new Set(order.lines.map((l) => l.sourceLocationCode ?? 'sin origen')),
+                ].join(', '),
+              },
+            ]
+          : []),
       ],
       confirmLabel: 'Liberar',
     });
@@ -141,7 +157,9 @@ export class OrderDetailPage {
   protected async cancel(order: ProductionOrder): Promise<void> {
     const confirmed = await this.confirmService.confirm({
       title: 'Cancelar orden',
-      message: `La orden ${order.folio} queda cancelada; no se puede deshacer.`,
+      message: order.vouchers?.some((v) => v.status === 'Draft')
+        ? `La orden ${order.folio} queda cancelada; no se puede deshacer. Sus vales de ingredientes sin enviar se cancelan y liberan lo reservado.`
+        : `La orden ${order.folio} queda cancelada; no se puede deshacer.`,
       confirmLabel: 'Cancelar orden',
       cancelLabel: 'Volver',
       destructive: true,

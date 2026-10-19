@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Panissimo.Application.Common;
+using Panissimo.Application.Inventory;
 using Panissimo.Application.Logistics;
 using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
@@ -139,8 +140,9 @@ public class WarehouseProcessTests(ApiFactory factory)
             new CreateRecipeRequest(bread.Id, 100, null, [new RecipeLineRequest(flour.Id, 5, 0)], floor.Id)));
         Assert.Equal(floor.Code, recipe.FactoryCode);
         var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null, null)));
-        Assert.Equal((floor.Id, 10m), (order.FactoryId!.Value, order.Lines.Single().Available!.Value));
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null, null, [new ComponentSourceRequest(flour.Id, site.Mp.Id)])));
+        // A draft shows what is free at the origin of each line (RN-110).
+        Assert.Equal((floor.Id, 50m), (order.FactoryId!.Value, order.Lines.Single().Available!.Value));
         order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
 
         // Neither another source nor another destination.
@@ -170,6 +172,76 @@ public class WarehouseProcessTests(ApiFactory factory)
         var voucher = await admin.PostJsonAsync("/api/v1/internal-transfers",
             new CreateInternalTransferRequest(floor.Id, site.Pt.Id, null, [new TransferLineRequest(bread.Id, null, 100)]));
         Assert.Equal(HttpStatusCode.Created, voucher.StatusCode);
+    }
+
+    [Fact]
+    public async Task Releasing_an_order_reserves_its_ingredients_and_asks_for_them_with_vouchers()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var site = await PlantAsync(admin);
+        var floor = await LocationAsync(admin, new CreateLocationRequest($"{site.Plant.Code}-FAB", "Fábrica", LocationType.Factory, null, site.Plant.Id));
+        // RN-111: Materias primas supplies raw materials by default; Semiterminados, the dough.
+        await OkAsync<LocationDto>(admin.PutJsonAsync($"/api/v1/locations/{site.Mp.Id}",
+            new UpdateLocationRequest(site.Mp.Version, site.Mp.Name, null, true, [ItemType.RawMaterial])));
+        var taken = await admin.PutJsonAsync($"/api/v1/locations/{site.Ins.Id}",
+            new UpdateLocationRequest(site.Ins.Version, site.Ins.Name, null, true, [ItemType.RawMaterial]));
+        Assert.Contains("supplies_taken", await taken.Content.ReadAsStringAsync());
+
+        var flour = await factory.CreateItemAsync("HAR");
+        var dough = await factory.CreateItemAsync("MASA", ItemType.SemiFinished);
+        var bread = await factory.CreateItemAsync("BOLILLO", ItemType.FinishedGood, "pza");
+        var recipe = await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bread.Id, 100, null,
+            [new RecipeLineRequest(flour.Id, 5, 0), new RecipeLineRequest(dough.Id, 2, 0)], floor.Id)));
+        await factory.AddStockAsync(site.Mp.Id, flour.Id, 50, 18m);
+        await factory.AddStockAsync(site.Semi.Id, dough.Id, 10, 30m);
+
+        // Flour by default from Materias primas; the dough chosen by line.
+        var sources = (await admin.GetJsonAsync<List<ComponentSourceOptionDto>>(
+            $"/api/v1/production-orders/component-sources?locationId={site.Plant.Id}&recipeId={recipe.Id}"))!;
+        Assert.Contains(sources, s => s.ComponentItemId == flour.Id && s.LocationId == site.Mp.Id && s.IsDefault && s.Free == 50);
+        var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null, null,
+                [new ComponentSourceRequest(dough.Id, site.Semi.Id)])));
+        Assert.Equal([(flour.Id, site.Mp.Code), (dough.Id, site.Semi.Code)],
+            order.Lines.OrderBy(l => l.ComponentItemId == dough.Id).Select(l => (l.ComponentItemId, l.SourceLocationCode!)));
+
+        // RN-110/RN-112: releasing reserves 10 kg of flour and 4 of dough and creates one voucher per origin to the factory.
+        order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
+        Assert.Equal(2, order.Vouchers!.Count);
+        Assert.All(order.Vouchers, v => Assert.Equal((TransferStatus.Draft, floor.Code), (v.Status, v.ToLocationCode)));
+        var stock = (await admin.GetJsonAsync<PagedResult<StockLevelDto>>($"/api/v1/stock?locationId={site.Plant.Id}&rowLocationId={site.Mp.Id}&itemId={flour.Id}"))!;
+        Assert.Equal((50m, 10m), (stock.Items.Single().OnHand, stock.Items.Single().Reserved));
+
+        // Nothing else may take the reserved flour: a manual voucher of 45 kg is refused when sent…
+        var manual = await OkAsync<TransferDto>(admin.PostJsonAsync("/api/v1/internal-transfers",
+            new CreateInternalTransferRequest(site.Mp.Id, site.Pt.Id, null, [new TransferLineRequest(flour.Id, null, 45)])));
+        var refused = await admin.PostJsonAsync($"/api/v1/internal-transfers/{manual.Id}/dispatch", new DispatchInternalTransferRequest(manual.Version, null));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Contains("stock_reserved", await refused.Content.ReadAsStringAsync());
+        // …and another order asking for 45 kg cannot be released.
+        var second = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 900, Today, null, null, null, [new ComponentSourceRequest(dough.Id, site.Semi.Id)])));
+        var short_ = await admin.PostJsonAsync($"/api/v1/production-orders/{second.Id}/release", new VersionRequest(second.Version));
+        Assert.Contains("release_insufficient_stock", await short_.Content.ReadAsStringAsync());
+
+        // The ingredients voucher cannot be edited; sending it frees the reservation, receiving it stocks the factory.
+        var flourVoucher = (await admin.GetJsonAsync<TransferDto>($"/api/v1/internal-transfers/{order.Vouchers.Single(v => v.FromLocationCode == site.Mp.Code).Id}"))!;
+        Assert.Equal(order.Folio, flourVoucher.ProductionOrderFolio);
+        var edit = await admin.PutJsonAsync($"/api/v1/internal-transfers/{flourVoucher.Id}",
+            new UpdateTransferRequest(flourVoucher.Version, floor.Id, null, [new TransferLineRequest(flour.Id, null, 5)]));
+        Assert.Contains("transfer_from_production_order", await edit.Content.ReadAsStringAsync());
+        flourVoucher = await OkAsync<TransferDto>(admin.PostJsonAsync($"/api/v1/internal-transfers/{flourVoucher.Id}/dispatch",
+            new DispatchInternalTransferRequest(flourVoucher.Version, null)));
+        await OkAsync<TransferDto>(admin.PostJsonAsync($"/api/v1/internal-transfers/{flourVoucher.Id}/receive", new ReceiveTransferRequest(flourVoucher.Version,
+            [new ReceiveLineRequest(flourVoucher.Lines.Single().Id, 10, null, null)])));
+        Assert.Equal((40m, 10m), (await factory.StockAsync(site.Mp.Id, flour.Id), await factory.StockAsync(floor.Id, flour.Id)));
+
+        // Cancelling the order cancels the dough voucher still in draft and frees its reservation.
+        order = (await admin.GetJsonAsync<ProductionOrderDto>($"/api/v1/production-orders/{order.Id}"))!;
+        order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/cancel", new VersionRequest(order.Version)));
+        Assert.Equal(TransferStatus.Cancelled, order.Vouchers!.Single(v => v.FromLocationCode == site.Semi.Code).Status);
+        stock = (await admin.GetJsonAsync<PagedResult<StockLevelDto>>($"/api/v1/stock?locationId={site.Plant.Id}&rowLocationId={site.Semi.Id}&itemId={dough.Id}"))!;
+        Assert.Equal(0m, stock.Items.Single().Reserved);
     }
 
     [Fact]

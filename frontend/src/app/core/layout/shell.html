@@ -59,7 +59,8 @@
   <app-theme-menu #themeMenu />
 </mat-toolbar>
 
-<mat-sidenav-container class="body">
+<!-- autosize: the content margin follows the sidebar when it switches between full and icon-only. -->
+<mat-sidenav-container class="body" autosize>
   <mat-sidenav
     #drawer
     id="pan-sidebar"

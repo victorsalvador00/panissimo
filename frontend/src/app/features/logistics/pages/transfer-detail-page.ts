@@ -88,6 +88,10 @@ import { TraceLink } from '../../inventory/ui/trace/trace-link';
               <dt>Pérdida en tránsito</dt>
               <dd class="exit">{{ t.transitLossValue | mxn }}</dd>
             }
+            @if (t.rejectionLossValue > 0) {
+              <dt>Rechazado en merma</dt>
+              <dd class="exit">{{ t.rejectionLossValue | mxn }}</dd>
+            }
           </dl>
         </section>
 
@@ -102,6 +106,7 @@ import { TraceLink } from '../../inventory/ui/trace/trace-link';
                   <th scope="col" class="end">{{ t.dispatchedAt ? 'Enviado' : 'Cantidad' }}</th>
                   @if (received()) {
                     <th scope="col" class="end">Recibido</th>
+                    <th scope="col" class="end">Rechazado</th>
                     <th scope="col" class="end">Faltante</th>
                     <th scope="col">Motivo</th>
                   }
@@ -136,15 +141,35 @@ import { TraceLink } from '../../inventory/ui/trace/trace-link';
                     <td class="end">{{ line.shippedQty | qty: line.baseUomCode }}</td>
                     @if (received()) {
                       <td class="end">{{ line.receivedQty | qty: line.baseUomCode }}</td>
+                      <td class="end" [class.exit]="line.rejectedQty > 0">
+                        {{
+                          line.rejectedQty > 0 ? (line.rejectedQty | qty: line.baseUomCode) : '—'
+                        }}
+                      </td>
                       <td class="end" [class.exit]="line.shortQty > 0">
                         {{ line.shortQty > 0 ? (line.shortQty | qty: line.baseUomCode) : '—' }}
                       </td>
                       <td>
+                        @if (line.rejectionReason) {
+                          <div>
+                            Rechazo: {{ rejectionLabel(line.rejectionReason) }} ·
+                            {{
+                              line.rejectionDisposition === 'Return'
+                                ? 'regresó a ' + (line.fromStockLocationCode ?? t.from.code)
+                                : 'merma'
+                            }}
+                            @if (line.rejectionNotes) {
+                              <span class="muted">· {{ line.rejectionNotes }}</span>
+                            }
+                          </div>
+                        }
                         @if (line.discrepancyReason) {
-                          {{ reasonLabel(line.discrepancyReason) }}
-                          @if (line.discrepancyNotes) {
-                            <span class="muted">· {{ line.discrepancyNotes }}</span>
-                          }
+                          <div>
+                            Faltante: {{ reasonLabel(line.discrepancyReason) }}
+                            @if (line.discrepancyNotes) {
+                              <span class="muted">· {{ line.discrepancyNotes }}</span>
+                            }
+                          </div>
                         }
                       </td>
                     }
@@ -296,6 +321,10 @@ export class TransferDetailPage {
 
   protected reasonLabel(reason: Transfer['lines'][number]['discrepancyReason']): string {
     return reason ? enumLabel('DiscrepancyReason', reason) : '';
+  }
+
+  protected rejectionLabel(reason: Transfer['lines'][number]['rejectionReason']): string {
+    return reason ? enumLabel('ShipmentRejectionReason', reason) : '';
   }
 
   protected async cancel(t: Transfer): Promise<void> {

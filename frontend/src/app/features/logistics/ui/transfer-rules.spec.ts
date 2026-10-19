@@ -1,5 +1,11 @@
 import type { LocationLookup } from '../data-access/logistics-api';
-import { lotsTotal, receiptNeedsReason, transferDestinations } from './transfer-rules';
+import {
+  lotsTotal,
+  receiptExceedsShipped,
+  receiptNeedsReason,
+  shortfall,
+  transferDestinations,
+} from './transfer-rules';
 
 const plant: LocationLookup = { id: 'p', code: 'PLANTA', name: 'Planta', type: 'Plant' };
 const branchA: LocationLookup = { id: 'a', code: 'SUC-A', name: 'Sucursal A', type: 'Branch' };
@@ -22,6 +28,16 @@ describe('transfer rules', () => {
     expect(receiptNeedsReason(2, 3)).toBe(true);
     expect(receiptNeedsReason(0, 3)).toBe(true);
     expect(receiptNeedsReason(null, 3)).toBe(false);
+  });
+
+  it('RN-116: what was rejected arrived, so only the rest is a shortfall', () => {
+    expect(shortfall(80, 20, 100)).toBe(0);
+    expect(receiptNeedsReason(80, 100, 20)).toBe(false);
+    expect(shortfall(80, 15, 100)).toBe(5);
+    expect(receiptNeedsReason(80, 100, 15)).toBe(true);
+    expect(shortfall(0.1, 0.2, 0.3)).toBe(0);
+    expect(receiptExceedsShipped(90, 11, 100)).toBe(true);
+    expect(receiptExceedsShipped(90, 10, 100)).toBe(false);
   });
 
   it('adds the chosen lots with the API precision', () => {

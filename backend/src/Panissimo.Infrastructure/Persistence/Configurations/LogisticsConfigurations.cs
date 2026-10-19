@@ -69,7 +69,13 @@ internal sealed class TransferLineConfiguration : IEntityTypeConfiguration<Trans
         builder.HasOne<Location>().WithMany().HasForeignKey(l => l.ToStockLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(l => l.DiscrepancyReason).HasMaxLength(20);
         builder.Property(l => l.DiscrepancyNotes).HasMaxLength(500);
+        // RN-116: what the branch refused on receipt.
+        builder.Property(l => l.RejectionReason).HasMaxLength(20);
+        builder.Property(l => l.RejectionNotes).HasMaxLength(TransferLine.RejectionNotesMaxLength);
+        builder.Property(l => l.RejectionDisposition).HasMaxLength(10);
         builder.Ignore(l => l.ShortQty);
+        builder.Ignore(l => l.ReturnedQty);
+        builder.Ignore(l => l.RejectedLossQty);
         builder.HasOne<Item>().WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Lot>().WithMany().HasForeignKey(l => l.LotId).OnDelete(DeleteBehavior.Restrict);
     }

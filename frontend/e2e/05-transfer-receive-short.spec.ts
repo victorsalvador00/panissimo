@@ -3,19 +3,36 @@ import { AdminApi, signIn } from './support/api';
 import { base } from './support/base-data';
 import { adminCredentials } from './support/env';
 
+interface StockRow {
+  locationCode: string;
+  onHand: number;
+}
+
 /**
- * E2E 5 (frontend §9): direct transfer from the plant to a branch, dispatched and received short. Moves inventory in
- * the database it runs against: it first puts 3 bags (IN-002) in PLANTA-PT (correction), ships them to the branch
- * SUC-001 and receives 2 (one is a transit loss). Desktop only; the receipt is also checked at 390 px.
+ * E2E 5 (frontend §9, RN-22, RN-116): direct transfer from the plant to a branch, dispatched and received with a
+ * rejection and a shortfall. Moves inventory in the database it runs against: it first puts 3 bags (IN-002) in
+ * PLANTA-PT (correction), ships them to the branch SUC-001, which receives 1, rejects 1 that returns to PLANTA-PT and
+ * did not get the last one (transit loss). Desktop only; the receipt is also checked at 390 px.
  */
-test('traspaso directo: despachar y recibir con faltante', async ({ page, baseURL, isMobile }) => {
+test('traspaso directo: despachar y recibir con rechazo y faltante', async ({
+  page,
+  baseURL,
+  isMobile,
+}) => {
   test.skip(isMobile, 'Un solo traspaso por corrida.');
   const api = await AdminApi.create(baseURL!);
   await api.fleet();
   await api.requireLocation(base.branch);
   await api.addStock(base.finishedGoods, base.bag, 3);
   const plant = await api.locationId(base.plant);
-  await api.dispose();
+  const bag = await api.itemId(base.bag);
+  const inFinishedGoods = async () => {
+    const rows = await api.get<{ items: StockRow[] }>(
+      `stock?locationId=${plant}&itemId=${bag}&pageSize=50`,
+    );
+    return rows.items.find((r) => r.locationCode === base.finishedGoods)?.onHand ?? 0;
+  };
+  const before = await inFinishedGoods();
 
   await signIn(page, adminCredentials());
   await page.evaluate((id) => localStorage.setItem('pan.location', id!), plant);
@@ -52,13 +69,22 @@ test('traspaso directo: despachar y recibir con faltante', async ({ page, baseUR
   await page.getByRole('dialog').getByRole('button', { name: 'Despachar' }).click();
   await expect(page.getByText('En tránsito', { exact: true })).toBeVisible();
 
-  // Receipt at 390 px: 2 of 3 arrive.
+  // Receipt at 390 px: 1 received, 1 rejected (damaged, back to where it left), 1 did not arrive.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('link', { name: 'Recibir' }).click();
   const card = page.locator('article').filter({ hasText: base.bag });
   const received = card.getByLabel('Recibido');
   await expect(received).toHaveValue('3');
-  await received.fill('2');
+  // Rejecting takes it out of what was received (3 → 2); then only 1 is counted as received.
+  await card.getByLabel('Rechazado').fill('1');
+  await expect(received).toHaveValue('2');
+  await received.fill('1');
+  await card.getByRole('combobox', { name: 'Motivo del rechazo' }).click();
+  await page.getByRole('option', { name: 'Dañado' }).click();
+  await expect(card.getByRole('combobox', { name: 'Lo rechazado' })).toContainText(
+    `Regresa a ${base.finishedGoods}`,
+  );
+  await expect(card.getByText('No llegaron 1')).toBeVisible();
   await card.getByRole('combobox', { name: 'Motivo del faltante' }).click();
   await page.getByRole('option', { name: 'Faltante' }).click();
   const overflow = await page.evaluate(
@@ -71,4 +97,9 @@ test('traspaso directo: despachar y recibir con faltante', async ({ page, baseUR
   await expect(page).toHaveURL(detailUrl);
   await expect(page.getByText('Recibido con diferencias')).toBeVisible();
   await expect(page.getByText('Pérdida en tránsito')).toBeVisible();
+  await expect(page.getByText(`Rechazo: Dañado · regresó a ${base.finishedGoods}`)).toBeVisible();
+
+  // 3 left the finished goods and the rejected one came back.
+  expect(await inFinishedGoods()).toBeCloseTo(before - 2, 4);
+  await api.dispose();
 });

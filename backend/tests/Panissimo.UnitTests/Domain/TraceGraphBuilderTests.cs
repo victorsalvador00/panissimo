@@ -255,6 +255,33 @@ public class TraceGraphBuilderTests
     }
 
     [Fact]
+    public async Task A_rejection_on_a_transfer_receipt_gets_its_card_and_is_not_a_loss_in_transit()
+    {
+        var data = new FakeTraceData();
+        var bread = data.Item("DONA", ItemType.FinishedGood, "pza");
+        var lot = data.Lot(bread, "OP-000004-01", "ProductionClose");
+        data.Move(lot, data.Plant, MovementType.ProductionOutput, 100, "CP-000003");
+        data.Move(lot, data.Plant, MovementType.TransferOut, -100, "TR-000082", 10);
+        data.Move(lot, data.Branch, MovementType.TransferIn, 80, "TR-000082", 20);
+        data.Move(lot, data.Plant, MovementType.TransferIn, 15, "TR-000082", 21);
+        var transfer = Guid.NewGuid();
+        data.Transfers.Add(new TraceTransferLine(transfer, "TR-000082", Guid.NewGuid(), data.Plant, data.Branch, lot.Id, bread.Id,
+            100, 80, DiscrepancyReason.Missing, null, TransferStatus.ReceivedWithDiscrepancies, FakeTraceData.T0.AddMinutes(10),
+            FakeTraceData.T0.AddMinutes(20), "U-07", "Chofer", null, null, null, null, 15, RejectionDisposition.Return));
+
+        var result = await Build(data, lot, Options(TraceDirection.Forward));
+
+        var rejected = result.Edges.Single(e => e.Kind == TraceEdgeKind.Rejected);
+        Assert.Equal((TraceGraphBuilder.TransferId(transfer), TraceGraphBuilder.RejectionId(transfer), 15m), (rejected.From, rejected.To, rejected.Qty!.Value));
+        var card = result.Nodes.Single(n => n.Type == TraceNodeType.Rejection);
+        Assert.Equal(("Rechazo de TR-000082", (Guid?)transfer, 15m, 0m, "PLANTA", "SUC-02"),
+            (card.Label, card.TransferId, card.ReturnedQty!.Value, card.LostQty!.Value, card.ReturnLocationCodes!, card.ToLocationCode!));
+        Assert.Contains(result.Events, e => e.Description == "Rechazo en SUC-02: regresa" && e.Qty == 15);
+        // 100 sent: 80 received, 15 rejected; only 5 were lost on the way.
+        Assert.Equal(5m, result.Summary.InTransitLossQty);
+    }
+
+    [Fact]
     public async Task Events_are_chronological_and_a_tie_goes_by_folio()
     {
         var data = new FakeTraceData();

@@ -88,3 +88,51 @@ describe('rejection on delivery (RN-114)', () => {
     expect(model.stats.map((s) => [s.label, s.value])).toContainEqual(['Merma', '5 pza']);
   });
 });
+
+/** RN-116: the branch SUC-02 rejected 20 pieces of TR-2 on receipt; they went back to PLANTA-PT. */
+function withTransferRejection() {
+  const graph = referenceGraph();
+  graph.nodes.push({
+    id: 'rej:t2',
+    type: 'Rejection',
+    label: 'Rechazo de TR-2',
+    folio: 'TR-2',
+    transferId: 't2',
+    toLocationCode: 'SUC-02',
+    baseUom: 'pza',
+    deliveredAt: '2026-10-21T07:00:00Z',
+    returnedQty: 20,
+    lostQty: 0,
+    returnLocationCodes: 'PLANTA-PT',
+  } as never);
+  graph.edges.push({
+    from: 'tr:2',
+    to: 'rej:t2',
+    kind: 'Rejected',
+    qty: 20,
+    baseUom: 'pza',
+    at: null,
+  } as never);
+  return graph;
+}
+
+describe('rejection on a transfer receipt (RN-116)', () => {
+  it('names the branch and opens a ficha linked to the transfer', () => {
+    const graph = withTransferRejection();
+    const layout = layoutTrace(graph);
+    const card = layout.cards.find((c) => c.id === 'rej:t2')!;
+    expect(card.kind).toBe('rejection');
+
+    const text = cardText(card, layout, graph.asOf);
+    expect([text.header, text.tag, text.figure, text.secondary]).toEqual([
+      'Rechazo en SUC-02',
+      'Regresó',
+      '20 pza rechazadas',
+      '20 pza a PLANTA-PT',
+    ]);
+
+    const model = detailModel({ kind: 'card', card }, graph, layout);
+    expect([model.type, model.subtitle]).toEqual(['Rechazo en la recepción', 'SUC-02']);
+    expect(model.link).not.toBeNull();
+  });
+});

@@ -92,9 +92,10 @@ public sealed record TraceCloseLineDto(
 
 public sealed record TraceStockMovementDto(DateTimeOffset At, MovementType Type, string Folio, decimal Quantity, decimal Balance);
 
+/// <param name="RejectedQty">RN-116: what the branch refused of the lot; it returned or was lost (<c>RejectionDisposition</c>).</param>
 public sealed record TraceTransferLineDto(
     Guid? LotId, string? LotNumber, decimal ShippedQty, decimal? ReceivedQty, DiscrepancyReason? DiscrepancyReason,
-    string? DiscrepancyNotes);
+    string? DiscrepancyNotes, decimal RejectedQty = 0, RejectionDisposition? RejectionDisposition = null);
 
 /// <summary>
 /// A node of the traceability graph (trazabilidad §5.3 and trazabilidad-ui §8). The fields of each <see cref="Type"/> are
@@ -198,7 +199,8 @@ public sealed record TraceNodeDto
     public string? CustomerCode { get; init; }
     public string? CustomerName { get; init; }
 
-    // Rejection (RN-114): returned to the plant (its locations and CustomerReturn adjustments) or lost.
+    // Rejection (RN-114, RN-116): returned (its locations and, for a customer, the CustomerReturn adjustments) or lost.
+    // A rejection on a transfer's receipt carries TransferId instead of ShipmentId.
     public decimal? ReturnedQty { get; init; }
     public decimal? LostQty { get; init; }
     public string? ReturnLocationCodes { get; init; }

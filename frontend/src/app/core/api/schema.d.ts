@@ -10809,7 +10809,11 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Recibe en el destino (RN-22). Recibir menos de lo enviado exige motivo y deja el traspaso con discrepancias. */
+    /**
+     * Recibe en el destino (RN-22). Por línea se puede rechazar lo que llegó (RN-116): regresa al subalmacén del que salió
+     *     (mismo lote y costo) o es merma. Lo que no llegó (enviado − recibido − rechazado) exige motivo; con faltante o
+     *     rechazo el traspaso queda con discrepancias.
+     */
     post: {
       parameters: {
         query?: never;
@@ -18290,6 +18294,7 @@ export interface components {
       discrepancyNotes: null | string;
       /** Format: uuid */
       warehouseId?: null | string;
+      rejection?: null | components['schemas']['TransferRejectionRequest'];
     };
     /**
      * @example {
@@ -18306,6 +18311,18 @@ export interface components {
      *           "receivedQty": 18,
      *           "discrepancyReason": "Damaged",
      *           "discrepancyNotes": "Charola aplastada"
+     *         },
+     *         {
+     *           "lineId": "0199a1b2-0000-7000-8000-0000000000e3",
+     *           "receivedQty": 80,
+     *           "discrepancyReason": null,
+     *           "discrepancyNotes": null,
+     *           "rejection": {
+     *             "quantity": 20,
+     *             "reason": "ShortShelfLife",
+     *             "notes": null,
+     *             "disposition": "Return"
+     *           }
      *         }
      *       ]
      *     }
@@ -19155,6 +19172,12 @@ export interface components {
       receivedQty: null | number;
       discrepancyReason: null | components['schemas']['DiscrepancyReason'];
       discrepancyNotes: null | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      rejectedQty: number;
+      rejectionDisposition?: null | components['schemas']['RejectionDisposition'];
     };
     TransferDto: {
       /** Format: uuid */
@@ -19194,6 +19217,11 @@ export interface components {
       /** Format: uuid */
       productionOrderId?: null | string;
       productionOrderFolio?: null | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      rejectionLossValue: number;
     };
     /** @enum {unknown} */
     TransferKind: 'Standard' | 'Internal';
@@ -19224,6 +19252,16 @@ export interface components {
       shortValue: null | number;
       discrepancyReason: null | components['schemas']['DiscrepancyReason'];
       discrepancyNotes: null | string;
+      /**
+       * Format: double
+       * @default 0
+       */
+      rejectedQty: number;
+      rejectionReason?: null | components['schemas']['ShipmentRejectionReason'];
+      rejectionNotes?: null | string;
+      rejectionDisposition?: null | components['schemas']['RejectionDisposition'];
+      /** Format: double */
+      rejectedValue?: null | number;
     };
     TransferLineRequest: {
       /** Format: uuid */
@@ -19258,6 +19296,13 @@ export interface components {
       code: string;
       name: string;
       type: components['schemas']['LocationType'];
+    };
+    TransferRejectionRequest: {
+      /** Format: double */
+      quantity: number;
+      reason: components['schemas']['ShipmentRejectionReason'];
+      notes: null | string;
+      disposition: components['schemas']['RejectionDisposition'];
     };
     /** @enum {unknown} */
     TransferStatus: 'Draft' | 'Dispatched' | 'Received' | 'ReceivedWithDiscrepancies' | 'Cancelled';

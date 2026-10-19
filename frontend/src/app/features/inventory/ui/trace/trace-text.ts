@@ -255,7 +255,10 @@ export function cardText(
       const lost = n.lostQty ?? 0;
       return {
         ...base,
-        header: 'Rechazo del cliente',
+        // RN-114 on a customer's delivery; RN-116 on a branch's receipt of a transfer.
+        header: n.transferId
+          ? `Rechazo en ${n.toLocationCode ?? 'la sucursal'}`
+          : 'Rechazo del cliente',
         tag: returned > 0 ? 'Regresó' : 'Merma',
         tone: 'orange',
         title: n.folio ?? n.label,

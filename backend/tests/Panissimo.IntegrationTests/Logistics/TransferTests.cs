@@ -2,10 +2,12 @@ using System.Net;
 using System.Text.Json;
 using Panissimo.Application.Common;
 using Panissimo.Application.Inventory;
+using Panissimo.Application.Inventory.Traceability;
 using Panissimo.Application.Logistics;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Logistics;
+using Panissimo.Domain.Sales;
 using Panissimo.IntegrationTests.Infrastructure;
 
 namespace Panissimo.IntegrationTests.Logistics;
@@ -195,5 +197,66 @@ public class TransferTests(ApiFactory factory)
         var ok = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, [new DispatchLineRequest(transfer.Lines[0].Id, [new LotQuantity(fresh, 6)])]));
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.Equal("NUEVO", (await ok.Content.ReadJsonAsync<TransferDto>())!.Lines.Single().LotNumber);
+    }
+
+    [Fact]
+    public async Task The_branch_rejects_part_that_returns_to_where_it_left_and_part_that_is_lost()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var plant = await factory.LocationIdAsync("PLANTA");
+        var branch = await factory.LocationIdAsync("SUC-01");
+        var bread = await factory.CreateItemAsync("DONA", ItemType.FinishedGood, "pza", tracksLots: true);
+        await factory.AddStockAsync(plant, bread.Id, 30, 2.5m, "DONA-01", Today.AddDays(2));
+        var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(bread.Id, null, 30));
+        var dispatched = await (await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
+            new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null))).Content.ReadJsonAsync<TransferDto>();
+        var line = dispatched!.Lines.Single();
+
+        // The branch manager receives: without access to the plant, what returns still re-enters it (RN-116).
+        var email = ApiFactory.UniqueEmail("encargado");
+        await factory.CreateUserAsync(email, ["branch_manager"], ["SUC-01"]);
+        var manager = await factory.LoginAsync(email);
+        var fraction = await manager.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/receive", new ReceiveTransferRequest(dispatched.Version,
+            [new ReceiveLineRequest(line.Id, 20, null, null, Rejection: new TransferRejectionRequest(9.5m, ShipmentRejectionReason.Damaged, null,
+                RejectionDisposition.Return))]));
+        Assert.Equal("whole_quantity_required", await CodeOf(fraction));
+
+        var returned = await manager.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/receive", new ReceiveTransferRequest(dispatched.Version,
+            [new ReceiveLineRequest(line.Id, 20, DiscrepancyReason.Missing, null,
+                Rejection: new TransferRejectionRequest(6, ShipmentRejectionReason.Damaged, "Aplastadas", RejectionDisposition.Return))]));
+        Assert.Equal(HttpStatusCode.OK, returned.StatusCode);
+        var received = (await returned.Content.ReadJsonAsync<TransferDto>())!;
+
+        Assert.Equal(TransferStatus.ReceivedWithDiscrepancies, received.Status);
+        var result = received.Lines.Single();
+        Assert.Equal((20m, 6m, 4m, RejectionDisposition.Return, "Aplastadas"),
+            (result.ReceivedQty!.Value, result.RejectedQty, result.ShortQty, result.RejectionDisposition!.Value, result.RejectionNotes));
+        Assert.Equal((10m, 15m, 0m), (result.ShortValue!.Value, result.RejectedValue!.Value, received.RejectionLossValue));
+        Assert.Equal(20m, await factory.StockAsync(branch, bread.Id));
+        Assert.Equal(6m, await factory.StockAsync(plant, bread.Id));
+        var kardex = await admin.GetJsonAsync<PagedResult<KardexEntryDto>>($"/api/v1/movements?locationId={plant}&itemId={bread.Id}");
+        var back = kardex!.Items.Single(m => m.Type == MovementType.TransferIn);
+        Assert.Equal((6m, 2.5m), (back.Quantity, back.UnitCost));
+
+        // Traceability: the rejection has its own card and only what did not arrive is a loss in transit.
+        var graph = await admin.GetJsonAsync<TraceGraphDto>($"/api/v1/traceability/graph?sourceType=Transfer&sourceId={transfer.Id}");
+        var card = graph!.Nodes.Single(n => n.Type == TraceNodeType.Rejection);
+        Assert.Equal(($"Rechazo de {transfer.Folio}", 6m, 0m, "PLANTA", "SUC-01"),
+            (card.Label, card.ReturnedQty!.Value, card.LostQty!.Value, card.ReturnLocationCodes!, card.ToLocationCode!));
+        Assert.Equal(4m, graph.Summary.InTransitLossQty);
+
+        // What is lost does not move: only what was received enters the branch.
+        // Expires first: FEFO takes it before the 6 that came back of DONA-01.
+        await factory.AddStockAsync(plant, bread.Id, 10, 2.5m, "DONA-02", Today.AddDays(1));
+        var second = await CreateAsync(admin, plant, branch, new TransferLineRequest(bread.Id, null, 10));
+        var sent = await (await admin.PostJsonAsync($"/api/v1/transfers/{second.Id}/dispatch",
+            new DispatchTransferRequest(second.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null))).Content.ReadJsonAsync<TransferDto>();
+        var lost = await (await admin.PostJsonAsync($"/api/v1/transfers/{second.Id}/receive", new ReceiveTransferRequest(sent!.Version,
+            [new ReceiveLineRequest(sent.Lines.Single().Id, 7, null, null,
+                Rejection: new TransferRejectionRequest(3, ShipmentRejectionReason.ShortShelfLife, null, RejectionDisposition.Loss))])))
+            .Content.ReadJsonAsync<TransferDto>();
+        Assert.Equal(7.5m, lost!.RejectionLossValue);
+        Assert.Equal(27m, await factory.StockAsync(branch, bread.Id));
+        Assert.Equal(6m, await factory.StockAsync(plant, bread.Id));
     }
 }

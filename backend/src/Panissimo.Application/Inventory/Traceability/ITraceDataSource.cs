@@ -49,7 +49,8 @@ public sealed record TraceOrigin(Guid LotId, string DocType, Guid DocId, string 
 public sealed record TraceTransferLine(Guid TransferId, string Folio, Guid LineId, Guid FromLocationId, Guid ToLocationId, Guid LotId,
     Guid ItemId, decimal ShippedQty, decimal? ReceivedQty, DiscrepancyReason? DiscrepancyReason, string? DiscrepancyNotes,
     TransferStatus Status, DateTimeOffset? DispatchedAt, DateTimeOffset? ReceivedAt, string? VehicleDescription, string? DriverName,
-    string? BranchOrderFolio, DateTimeOffset? ApprovedAt, decimal? RequestedQty, decimal? ApprovedQty);
+    string? BranchOrderFolio, DateTimeOffset? ApprovedAt, decimal? RequestedQty, decimal? ApprovedQty,
+    decimal RejectedQty = 0, RejectionDisposition? RejectionDisposition = null);
 
 public sealed record TraceShipmentLot(Guid ShipmentId, string Folio, string CustomerOrderFolio, Guid CustomerId, string CustomerCode,
     string CustomerName, Guid FromLocationId, Guid LineLocationId, DateTimeOffset? DispatchedAt, CustomerShipmentStatus Status,

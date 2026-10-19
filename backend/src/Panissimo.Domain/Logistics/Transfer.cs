@@ -2,6 +2,7 @@ using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Organization;
+using Panissimo.Domain.Sales;
 
 namespace Panissimo.Domain.Logistics;
 
@@ -49,7 +50,13 @@ public sealed record TransferLineInput(Guid ItemId, Guid? LotId, decimal Quantit
 /// <summary>A quantity taken from one lot (manual lot split at dispatch, shipment or production close).</summary>
 public sealed record LotQuantity(Guid LotId, decimal Qty);
 
-public sealed record ReceiptInput(Guid LineId, decimal ReceivedQty, DiscrepancyReason? Reason, string? Notes);
+/// <param name="Reason">RN-22: why something did not arrive (the shortfall, shipped − received − rejected).</param>
+/// <param name="Rejection">RN-116: what arrived and the branch refused; only on a transfer, not on an internal voucher.</param>
+public sealed record ReceiptInput(Guid LineId, decimal ReceivedQty, DiscrepancyReason? Reason, string? Notes,
+    TransferRejectionInput? Rejection = null);
+
+/// <summary>RN-116: the same reasons and dispositions as a customer's rejection (RN-114).</summary>
+public sealed record TransferRejectionInput(decimal Quantity, ShipmentRejectionReason Reason, string? Notes, RejectionDisposition Disposition);
 
 /// <summary>
 /// Transfer with shipping data (dominio §4.5): Draft → Dispatched → Received | ReceivedWithDiscrepancies;
@@ -198,7 +205,9 @@ public class Transfer : AuditableEntity, IVersioned
 
     /// <summary>
     /// RN-22: every line is received at once; received ≤ shipped; a shortfall needs a reason and leaves the
-    /// transfer ReceivedWithDiscrepancies. Returns the TransferIn requests (same lot and cost as the origin, RN-04).
+    /// transfer ReceivedWithDiscrepancies. RN-116: what arrived may be rejected; it returns to the sub-warehouse it left
+    /// or is lost. Returns the TransferIn requests (same lot and cost as the origin, RN-04): what was received at the
+    /// destination and what returns at the origin.
     /// </summary>
     /// <param name="targetOf">RN-45: stock location each line enters (the destination or one of its sub-warehouses); null = the destination.</param>
     public IReadOnlyList<MovementRequest> Receive(IReadOnlyList<ReceiptInput> receipts, DateTimeOffset now, Guid? userId,
@@ -211,17 +220,23 @@ public class Transfer : AuditableEntity, IVersioned
             || receipts.Any(r => _lines.All(l => l.Id != r.LineId)))
             throw new BusinessRuleException("transfer_receipt_incomplete", "Captura la cantidad recibida de todas las líneas del traspaso.");
 
+        if (Kind == TransferKind.Internal && receipts.Any(r => r.Rejection is not null))
+            throw new BusinessRuleException("transfer_rejection_not_allowed",
+                "Un vale interno no admite rechazos: lo que no se recibe es faltante (RN-47).");
         foreach (var receipt in receipts)
             _lines.Single(l => l.Id == receipt.LineId).Receive(receipt, targetOf?.Invoke(receipt.LineId) ?? ToLocationId);
 
         ReceivedAt = now;
         ReceivedBy = userId;
-        Status = _lines.Any(l => l.ShortQty > 0) ? TransferStatus.ReceivedWithDiscrepancies : TransferStatus.Received;
+        Status = _lines.Any(l => l.ShortQty > 0 || l.RejectedQty > 0) ? TransferStatus.ReceivedWithDiscrepancies : TransferStatus.Received;
 
-        return _lines.Where(l => l.ReceivedQty > 0)
+        var received = _lines.Where(l => l.ReceivedQty > 0)
             .Select(l => new MovementRequest(l.ToStockLocationId!.Value, l.ItemId, l.LotId, MovementType.TransferIn, l.ReceivedQty!.Value,
-                l.UnitCost, SourceDocType, Id, Folio, Label))
-            .ToList();
+                l.UnitCost, SourceDocType, Id, Folio, Label));
+        var returned = _lines.Where(l => l.ReturnedQty > 0)
+            .Select(l => new MovementRequest(l.FromStockLocationId!.Value, l.ItemId, l.LotId, MovementType.TransferIn, l.ReturnedQty,
+                l.UnitCost, SourceDocType, Id, Folio, $"Rechazo del {Label}"));
+        return [.. received, .. returned];
     }
 
     private void SetPlan(Guid toLocationId, string? notes, IReadOnlyList<TransferLineInput> lines)
@@ -281,22 +296,52 @@ public class TransferLine : Entity
     public DiscrepancyReason? DiscrepancyReason { get; private set; }
     public string? DiscrepancyNotes { get; private set; }
 
-    /// <summary>Loss in transit (RN-22).</summary>
-    public decimal ShortQty => ReceivedQty is { } received ? ShippedQty - received : 0;
+    /// <summary>RN-116: what arrived and the branch refused (0 when nothing was).</summary>
+    public decimal RejectedQty { get; private set; }
+
+    public ShipmentRejectionReason? RejectionReason { get; private set; }
+    public string? RejectionNotes { get; private set; }
+
+    /// <summary>RN-116: Return re-enters <see cref="FromStockLocationId"/> (same lot and cost); Loss does not move.</summary>
+    public RejectionDisposition? RejectionDisposition { get; private set; }
+
+    public decimal ReturnedQty => RejectionDisposition == Sales.RejectionDisposition.Return ? RejectedQty : 0;
+    public decimal RejectedLossQty => RejectionDisposition == Sales.RejectionDisposition.Loss ? RejectedQty : 0;
+
+    /// <summary>Loss in transit (RN-22): what did not arrive.</summary>
+    public decimal ShortQty => ReceivedQty is { } received ? ShippedQty - received - RejectedQty : 0;
+
+    public const int RejectionNotesMaxLength = 500;
 
     internal void Receive(ReceiptInput receipt, Guid toStockLocationId)
     {
         if (receipt.ReceivedQty < 0 || InventoryMath.Round(receipt.ReceivedQty) != receipt.ReceivedQty)
             throw new BusinessRuleException("invalid_quantity", "La cantidad recibida no puede ser negativa y admite máximo 4 decimales.");
-        if (receipt.ReceivedQty > ShippedQty)
-            throw new BusinessRuleException("transfer_over_receipt", "No se puede recibir más de lo enviado (RN-22).");
-        if (receipt.ReceivedQty < ShippedQty && receipt.Reason is null)
+        var rejection = receipt.Rejection;
+        if (rejection is not null)
+        {
+            if (rejection.Quantity <= 0 || InventoryMath.Round(rejection.Quantity) != rejection.Quantity)
+                throw new BusinessRuleException("invalid_quantity", "Lo rechazado debe ser mayor que cero, con máximo 4 decimales.");
+            if (rejection.Reason == ShipmentRejectionReason.Other && string.IsNullOrWhiteSpace(rejection.Notes))
+                throw new BusinessRuleException("rejection_notes_required", "Un rechazo por \"Otro\" necesita una nota.");
+            if (rejection.Notes is { Length: > RejectionNotesMaxLength })
+                throw new BusinessRuleException("rejection_notes_too_long", $"La nota admite hasta {RejectionNotesMaxLength} caracteres.");
+        }
+        var rejected = rejection?.Quantity ?? 0;
+        if (receipt.ReceivedQty + rejected > ShippedQty)
+            throw new BusinessRuleException("transfer_over_receipt", "Lo recibido más lo rechazado no puede exceder lo enviado (RN-22, RN-116).");
+        var missing = ShippedQty - receipt.ReceivedQty - rejected;
+        if (missing > 0 && receipt.Reason is null)
             throw new BusinessRuleException("transfer_discrepancy_reason_required",
-                "Si recibes menos de lo enviado, indica el motivo de la diferencia (RN-22).");
+                "Si no llegó todo lo enviado, indica el motivo del faltante (RN-22).");
 
         ReceivedQty = receipt.ReceivedQty;
         ToStockLocationId = toStockLocationId;
-        DiscrepancyReason = receipt.ReceivedQty < ShippedQty ? receipt.Reason : null;
-        DiscrepancyNotes = receipt.ReceivedQty < ShippedQty && !string.IsNullOrWhiteSpace(receipt.Notes) ? receipt.Notes.Trim() : null;
+        DiscrepancyReason = missing > 0 ? receipt.Reason : null;
+        DiscrepancyNotes = missing > 0 && !string.IsNullOrWhiteSpace(receipt.Notes) ? receipt.Notes.Trim() : null;
+        RejectedQty = rejected;
+        RejectionReason = rejection?.Reason;
+        RejectionNotes = string.IsNullOrWhiteSpace(rejection?.Notes) ? null : rejection.Notes.Trim();
+        RejectionDisposition = rejection?.Disposition;
     }
 }

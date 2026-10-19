@@ -2,6 +2,7 @@ using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Production;
 using Panissimo.Domain.Purchasing;
+using Panissimo.Domain.Sales;
 
 namespace Panissimo.Application.Inventory.Traceability;
 
@@ -300,6 +301,13 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
             AddEdge(new TraceEdgeDto(TransferId(t.TransferId), Stock(t.LotId, t.ToLocationId), TraceEdgeKind.Delivered,
                 lines.Sum(x => x.ReceivedQty ?? 0), uom, t.ReceivedAt, shipped,
                 lines.Select(x => x.DiscrepancyReason).FirstOrDefault(r => r is not null)));
+            // RN-116: what the branch refused goes to its own card (what returned is already in the origin's stock).
+            var rejected = _transferLines.Values.Where(x => x.TransferId == t.TransferId).Sum(x => x.RejectedQty);
+            if (rejected > 0)
+            {
+                _nodes.TryAdd(RejectionId(t.TransferId), new TraceNodeDto { Id = RejectionId(t.TransferId), Type = TraceNodeType.Rejection, Label = t.Folio });
+                AddEdge(new TraceEdgeDto(TransferId(t.TransferId), RejectionId(t.TransferId), TraceEdgeKind.Rejected, rejected, uom, t.ReceivedAt));
+            }
         }
     }
 
@@ -477,8 +485,21 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
                 ItemId = first.ItemId, Sku = _items.GetValueOrDefault(first.ItemId)?.Sku, ItemName = _items.GetValueOrDefault(first.ItemId)?.Name,
                 BaseUom = Uom(first.ItemId),
                 TransferLines = [.. transfer.Select(t => new TraceTransferLineDto(t.LotId, _lots.TryGetValue(t.LotId, out var tl) ? tl.LotNumber : null,
-                    t.ShippedQty, t.ReceivedQty, t.DiscrepancyReason, t.DiscrepancyNotes))],
+                    t.ShippedQty, t.ReceivedQty, t.DiscrepancyReason, t.DiscrepancyNotes, t.RejectedQty, t.RejectionDisposition))],
             };
+            // RN-116: the rejection card of the transfer; what returns re-enters the sub-warehouse each lot left.
+            if (_nodes.TryGetValue(RejectionId(first.TransferId), out var rejection))
+            {
+                var returned = transfer.Where(t => t.RejectionDisposition == RejectionDisposition.Return).ToList();
+                _nodes[rejection.Id] = rejection with
+                {
+                    Label = $"Rechazo de {first.Folio}", TransferId = first.TransferId, Folio = first.Folio, ToLocationCode = Code(first.ToLocationId),
+                    ItemId = first.ItemId, Sku = _items.GetValueOrDefault(first.ItemId)?.Sku, ItemName = _items.GetValueOrDefault(first.ItemId)?.Name,
+                    BaseUom = Uom(first.ItemId), DeliveredAt = first.ReceivedAt, ReturnedQty = returned.Sum(t => t.RejectedQty),
+                    LostQty = transfer.Where(t => t.RejectionDisposition == RejectionDisposition.Loss).Sum(t => t.RejectedQty),
+                    ReturnLocationCodes = returned.Count == 0 ? null : string.Join(", ", returned.Select(t => Code(t.FromLocationId)).Distinct().Order()),
+                };
+            }
         }
         foreach (var shipment in _shipmentLots.Values.GroupBy(s => s.ShipmentId))
         {
@@ -545,6 +566,13 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
         foreach (var s in _shipmentLots.Values.Where(s => s.DispatchedAt is not null))
             events.Add(new TraceEventDto(s.DispatchedAt!.Value, "CustomerShipment", s.ShipmentId, s.Folio, $"Remisión a {s.CustomerName}",
                 Sku(s.ItemId), LotNumber(s.LotId), s.Qty, Uom(s.ItemId), Code(s.FromLocationId)));
+        // RN-116: what the branch rejected on receipt (what returns re-enters the origin with the same transfer).
+        foreach (var t in _transferLines.Values.Where(t => t.ReceivedAt is not null && t.RejectedQty > 0))
+            events.Add(new TraceEventDto(t.ReceivedAt!.Value, "Transfer", t.TransferId, t.Folio,
+                t.RejectionDisposition == RejectionDisposition.Return ? $"Rechazo en {Code(t.ToLocationId)}: regresa"
+                    : $"Rechazo en {Code(t.ToLocationId)}: merma",
+                Sku(t.ItemId), LotNumber(t.LotId), t.RejectedQty, Uom(t.ItemId),
+                t.RejectionDisposition == RejectionDisposition.Return ? Code(t.FromLocationId) : Code(t.ToLocationId)));
         // RN-114: what the customer rejected on delivery (the return itself is the CustomerReturn adjustment's entry).
         foreach (var s in _shipmentLots.Values.Where(s => s.DeliveredAt is not null && s.ReturnedQty + s.LostQty > 0))
             events.Add(new TraceEventDto(s.DeliveredAt!.Value, "CustomerShipment", s.ShipmentId, s.Folio,
@@ -604,9 +632,10 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
                 [.. g.Select(s => s.Folio).Distinct().Order(StringComparer.Ordinal)]))
             .OrderBy(c => c.CustomerName, StringComparer.Ordinal).ToList();
 
-        // RN-107: shipped and not received is lost in transit; it is in no location.
+        // RN-107: shipped and neither received nor rejected is lost in transit; it is in no location (RN-116: a rejection
+        // returned or was lost on receipt, with its own card).
         var loss = _transferLines.Values.Where(t => finishedIds.Contains(t.LotId) && t.ReceivedQty is not null)
-            .Sum(t => t.ShippedQty - t.ReceivedQty!.Value);
+            .Sum(t => t.ShippedQty - t.ReceivedQty!.Value - t.RejectedQty);
         return new TraceSummaryDto(origins, finishedLots, locations, customers, loss);
     }
 }

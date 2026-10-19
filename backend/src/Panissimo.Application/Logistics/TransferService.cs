@@ -9,6 +9,7 @@ using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
+using Panissimo.Domain.Sales;
 using Panissimo.Domain.Security;
 
 namespace Panissimo.Application.Logistics;
@@ -36,8 +37,13 @@ public sealed record DispatchTransferRequest(uint Version, Guid? VehicleId, Guid
     Guid? FromWarehouseId = null);
 
 /// <param name="WarehouseId">Sub-warehouse this line enters; empty takes the receipt's (RN-45).</param>
+/// <param name="DiscrepancyReason">RN-22: required when something did not arrive (shipped − received − rejected).</param>
+/// <param name="Rejection">RN-116: what arrived and the branch refused (only on a transfer).</param>
 public sealed record ReceiveLineRequest(Guid LineId, decimal ReceivedQty, DiscrepancyReason? DiscrepancyReason, string? DiscrepancyNotes,
-    Guid? WarehouseId = null);
+    Guid? WarehouseId = null, TransferRejectionRequest? Rejection = null);
+
+/// <param name="Disposition">Return: back to the sub-warehouse it left, same lot and cost. Loss: it does not come back.</param>
+public sealed record TransferRejectionRequest(decimal Quantity, ShipmentRejectionReason Reason, string? Notes, RejectionDisposition Disposition);
 
 /// <param name="ToWarehouseId">Sub-warehouse of the destination every line enters (RN-45); required when the destination has sub-warehouses.</param>
 public sealed record ReceiveTransferRequest(uint Version, IReadOnlyList<ReceiveLineRequest> Lines, Guid? ToWarehouseId = null);
@@ -78,13 +84,16 @@ public sealed record TransferListItemDto(
     Guid Id, string Folio, TransferKind Kind, TransferLocationDto From, TransferLocationDto To, TransferStatus Status, Guid? BranchOrderId,
     int LineCount, DateTimeOffset CreatedAt, DateTimeOffset? DispatchedAt, DateTimeOffset? ReceivedAt);
 
-/// <param name="ShortQty">Loss in transit (RN-22).</param>
+/// <param name="ShortQty">Loss in transit (RN-22): shipped − received − rejected.</param>
+/// <param name="RejectedQty">RN-116: what the branch refused; <c>RejectionDisposition</c> says whether it returned or was lost.</param>
 /// <param name="FromStockLocationCode">Sub-warehouse it left (or the origin), once dispatched.</param>
 /// <param name="ToStockLocationCode">Sub-warehouse it entered (or the destination), once received.</param>
 public sealed record TransferLineDto(
     Guid Id, string? FromStockLocationCode, string? ToStockLocationCode, Guid ItemId, string Sku, string ItemName, string BaseUomCode, Guid? LotId, string? LotNumber, DateOnly? ExpirationDate,
     decimal ShippedQty, decimal? ReceivedQty, decimal ShortQty, decimal? UnitCost, decimal? ShortValue,
-    DiscrepancyReason? DiscrepancyReason, string? DiscrepancyNotes);
+    DiscrepancyReason? DiscrepancyReason, string? DiscrepancyNotes,
+    decimal RejectedQty = 0, ShipmentRejectionReason? RejectionReason = null, string? RejectionNotes = null,
+    RejectionDisposition? RejectionDisposition = null, decimal? RejectedValue = null);
 
 public sealed record TransferDto(
     Guid Id, string Folio, TransferKind Kind, TransferLocationDto From, TransferLocationDto To, Guid? BranchOrderId,
@@ -92,7 +101,7 @@ public sealed record TransferDto(
     string? VehicleDescription, string? DriverName, DateTimeOffset? DispatchedAt, Guid? DispatchedBy, string? DispatchedByName,
     DateTimeOffset? ReceivedAt, Guid? ReceivedBy, string? ReceivedByName, IReadOnlyList<TransferLineDto> Lines,
     decimal ShippedValue, decimal TransitLossValue, DateTimeOffset CreatedAt, Guid? CreatedBy, string? CreatedByName, uint Version,
-    Guid? ProductionOrderId = null, string? ProductionOrderFolio = null);
+    Guid? ProductionOrderId = null, string? ProductionOrderFolio = null, decimal RejectionLossValue = 0);
 
 public sealed class TransferLineRequestValidator : AbstractValidator<TransferLineRequest>
 {
@@ -151,6 +160,11 @@ public sealed class ReceiveTransferRequestValidator : AbstractValidator<ReceiveT
         {
             line.RuleFor(l => l.ReceivedQty).GreaterThanOrEqualTo(0).WithName("Cantidad recibida");
             line.RuleFor(l => l.DiscrepancyNotes).MaximumLength(500).WithName("Notas de la diferencia");
+            line.When(l => l.Rejection is not null, () =>
+            {
+                line.RuleFor(l => l.Rejection!.Quantity).GreaterThan(0).WithName("Cantidad rechazada");
+                line.RuleFor(l => l.Rejection!.Notes).MaximumLength(TransferLine.RejectionNotesMaxLength).WithName("Nota del rechazo");
+            });
         });
     }
 }
@@ -369,7 +383,9 @@ public sealed class TransferService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await ClaimAsync(transfer, ct);
-        var receipts = request.Lines.Select(l => new ReceiptInput(l.LineId, l.ReceivedQty, l.DiscrepancyReason, l.DiscrepancyNotes)).ToList();
+        var receipts = request.Lines.Select(l => new ReceiptInput(l.LineId, l.ReceivedQty, l.DiscrepancyReason, l.DiscrepancyNotes,
+            l.Rejection is { } r ? new TransferRejectionInput(r.Quantity, r.Reason, r.Notes, r.Disposition) : null)).ToList();
+        await EnsureWholePiecesAsync(transfer, request.Lines, ct);
         // RN-45: the destination's sub-warehouse per line.
         var picker = await WarehousePicker.LoadAsync(db, scope, transfer.ToLocationId, ct);
         var targets = request.Lines.ToDictionary(l => l.LineId, l => picker.Resolve(request.ToWarehouseId, l.WarehouseId));
@@ -378,6 +394,23 @@ public sealed class TransferService(
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return await ToDtoAsync(transfer, ct);
+    }
+
+    /// <summary>RN-03b: what is received and what is rejected of an item in pieces are whole.</summary>
+    private async Task EnsureWholePiecesAsync(Transfer transfer, IReadOnlyList<ReceiveLineRequest> lines, CancellationToken ct)
+    {
+        var itemIds = transfer.Lines.Select(l => l.ItemId).Distinct().ToList();
+        var pieces = await (from i in db.Items
+                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
+                            where itemIds.Contains(i.Id) && u.Code == UnitOfMeasure.PieceCode
+                            select new { i.Id, i.Sku }).ToDictionaryAsync(x => x.Id, x => x.Sku, ct);
+        foreach (var line in lines)
+        {
+            var itemId = transfer.Lines.SingleOrDefault(l => l.Id == line.LineId)?.ItemId;
+            if (itemId is { } id && pieces.TryGetValue(id, out var sku)
+                && (!InventoryMath.IsWhole(line.ReceivedQty) || !InventoryMath.IsWhole(line.Rejection?.Quantity ?? 0)))
+                throw new BusinessRuleException("whole_quantity_required", $"{sku} se maneja en piezas: la cantidad debe ser entera.");
+        }
     }
 
     /// <summary>
@@ -522,7 +555,8 @@ public sealed class TransferService(
                 l.ItemId, items[l.ItemId].Sku, items[l.ItemId].Name, items[l.ItemId].Uom,
                 l.LotId, l.LotId is { } a ? lots[a].LotNumber : null, l.LotId is { } b ? lots[b].ExpirationDate : null,
                 l.ShippedQty, l.ReceivedQty, l.ShortQty, l.UnitCost, l.UnitCost is { } cost ? InventoryMath.Round(l.ShortQty * cost) : null,
-                l.DiscrepancyReason, l.DiscrepancyNotes))
+                l.DiscrepancyReason, l.DiscrepancyNotes, l.RejectedQty, l.RejectionReason, l.RejectionNotes, l.RejectionDisposition,
+                l.UnitCost is { } rejectedCost && l.RejectedQty > 0 ? InventoryMath.Round(l.RejectedQty * rejectedCost) : null))
             .OrderBy(l => l.Sku).ThenBy(l => l.ExpirationDate).ToList();
 
         var users = await userDirectory.GetNamesAsync([t.DispatchedBy, t.ReceivedBy, t.CreatedBy], ct);
@@ -533,6 +567,7 @@ public sealed class TransferService(
             t.CreatedAt, t.CreatedBy, users.Of(t.CreatedBy), t.Version, t.ProductionOrderId,
             t.ProductionOrderId is { } orderId
                 ? await db.ProductionOrders.AsNoTracking().Where(o => o.Id == orderId).Select(o => o.Folio).SingleAsync(ct)
-                : null);
+                : null,
+            lines.Where(l => l.RejectionDisposition == RejectionDisposition.Loss).Sum(l => l.RejectedValue ?? 0));
     }
 }

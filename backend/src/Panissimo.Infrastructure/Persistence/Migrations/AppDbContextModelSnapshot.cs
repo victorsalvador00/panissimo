@@ -1527,6 +1527,26 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("received_qty");
 
+                    b.Property<decimal>("RejectedQty")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("rejected_qty");
+
+                    b.Property<string>("RejectionDisposition")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("rejection_disposition");
+
+                    b.Property<string>("RejectionNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejection_notes");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("rejection_reason");
+
                     b.Property<decimal>("ShippedQty")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)")

@@ -244,7 +244,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - `Status`: `Draft → Dispatched → Received | ReceivedWithDiscrepancies`; además `Cancelled` (solo desde `Draft`).
 - Envío: `VehicleId`, `DriverId` (catálogo, RN-113), `VehicleDescription`, `DriverName` (copia de texto al despachar), `DispatchedAt`, `DispatchedBy`.
 - Recepción: `ReceivedAt`, `ReceivedBy`.
-- Líneas: `ItemId`, `PlannedLotId` (opcional), `ShippedQty`, `ReceivedQty`, `UnitCost`, `DiscrepancyReason` (`Missing | Damaged | Other`), `DiscrepancyNotes`. Lotes despachados: `TransferLineLot` (`LineId`, `LotId`, `Quantity`).
+- Líneas: `ItemId`, `PlannedLotId` (opcional), `ShippedQty`, `ReceivedQty`, `UnitCost`, `DiscrepancyReason` (`Missing | Damaged | Other`), `DiscrepancyNotes`; rechazo en la recepción (RN-116): `RejectedQty`, `RejectionReason` (los motivos de RN-114), `RejectionNotes`, `RejectionDisposition` (`Return | Loss`). Lotes despachados: `TransferLineLot` (`LineId`, `LotId`, `Quantity`).
 
 ### 4.6 Ventas a terceros
 
@@ -416,7 +416,12 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - **RN-21 (despacho)**: registra `TransferOut` en el origen (lote planeado, lotes elegidos o FEFO). El traspaso queda en tránsito.
 - **RN-22 (recepción)**:
   - El destino captura `ReceivedQty` por línea (0 a lo enviado) y se registra `TransferIn` por lo recibido, con los mismos lotes y costo.
-  - Si `ReceivedQty < ShippedQty`, se requiere `DiscrepancyReason` y el traspaso queda `ReceivedWithDiscrepancies`; el faltante es pérdida en tránsito y se reporta.
+  - Lo que no llegó (`ShippedQty − ReceivedQty − RejectedQty`, RN-116) requiere `DiscrepancyReason` y deja el traspaso `ReceivedWithDiscrepancies`; ese faltante es pérdida en tránsito y se reporta.
+- **RN-116 (rechazo en la recepción)**: al recibir un traspaso (no un vale interno), la sucursal puede **rechazar** por línea (lote) parte de lo que llegó, igual que el cliente en la remisión (RN-114): cantidad (> 0; recibido + rechazado ≤ enviado; entera en `pza`), **motivo** (`Damaged`, `ShortShelfLife`, `Excess`, `WrongProduct`, `Other` con nota obligatoria), nota y **destino**:
+  - `Return` (regresa): entra **automáticamente al subalmacén del que salió** (`FromStockLocationId`), en el mismo lote y al costo de salida, con un `TransferIn` del mismo traspaso. Quien recibe no elige subalmacén ni necesita acceso a la ubicación de origen.
+  - `Loss` (merma): no regresa ni genera movimiento (la salida ya ocurrió al despachar); se valora al costo de salida (`RejectionLossValue`).
+  - Con algún rechazo el traspaso queda `ReceivedWithDiscrepancies`. El pedido de sucursal ligado no cambia (RN-24): lo que se necesite se pide de nuevo.
+  - Decidido con el usuario el 2026-10-19 (regresa al subalmacén de salida, convive con el faltante, no reabre el pedido).
 - **RN-23**: un traspaso despachado no se edita ni se cancela.
 - **RN-24**: al **despachar** un traspaso ligado a un pedido se actualiza `ShippedQty`; si se despachó todo lo aprobado, el pedido queda `Fulfilled`, si no, `PartiallyFulfilled` (final: lo que falte se pide de nuevo).
 - **RN-25 (rutas)**: sin permiso especial, los traspasos solo van de la Planta a una sucursal. Con `logistics.transfers.special` se permiten sucursal → sucursal y sucursal → Planta (devoluciones).

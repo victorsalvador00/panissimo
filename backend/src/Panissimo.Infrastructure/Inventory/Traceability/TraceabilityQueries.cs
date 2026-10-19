@@ -144,6 +144,7 @@ public sealed class TraceabilityQueries(IAppDbContext db, IUserDirectory userDir
                            {
                                t.Id, t.Folio, LineId = l.Id, t.FromLocationId, t.ToLocationId, l.FromStockLocationId, l.ToStockLocationId,
                                LotId = l.LotId!.Value, l.ItemId, l.ShippedQty, l.ReceivedQty, l.DiscrepancyReason, l.DiscrepancyNotes, t.Status,
+                               l.RejectedQty, l.RejectionDisposition,
                                t.DispatchedAt, t.ReceivedAt, t.VehicleDescription, t.DriverName, OrderId = o == null ? (Guid?)null : o.Id,
                                OrderFolio = o == null ? null : o.Folio, ApprovedAt = o == null ? null : o.ApprovedAt,
                            })
@@ -159,7 +160,8 @@ public sealed class TraceabilityQueries(IAppDbContext db, IUserDirectory userDir
             return new TraceTransferLine(l.Id, l.Folio, l.LineId, l.FromStockLocationId ?? l.FromLocationId, l.ToStockLocationId ?? l.ToLocationId,
                 l.LotId, l.ItemId, l.ShippedQty, l.ReceivedQty, l.DiscrepancyReason, l.DiscrepancyNotes, l.Status, l.DispatchedAt, l.ReceivedAt,
                 l.VehicleDescription, l.DriverName, l.OrderFolio, l.ApprovedAt,
-                line.Count == 0 ? null : line.Sum(x => x.RequestedQty), line.Count == 0 ? null : line.Sum(x => x.ApprovedQty ?? 0));
+                line.Count == 0 ? null : line.Sum(x => x.RequestedQty), line.Count == 0 ? null : line.Sum(x => x.ApprovedQty ?? 0),
+                l.RejectedQty, l.RejectionDisposition);
         })];
     }
 

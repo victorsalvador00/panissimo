@@ -71,6 +71,7 @@ function detailedGraph(costs = true): TraceGraph {
         receivedQty: 600,
         discrepancyReason: null,
         discrepancyNotes: null,
+        rejectedQty: 0,
       },
       {
         lotId: '02',
@@ -79,6 +80,7 @@ function detailedGraph(costs = true): TraceGraph {
         receivedQty: 390,
         discrepancyReason: 'Damaged',
         discrepancyNotes: 'Charolas aplastadas',
+        rejectedQty: 0,
       },
     ],
   });

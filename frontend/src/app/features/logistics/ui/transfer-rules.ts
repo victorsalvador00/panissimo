@@ -19,9 +19,32 @@ export function transferDestinations(
   );
 }
 
-/** RN-22: the received quantity goes from 0 to what was shipped; less than that needs a reason. */
-export function receiptNeedsReason(received: number | null, shipped: number): boolean {
-  return received !== null && received < shipped;
+/** RN-22, RN-116: what did not arrive is what was shipped and was neither received nor rejected (API precision). */
+export function shortfall(
+  received: number | null,
+  rejected: number | null,
+  shipped: number,
+): number {
+  // `|| 0` turns the -0 of a rounding below zero into 0.
+  return Math.round((shipped - (received ?? 0) - (rejected ?? 0)) * 10_000) / 10_000 || 0;
+}
+
+/** RN-22: the received quantity goes from 0 to what was shipped; what did not arrive needs a reason. */
+export function receiptNeedsReason(
+  received: number | null,
+  shipped: number,
+  rejected: number | null = 0,
+): boolean {
+  return received !== null && shortfall(received, rejected, shipped) > 0;
+}
+
+/** RN-116: received plus rejected never exceed what was shipped. */
+export function receiptExceedsShipped(
+  received: number | null,
+  rejected: number | null,
+  shipped: number,
+): boolean {
+  return shortfall(received, rejected, shipped) < 0;
 }
 
 /** Sum of the chosen lots; rounded to the 4 decimals of the API to compare with the line. */

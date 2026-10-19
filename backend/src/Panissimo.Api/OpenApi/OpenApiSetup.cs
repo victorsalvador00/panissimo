@@ -108,7 +108,9 @@ public static class OpenApiSetup
         [typeof(ReceiveTransferRequest)] = """
             { "version": 1234, "lines": [
                 { "lineId": "0199a1b2-0000-7000-8000-0000000000e1", "receivedQty": 100, "discrepancyReason": null, "discrepancyNotes": null },
-                { "lineId": "0199a1b2-0000-7000-8000-0000000000e2", "receivedQty": 18, "discrepancyReason": "Damaged", "discrepancyNotes": "Charola aplastada" } ] }
+                { "lineId": "0199a1b2-0000-7000-8000-0000000000e2", "receivedQty": 18, "discrepancyReason": "Damaged", "discrepancyNotes": "Charola aplastada" },
+                { "lineId": "0199a1b2-0000-7000-8000-0000000000e3", "receivedQty": 80, "discrepancyReason": null, "discrepancyNotes": null,
+                  "rejection": { "quantity": 20, "reason": "ShortShelfLife", "notes": null, "disposition": "Return" } } ] }
             """,
         [typeof(CreateRecipeRequest)] = """
             { "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9", "yieldQty": 120, "notes": "Masa de bizcocho, batida de 120 pza",

@@ -130,23 +130,27 @@ export function detailModel(
   }
 }
 
-/** RN-114: what the customer rejected of a shipment, returned to the plant or lost. */
+/**
+ * RN-114: what the customer rejected of a shipment, returned to the plant (with its adjustment) or lost. RN-116: what a
+ * branch rejected on receiving a transfer, back to the sub-warehouse it left (with the same transfer) or lost.
+ */
 function rejectionDetail(card: TraceCard): DetailModel {
   const n = card.node;
   const uom = n.baseUom ?? null;
   const returned = n.returnedQty ?? 0;
   const lost = n.lostQty ?? 0;
+  const onTransfer = !!n.transferId;
   return {
     icon: CARD_ICONS.rejection.icon,
-    type: 'Rechazo en la entrega',
+    type: onTransfer ? 'Rechazo en la recepción' : 'Rechazo en la entrega',
     title: n.folio ?? n.label,
-    subtitle: n.customerName ?? '',
+    subtitle: onTransfer ? (n.toLocationCode ?? '') : (n.customerName ?? ''),
     status: null,
     stats: stats(
       stat('Rechazado', formatQty(returned + lost, uom)),
       stat('Regresó', formatQty(returned, uom)),
       stat('Merma', formatQty(lost, uom)),
-      stat('Entrega', shortDateTime(n.deliveredAt)),
+      stat(onTransfer ? 'Recepción' : 'Entrega', shortDateTime(n.deliveredAt)),
     ),
     sections: [
       {
@@ -154,12 +158,18 @@ function rejectionDetail(card: TraceCard): DetailModel {
         title: 'Destino',
         items: [
           { label: 'Regresó a', value: returned > 0 ? (n.returnLocationCodes ?? '—') : '—' },
-          { label: 'Ajuste de devolución', value: n.returnFolios ?? '—' },
+          onTransfer
+            ? { label: 'Documento', value: n.folio ?? '—' }
+            : { label: 'Ajuste de devolución', value: n.returnFolios ?? '—' },
           { label: 'Merma', value: lost > 0 ? 'No regresa; queda como pérdida' : '—' },
         ],
       },
     ],
-    link: n.shipmentId ? documentLink('CustomerShipment', n.shipmentId) : null,
+    link: n.transferId
+      ? documentLink('Transfer', n.transferId)
+      : n.shipmentId
+        ? documentLink('CustomerShipment', n.shipmentId)
+        : null,
     traceFrom: null,
   };
 }
@@ -742,15 +752,27 @@ function transferDetail(card: TraceCard, { graph }: Ctx): DetailModel {
   const receivedKnown = lines.every((l) => l.receivedQty !== null) && lines.length > 0;
   const received = lines.reduce((s, l) => s + (l.receivedQty ?? 0), 0);
   const difference = receivedKnown ? shipped - received : null;
+  const missingOf = (l: (typeof lines)[number]) =>
+    l.shippedQty - (l.receivedQty ?? 0) - (l.rejectedQty ?? 0);
   const minutes = minutesBetween(n.dispatchedAt, n.deliveredAt);
   const uom = n.baseUom ?? graph.edges.find((e) => e.to === n.id)?.baseUom ?? null;
   const sections: DetailSection[] = [];
-  for (const l of lines.filter((x) => x.receivedQty !== null && x.receivedQty < x.shippedQty))
+  // RN-116: what the branch rejected (its own card) is not what was missing.
+  for (const l of lines.filter((x) => x.receivedQty !== null && (x.rejectedQty ?? 0) > 0))
+    sections.push({
+      kind: 'note',
+      title: 'Rechazo en la recepción',
+      text: `Se rechazaron ${formatQty(l.rejectedQty, uom)} del lote ${l.lotNumber ?? 'sin lote'} · ${
+        l.rejectionDisposition === 'Return' ? 'regresaron al origen' : 'merma'
+      }`,
+      tone: 'warn',
+    });
+  for (const l of lines.filter((x) => x.receivedQty !== null && missingOf(x) > 0))
     sections.push({
       kind: 'note',
       title: 'Diferencia en la recepción',
       text: [
-        `Faltaron ${formatQty(l.shippedQty - (l.receivedQty ?? 0), uom)} del lote ${l.lotNumber ?? 'sin lote'}`,
+        `Faltaron ${formatQty(missingOf(l), uom)} del lote ${l.lotNumber ?? 'sin lote'}`,
         l.discrepancyReason
           ? `motivo: ${enumLabel('DiscrepancyReason', l.discrepancyReason)}`
           : null,

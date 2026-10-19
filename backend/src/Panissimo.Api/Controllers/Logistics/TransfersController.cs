@@ -58,7 +58,11 @@ public sealed class TransfersController(ITransferService transfers) : Controller
     public Task<TransferDto> Dispatch(Guid id, DispatchTransferRequest request, CancellationToken ct) =>
         transfers.DispatchAsync(id, request, ct: ct);
 
-    /// <summary>Recibe en el destino (RN-22). Recibir menos de lo enviado exige motivo y deja el traspaso con discrepancias.</summary>
+    /// <summary>
+    /// Recibe en el destino (RN-22). Por línea se puede rechazar lo que llegó (RN-116): regresa al subalmacén del que salió
+    /// (mismo lote y costo) o es merma. Lo que no llegó (enviado − recibido − rechazado) exige motivo; con faltante o
+    /// rechazo el traspaso queda con discrepancias.
+    /// </summary>
     [HttpPost("{id:guid}/receive")]
     [RequirePermission(Permissions.LogisticsTransfersReceive)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]

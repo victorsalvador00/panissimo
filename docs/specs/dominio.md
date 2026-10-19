@@ -420,6 +420,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - **RN-23**: un traspaso despachado no se edita ni se cancela.
 - **RN-24**: al **despachar** un traspaso ligado a un pedido se actualiza `ShippedQty`; si se despachó todo lo aprobado, el pedido queda `Fulfilled`, si no, `PartiallyFulfilled` (final: lo que falte se pide de nuevo).
 - **RN-25 (rutas)**: sin permiso especial, los traspasos solo van de la Planta a una sucursal. Con `logistics.transfers.special` se permiten sucursal → sucursal y sucursal → Planta (devoluciones).
+- **RN-115 (qué viaja en un traspaso)**: en cualquier ruta, un traspaso solo lleva `FinishedGood` (granel o empaquetado) y `Supply`; nunca `RawMaterial` ni `SemiFinished` (422 `transfer_item_not_allowed`, al crear y al editar). Los vales internos (RN-47), incluidos los de ingredientes de una OP (RN-112), no se limitan. Coincide con lo que una sucursal puede pedir (RN-20, D-05). Decidido con el usuario el 2026-10-19.
 
 ### Ventas a terceros
 

@@ -15,7 +15,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import type { Schemas } from '../../../core/api/api';
+import type { ApiEnum, Schemas } from '../../../core/api/api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { LocationContextService } from '../../../core/context/location-context.service';
 import { Notifier } from '../../../core/http/notifier';
@@ -40,6 +40,9 @@ type TransferLineForm = FormGroup<{
   quantity: FormControl<number | null>;
   lotId: FormControl<string | null>;
 }>;
+
+/** RN-115: a transfer carries finished goods (bulk or packaged) and supplies; never semi-finished or raw materials. */
+const SHIPPABLE_TYPES: readonly ApiEnum<'ItemType'>[] = ['FinishedGood', 'Supply'];
 
 /**
  * /logistica/traspasos/nuevo and /:id/editar (frontend §7.5): the origin is the active location; the destination is
@@ -119,7 +122,11 @@ type TransferLineForm = FormGroup<{
                 [appLineColumnOf]="lines"
                 let-line
               >
-                <app-item-picker [formControl]="line.controls.item" label="Artículo" />
+                <app-item-picker
+                  [formControl]="line.controls.item"
+                  label="Producto o insumo"
+                  [types]="shippableTypes"
+                />
               </ng-template>
               <ng-template
                 appLineColumn="quantity"
@@ -217,6 +224,7 @@ export class TransferFormPage {
     lines: this.lines,
   });
   protected readonly newLine = () => this.createLine();
+  protected readonly shippableTypes = SHIPPABLE_TYPES;
 
   constructor() {
     this.lines.push(this.createLine());

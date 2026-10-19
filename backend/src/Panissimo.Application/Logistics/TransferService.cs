@@ -436,6 +436,13 @@ public sealed class TransferService(
                 "Un traspaso va entre la Planta y las sucursales; entre subalmacenes se usa un vale interno.");
         if (!TransferRoutes.IsStandard(from.Type, to.Type) && access.Access?.Has(Permissions.LogisticsTransfersSpecial) != true)
             throw new ForbiddenException(SpecialRouteMessage);
+
+        var itemIds = lines.Select(l => l.ItemId).Distinct().ToList();
+        var types = await db.Items.AsNoTracking().Where(i => itemIds.Contains(i.Id)).Select(i => new { i.Sku, i.Type }).ToListAsync(ct);
+        var notShippable = types.Where(i => !TransferRoutes.IsShippable(i.Type)).Select(i => i.Sku).Order().ToList();
+        if (notShippable.Count > 0)
+            throw new BusinessRuleException("transfer_item_not_allowed",
+                $"Un traspaso lleva productos terminados (granel o empaquetado) e insumos; no materias primas ni semiterminados: {string.Join(", ", notShippable)} (RN-115).");
         await ValidateLinesAsync(lines, ct);
     }
 

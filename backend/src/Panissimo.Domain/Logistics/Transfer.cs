@@ -1,3 +1,4 @@
+using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Organization;
@@ -34,6 +35,12 @@ public static class TransferRoutes
     /// <c>logistics.transfers.special</c>.
     /// </summary>
     public static bool IsStandard(LocationType from, LocationType to) => from == LocationType.Plant && to == LocationType.Branch;
+
+    /// <summary>
+    /// RN-115: a transfer between locations (any route) carries finished goods, bulk or packaged, and supplies; never
+    /// raw materials or semi-finished goods. Internal vouchers (RN-47, RN-112) are not bound by it.
+    /// </summary>
+    public static bool IsShippable(ItemType type) => type is ItemType.FinishedGood or ItemType.Supply;
 }
 
 /// <param name="LotId">Optional lot chosen when planning; null = FEFO at dispatch.</param>

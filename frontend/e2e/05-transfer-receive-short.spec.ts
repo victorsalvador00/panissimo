@@ -12,7 +12,7 @@ test('traspaso directo: despachar y recibir con faltante', async ({ page, baseUR
   const api = await AdminApi.create(baseURL!);
   await api.ensureCategory('E2E');
   await api.ensureFleet();
-  await api.ensureItem('E2E-TRASPASO', 'Artículo E2E para traspasos', 'E2E', 'pza');
+  await api.ensureItem('E2E-TRASPASO', 'Artículo E2E para traspasos', 'E2E', 'pza', 'Supply');
   await api.ensureBranch('SUC-E2E', 'Sucursal E2E');
   await api.addStock('PLANTA-PT', 'E2E-TRASPASO', 3);
   const plant = await api.locationId('PLANTA');
@@ -25,7 +25,7 @@ test('traspaso directo: despachar y recibir con faltante', async ({ page, baseUR
   await page.goto('/logistica/traspasos/nuevo');
   await page.getByRole('combobox', { name: 'Destino' }).click();
   await page.getByRole('option', { name: 'Sucursal E2E' }).click();
-  await page.getByRole('combobox', { name: 'Artículo' }).fill('E2E-TRASPASO');
+  await page.getByRole('combobox', { name: 'Producto o insumo' }).fill('E2E-TRASPASO');
   await page.getByRole('option', { name: /E2E-TRASPASO/ }).click();
   await page.getByLabel('Cantidad de la línea 1').fill('3');
   await page.getByRole('button', { name: 'Guardar borrador' }).click();

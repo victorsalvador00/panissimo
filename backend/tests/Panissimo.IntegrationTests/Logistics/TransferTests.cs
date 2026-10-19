@@ -32,12 +32,12 @@ public class TransferTests(ApiFactory factory)
         var plant = await factory.LocationIdAsync("PLANTA");
         var branch = await factory.LocationIdAsync("SUC-01");
         var bread = await factory.CreateItemAsync("BOMBA", ItemType.FinishedGood, "pza", tracksLots: true);
-        var sugar = await factory.CreateItemAsync("AZU");
+        var labels = await factory.CreateItemAsync("ETQ", ItemType.Supply);
         await factory.AddStockAsync(plant, bread.Id, 30, 2.5m, "OP-9-02", Today.AddDays(3));
         await factory.AddStockAsync(plant, bread.Id, 20, 2.5m, "OP-9-01", Today.AddDays(1));
-        await factory.AddStockAsync(plant, sugar.Id, 50, 20);
+        await factory.AddStockAsync(plant, labels.Id, 50, 20);
 
-        var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(bread.Id, null, 36), new TransferLineRequest(sugar.Id, null, 5));
+        var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(bread.Id, null, 36), new TransferLineRequest(labels.Id, null, 5));
         Assert.StartsWith("TR-", transfer.Folio);
 
         var dispatched = await (await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
@@ -56,7 +56,7 @@ public class TransferTests(ApiFactory factory)
         Assert.Equal(TransferStatus.ReceivedWithDiscrepancies, received!.Status);
         Assert.Equal(34m, await factory.StockAsync(branch, bread.Id));
         Assert.Equal(5m, received.TransitLossValue); // 2 pza × 2.5
-        var kardex = await admin.GetJsonAsync<PagedResult<KardexEntryDto>>($"/api/v1/movements?locationId={branch}&itemId={sugar.Id}");
+        var kardex = await admin.GetJsonAsync<PagedResult<KardexEntryDto>>($"/api/v1/movements?locationId={branch}&itemId={labels.Id}");
         Assert.Equal((MovementType.TransferIn, 20m), (kardex!.Items.Single().Type, kardex.Items.Single().UnitCost));
 
         var tab = await admin.GetJsonAsync<PagedResult<TransferListItemDto>>($"/api/v1/transfers?tab=Received&q={transfer.Folio}");
@@ -69,15 +69,15 @@ public class TransferTests(ApiFactory factory)
         var admin = await factory.LoginAsAdminAsync();
         var plant = await factory.LocationIdAsync("PLANTA");
         var branch = await factory.LocationIdAsync("SUC-02");
-        var flour = await factory.CreateItemAsync("HAR");
-        await factory.AddStockAsync(plant, flour.Id, 100, 18);
-        var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(flour.Id, null, 30));
+        var bags = await factory.CreateItemAsync("BOL", ItemType.Supply);
+        await factory.AddStockAsync(plant, bags.Id, 100, 18);
+        var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(bags.Id, null, 30));
 
         var responses = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ =>
             admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null))));
 
         Assert.Equal([HttpStatusCode.OK, HttpStatusCode.Conflict], responses.Select(r => r.StatusCode).Order());
-        Assert.Equal(70m, await factory.StockAsync(plant, flour.Id));
+        Assert.Equal(70m, await factory.StockAsync(plant, bags.Id));
     }
 
     [Fact]
@@ -86,9 +86,9 @@ public class TransferTests(ApiFactory factory)
         var admin = await factory.LoginAsAdminAsync();
         var plant = await factory.LocationIdAsync("PLANTA");
         var branch = await factory.LocationIdAsync("SUC-01");
-        var flour = await factory.CreateItemAsync("HAR");
-        await factory.AddStockAsync(plant, flour.Id, 5, 18);
-        var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(flour.Id, null, 8));
+        var bags = await factory.CreateItemAsync("BOL", ItemType.Supply);
+        await factory.AddStockAsync(plant, bags.Id, 5, 18);
+        var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(bags.Id, null, 8));
 
         var response = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null));
 
@@ -123,14 +123,39 @@ public class TransferTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Transfers_reject_raw_materials_and_semi_finished_goods_on_every_route()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var plant = await factory.LocationIdAsync("PLANTA");
+        var suc1 = await factory.LocationIdAsync("SUC-01");
+        var bread = await factory.CreateItemAsync("CONCHA", ItemType.FinishedGood, "pza");
+        var flour = await factory.CreateItemAsync("HAR");
+        var dough = await factory.CreateItemAsync("MASA", ItemType.SemiFinished);
+
+        var mixed = await admin.PostJsonAsync("/api/v1/transfers",
+            new CreateTransferRequest(plant, suc1, null, [new TransferLineRequest(bread.Id, null, 5), new TransferLineRequest(flour.Id, null, 2)]));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, mixed.StatusCode);
+        Assert.Equal("transfer_item_not_allowed", await CodeOf(mixed));
+
+        var returned = await admin.PostJsonAsync("/api/v1/transfers",
+            new CreateTransferRequest(suc1, plant, "Devolución", [new TransferLineRequest(dough.Id, null, 1)]));
+        Assert.Equal("transfer_item_not_allowed", await CodeOf(returned));
+
+        var draft = await CreateAsync(admin, plant, suc1, new TransferLineRequest(bread.Id, null, 5));
+        var edited = await admin.PutJsonAsync($"/api/v1/transfers/{draft.Id}",
+            new UpdateTransferRequest(draft.Version, suc1, null, [new TransferLineRequest(flour.Id, null, 2)]));
+        Assert.Equal("transfer_item_not_allowed", await CodeOf(edited));
+    }
+
+    [Fact]
     public async Task Only_the_destination_receives_and_drafts_can_be_cancelled()
     {
         var admin = await factory.LoginAsAdminAsync();
         var plant = await factory.LocationIdAsync("PLANTA");
         var suc2 = await factory.LocationIdAsync("SUC-02");
-        var flour = await factory.CreateItemAsync("HAR");
-        await factory.AddStockAsync(plant, flour.Id, 10, 18);
-        var transfer = await CreateAsync(admin, plant, suc2, new TransferLineRequest(flour.Id, null, 4));
+        var bags = await factory.CreateItemAsync("BOL", ItemType.Supply);
+        await factory.AddStockAsync(plant, bags.Id, 10, 18);
+        var transfer = await CreateAsync(admin, plant, suc2, new TransferLineRequest(bags.Id, null, 4));
         var dispatched = await (await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
             new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null))).Content.ReadJsonAsync<TransferDto>();
 
@@ -144,7 +169,7 @@ public class TransferTests(ApiFactory factory)
         var cancelDispatched = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/cancel", new VersionRequest(dispatched.Version));
         Assert.Equal("transfer_not_draft", await CodeOf(cancelDispatched));
 
-        var draft = await CreateAsync(admin, plant, suc2, new TransferLineRequest(flour.Id, null, 1));
+        var draft = await CreateAsync(admin, plant, suc2, new TransferLineRequest(bags.Id, null, 1));
         var cancelled = await (await admin.PostJsonAsync($"/api/v1/transfers/{draft.Id}/cancel", new VersionRequest(draft.Version)))
             .Content.ReadJsonAsync<TransferDto>();
         Assert.Equal(TransferStatus.Cancelled, cancelled!.Status);

@@ -1,3 +1,4 @@
+using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
 using Panissimo.Domain.Logistics;
@@ -19,6 +20,14 @@ public class TransferTests
     [InlineData(LocationType.Branch, LocationType.Plant, false)]
     public void Only_plant_to_branch_is_a_standard_route(LocationType from, LocationType to, bool standard) =>
         Assert.Equal(standard, TransferRoutes.IsStandard(from, to));
+
+    [Theory]
+    [InlineData(ItemType.FinishedGood, true)]   // bulk or packaged
+    [InlineData(ItemType.Supply, true)]
+    [InlineData(ItemType.SemiFinished, false)]
+    [InlineData(ItemType.RawMaterial, false)]
+    public void Transfers_carry_finished_goods_and_supplies(ItemType type, bool expected) =>
+        Assert.Equal(expected, TransferRoutes.IsShippable(type));
 
     [Fact]
     public void Plan_rejects_same_location_empty_and_duplicated_lines()

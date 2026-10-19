@@ -1037,3 +1037,13 @@
   - **Limpieza de restos de corridas fallidas en la BD de desarrollo:** se canceló OP-000010 ("E2E 24", liberada con reserva) y se dio de baja la harina E2E-TZ sobrante de PLANTA-MP con el ajuste AJ-000013. Si no, FEFO la tomaba antes que la de la corrida.
 - **Otros:** backend 301 unitarias y frontend 197 unitarias, lint y build en verde. Sin commit de estos ajustes todavía.
 
+
+### Ajustes de UI y RN-115: qué viaja en un traspaso (2026-10-19)
+
+- **RN-115 (nueva, decidida con el usuario):** un traspaso entre ubicaciones, en cualquier ruta (también sucursal → sucursal y devoluciones), solo lleva producto terminado (granel o empaquetado) e insumos; 422 `transfer_item_not_allowed` al crear o editar con materia prima o semiterminado. Los vales internos (RN-47, RN-112) no se limitan. `dominio.md` §Logística.
+  - Backend: `TransferRoutes.IsShippable` y la validación en `TransferService.ValidatePlanAsync`.
+  - Frontend: el buscador del formulario de traspaso filtra a `FinishedGood` y `Supply` y se llama "Producto o insumo".
+- **Menú lateral:** `mat-sidenav-container` con `autosize`: el contenido se recorre al cambiar entre menú completo y solo iconos (antes quedaba tapado).
+- **OP, campo Origen:** el selector de subalmacén de origen se dibuja como control (borde, fondo, flecha en color primario, hover y foco) para que se note que se puede cambiar.
+- **Pruebas:** backend 305 unitarias (`Transfers_carry_finished_goods_and_supplies`) y 173 de integración en verde (+1 omitida); `Transfers_reject_raw_materials_and_semi_finished_goods_on_every_route` es nueva y cuatro pruebas de traspaso pasaron de harina a insumos. Frontend 197 unitarias y `ng lint` en verde. La E2E 05 usa un insumo y la nueva etiqueta; no se corrió.
+- **Pendiente:** `npm run lint` marca CRLF en archivos de Windows (`core.autocrlf=true`); falta `* text=auto eol=lf` en `.gitattributes`.

@@ -89,6 +89,26 @@ table {
   font-weight: 600;
 }
 
+// The source is the only editable cell of the table: drawn as a control so it reads as one.
 .source-select {
   min-width: 180px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid var(--mat-sys-primary);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+  --mat-select-enabled-arrow-color: var(--mat-sys-primary);
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
+  }
+
+  &.mat-focused,
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--mat-sys-primary);
+  }
 }

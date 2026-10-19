@@ -21,7 +21,15 @@ test.describe('Login y menú filtrado', () => {
     await signIn(page, adminCredentials());
     await openMenu(page);
     const menu = page.getByRole('navigation', { name: 'Menú principal' });
-    for (const section of ['Inventario', 'Producción', 'Logística', 'Ventas', 'Compras', 'Catálogos', 'Administración'])
+    for (const section of [
+      'Inventario',
+      'Producción',
+      'Logística',
+      'Ventas',
+      'Compras',
+      'Catálogos',
+      'Administración',
+    ])
       await expect(menu.getByRole('heading', { name: section })).toBeVisible();
     await menu.getByRole('link', { name: 'Usuarios' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Usuarios' })).toBeVisible();
@@ -29,7 +37,12 @@ test.describe('Login y menú filtrado', () => {
 
   test('el encargado de sucursal solo ve lo que su rol permite', async ({ page, baseURL }) => {
     const api = await AdminApi.create(baseURL!);
-    const manager = await api.ensureUser('e2e.encargado@panissimo.test', 'Encargado E2E', 'Encargado de sucursal', ['PLANTA']);
+    const manager = await api.ensureUser(
+      'e2e.encargado@panissimo.test',
+      'Encargado E2E',
+      'Encargado de sucursal',
+      ['PLANTA'],
+    );
     await api.dispose();
 
     await signIn(page, manager);

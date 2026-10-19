@@ -1,0 +1,419 @@
+{
+    "items": [
+        {
+            "sku": "IN-001",
+            "name": "Agua",
+            "type": "Supply",
+            "baseUom": "l",
+            "taxRate": 0.0000,
+            "category": "Abarrotes",
+            "tracksLots": false,
+            "storageCondition": "Ambient"
+        },
+        {
+            "sku": "IN-002",
+            "name": "Bolsa Empaquetado",
+            "type": "Supply",
+            "baseUom": "pza",
+            "taxRate": 0.0000,
+            "category": "Abarrotes",
+            "tracksLots": false,
+            "purchaseUom": "paq",
+            "storageCondition": "Ambient",
+            "purchaseToBaseFactor": 100.0000
+        },
+        {
+            "sku": "MP-001",
+            "name": "Harina de trigo",
+            "type": "RawMaterial",
+            "baseUom": "kg",
+            "taxRate": 0.0000,
+            "category": "Harinas",
+            "tracksLots": true,
+            "purchaseUom": "bulto",
+            "shelfLifeDays": 180,
+            "storageCondition": "Ambient",
+            "purchaseToBaseFactor": 25.0000
+        },
+        {
+            "sku": "MP-002",
+            "name": "Sal",
+            "type": "RawMaterial",
+            "baseUom": "kg",
+            "taxRate": 0.0000,
+            "category": "Abarrotes",
+            "tracksLots": false,
+            "storageCondition": "Ambient"
+        },
+        {
+            "sku": "MP-003",
+            "name": "Azucar de segunda",
+            "type": "RawMaterial",
+            "baseUom": "kg",
+            "taxRate": 0.0000,
+            "category": "Azucares",
+            "tracksLots": true,
+            "storageCondition": "Ambient"
+        },
+        {
+            "sku": "MP-004",
+            "name": "Levadura fresca",
+            "type": "RawMaterial",
+            "baseUom": "kg",
+            "taxRate": 0.0000,
+            "category": "Levaduras",
+            "tracksLots": true,
+            "shelfLifeDays": 30,
+            "storageCondition": "Refrigerated"
+        },
+        {
+            "sku": "MP-005",
+            "name": "Margarina danes",
+            "type": "RawMaterial",
+            "baseUom": "kg",
+            "taxRate": 0.0000,
+            "category": "Grasas",
+            "tracksLots": true,
+            "storageCondition": "Refrigerated"
+        },
+        {
+            "sku": "MP-006",
+            "name": "Huevo",
+            "type": "RawMaterial",
+            "baseUom": "l",
+            "taxRate": 0.0000,
+            "category": "Huevo",
+            "tracksLots": true,
+            "storageCondition": "Ambient"
+        },
+        {
+            "sku": "MP-007",
+            "name": "Esencia de vainilla",
+            "type": "RawMaterial",
+            "baseUom": "l",
+            "taxRate": 0.0000,
+            "category": "Saborizantes",
+            "tracksLots": true,
+            "storageCondition": "Ambient"
+        },
+        {
+            "sku": "PT-020-DONA",
+            "name": "Dona a granel",
+            "type": "FinishedGood",
+            "baseUom": "pza",
+            "taxRate": 0.0000,
+            "category": "Reposteria",
+            "tracksLots": true,
+            "purchaseUom": "pza",
+            "presentation": "Bulk",
+            "shelfLifeDays": 2,
+            "productionArea": "Repostería",
+            "unitWeightGrams": 110.00,
+            "storageCondition": "Refrigerated",
+            "purchaseToBaseFactor": 1.0000
+        },
+        {
+            "sku": "PT-020-DONA-EMP",
+            "name": "Dona a granel empaquetado",
+            "type": "FinishedGood",
+            "baseUom": "pza",
+            "bulkSku": "PT-020-DONA",
+            "taxRate": 0.0000,
+            "category": "Reposteria",
+            "tracksLots": true,
+            "purchaseUom": "pza",
+            "presentation": "Packaged",
+            "shelfLifeDays": 2,
+            "productionArea": "Repostería",
+            "storageCondition": "Refrigerated",
+            "purchaseToBaseFactor": 1.0000
+        }
+    ],
+    "drivers": [
+        {
+            "name": "Ana Hernández (prueba)",
+            "phone": "5512345604"
+        },
+        {
+            "name": "Carlos Ramírez (prueba)",
+            "phone": "5512345603"
+        },
+        {
+            "name": "Juan Pérez (prueba)",
+            "phone": "5512345601"
+        },
+        {
+            "name": "Luis García (prueba)",
+            "phone": "5512345605"
+        },
+        {
+            "name": "María López (prueba)",
+            "phone": "5512345602"
+        }
+    ],
+    "recipes": [
+        {
+            "lines": [
+                {
+                    "sku": "IN-001",
+                    "quantity": 0.1500,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-001",
+                    "quantity": 1.0000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-002",
+                    "quantity": 0.0120,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-003",
+                    "quantity": 0.2000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-004",
+                    "quantity": 0.0150,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-005",
+                    "quantity": 0.1000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-006",
+                    "quantity": 0.3000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-007",
+                    "quantity": 0.0170,
+                    "wastePct": 0.00
+                }
+            ],
+            "factory": "FABRICA-PT",
+            "yieldQty": 20.0000,
+            "outputSku": "PT-020-DONA"
+        },
+        {
+            "lines": [
+                {
+                    "sku": "IN-001",
+                    "quantity": 0.1500,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "IN-002",
+                    "quantity": 20.0000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-001",
+                    "quantity": 1.0000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-002",
+                    "quantity": 0.0120,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-003",
+                    "quantity": 0.2000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-004",
+                    "quantity": 0.0150,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-005",
+                    "quantity": 0.1000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-006",
+                    "quantity": 0.3000,
+                    "wastePct": 0.00
+                },
+                {
+                    "sku": "MP-007",
+                    "quantity": 0.0170,
+                    "wastePct": 0.00
+                }
+            ],
+            "notes": "Version Empaquetada de Dona",
+            "factory": "FABRICA-PT",
+            "yieldQty": 20.0000,
+            "outputSku": "PT-020-DONA-EMP"
+        }
+    ],
+    "vehicles": [
+        {
+            "plate": "PRB-001-A",
+            "description": "Prueba 1 - Nissan NP300 caja seca"
+        },
+        {
+            "plate": "PRB-002-A",
+            "description": "Prueba 2 - Ford Transit refrigerada"
+        },
+        {
+            "plate": "PRB-003-A",
+            "description": "Prueba 3 - Isuzu ELF 400 caja seca"
+        },
+        {
+            "plate": "PRB-004-A",
+            "description": "Prueba 4 - Chevrolet Tornado van"
+        },
+        {
+            "plate": "PRB-005-A",
+            "description": "Prueba 5 - Hino 300 refrigerada"
+        }
+    ],
+    "customers": [
+        {
+            "code": "OXXO-001",
+            "name": "OXXO 01",
+            "deliveryPoints": [
+                {
+                    "name": "La Fragua",
+                    "address": "Lafragua 1015, Calle Tuero Molina Esq-2, Ignacio Zaragoza, 91910 Veracruz, Ver."
+                }
+            ]
+        }
+    ],
+    "locations": [
+        {
+            "code": "PLANTA-INS",
+            "name": "Insumos y empaque",
+            "type": "Warehouse",
+            "parent": "PLANTA",
+            "suppliesTypes": [
+                "Supply"
+            ]
+        },
+        {
+            "code": "PLANTA-MP",
+            "name": "Materias primas",
+            "type": "Warehouse",
+            "parent": "PLANTA",
+            "suppliesTypes": [
+                "RawMaterial"
+            ]
+        },
+        {
+            "code": "PLANTA-PT",
+            "name": "Producto terminado",
+            "type": "Warehouse",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FABRICA-PT",
+            "name": "Fabrica Producto Terminado",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FABRICA-ST",
+            "name": "Fabrica de Semiterminados",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "SUC-001",
+            "name": "Sucursal 1",
+            "type": "Branch",
+            "address": "Paseo Jardín #30 esq. Conquistadores, Jardines del Virginia, 94294 Boca del Río, Ver."
+        }
+    ],
+    "suppliers": [
+        {
+            "name": "ABARROTES VERACRUZ",
+            "email": "ABARROTESV@GMAIL.COM",
+            "items": [
+                {
+                    "sku": "IN-002",
+                    "price": 100.0000,
+                    "supplierSku": "IN-002-PRV",
+                    "leadTimeDays": 15
+                },
+                {
+                    "sku": "MP-002",
+                    "price": 100.0000,
+                    "supplierSku": "MP-002-PRV",
+                    "leadTimeDays": 15
+                },
+                {
+                    "sku": "MP-006",
+                    "price": 100.0000,
+                    "supplierSku": "MP-006-PRV",
+                    "leadTimeDays": 15
+                }
+            ],
+            "taxId": "APV9003173C9",
+            "contactName": "2292365451",
+            "paymentTermsDays": 15
+        },
+        {
+            "name": "Materias Primas Veracruz",
+            "email": "mprimas@gmail.com",
+            "items": [
+                {
+                    "sku": "IN-002",
+                    "price": 100.0000,
+                    "isActive": false,
+                    "supplierSku": "IN-002-PRV",
+                    "leadTimeDays": 15
+                },
+                {
+                    "sku": "MP-001",
+                    "price": 100.0000,
+                    "supplierSku": "MP-001-PRV",
+                    "leadTimeDays": 7
+                },
+                {
+                    "sku": "MP-003",
+                    "price": 100.0000,
+                    "supplierSku": "MP-003-PRV",
+                    "leadTimeDays": 7
+                },
+                {
+                    "sku": "MP-004",
+                    "price": 100.0000,
+                    "supplierSku": "MP-004-PRV",
+                    "leadTimeDays": 7
+                },
+                {
+                    "sku": "MP-005",
+                    "price": 100.0000,
+                    "supplierSku": "MP-005-PRV",
+                    "leadTimeDays": 7
+                },
+                {
+                    "sku": "MP-007",
+                    "price": 100.0000,
+                    "supplierSku": "MP-007-PRV",
+                    "leadTimeDays": 7
+                }
+            ],
+            "taxId": "EKU9003173C9",
+            "contactName": "2294567898",
+            "paymentTermsDays": 20
+        }
+    ],
+    "categories": [
+        "Abarrotes",
+        "Azucares",
+        "Grasas",
+        "Harinas",
+        "Huevo",
+        "Levaduras",
+        "Reposteria",
+        "Saborizantes"
+    ]
+}

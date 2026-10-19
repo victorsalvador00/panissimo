@@ -28,6 +28,12 @@ public sealed class SeedOptions
     /// plant without sub-warehouses (stock on the plant itself) and create their own plants with sub-warehouses.
     /// </summary>
     public bool PlantWarehouses { get; set; } = true;
+
+    /// <summary>
+    /// Base catalogs for development and the demo (<see cref="SampleDataSeeder"/>); null = none, as in production. When
+    /// set, the plant's sub-warehouses come from the file instead of <see cref="DatabaseSeeder.PlantWarehouses"/>.
+    /// </summary>
+    public string? SampleDataFile { get; set; }
 }
 
 /// <summary>
@@ -39,6 +45,7 @@ public sealed class DatabaseSeeder(
     RoleManager<AppRole> roleManager,
     UserManager<AppUser> userManager,
     IOptions<SeedOptions> options,
+    SampleDataSeeder sampleData,
     ILogger<DatabaseSeeder> logger)
 {
     public static readonly IReadOnlyList<(string Code, string Name, UomKind Kind)> UnitsOfMeasure =
@@ -75,8 +82,9 @@ public sealed class DatabaseSeeder(
         await SeedProductionAreasAsync(ct);
         await SeedSettingsAsync(ct);
         await db.SaveChangesAsync(ct);
-        if (options.Value.PlantWarehouses)
+        if (options.Value.PlantWarehouses && string.IsNullOrWhiteSpace(options.Value.SampleDataFile))
             await SeedPlantWarehousesAsync(ct);
+        await sampleData.SeedAsync(ct);
 
         await SeedRolesAsync(ct);
         await SeedAdminAsync(ct);

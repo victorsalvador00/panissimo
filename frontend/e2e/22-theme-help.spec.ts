@@ -15,7 +15,10 @@ async function chooseTheme(page: Page, label: string): Promise<void> {
   await page.getByRole('menuitemradio', { name: label }).click();
 }
 
-test('tema: persiste al recargar y "según el sistema" sigue al sistema', async ({ page, isMobile }) => {
+test('tema: persiste al recargar y "según el sistema" sigue al sistema', async ({
+  page,
+  isMobile,
+}) => {
   test.skip(isMobile, 'El tema no depende del ancho.');
   await page.emulateMedia({ colorScheme: 'light' });
   await signIn(page, adminCredentials());
@@ -60,7 +63,9 @@ test('ayuda: abrir, video, Esc y foco', async ({ page }) => {
   if (existsSync(join(__dirname, '..', 'public', 'help', 'ajuste.webm'))) {
     const video = panel.locator('video');
     await expect(video).toHaveAttribute('src', 'help/ajuste.webm');
-    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0);
+    await expect
+      .poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState))
+      .toBeGreaterThan(0);
   }
 
   // Esc closes it and the focus goes back to the button.

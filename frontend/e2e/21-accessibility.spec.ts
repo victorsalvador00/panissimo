@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { Page, expect, test } from '@playwright/test';
-import { AdminApi, signIn } from './support/api';
+import { signIn } from './support/api';
 import { adminCredentials } from './support/env';
 
 /**
@@ -18,8 +18,16 @@ const SCREENS: readonly { name: string; url: string; ready: string }[] = [
   { name: 'órdenes de compra', url: '/compras/ordenes', ready: 'Órdenes de compra' },
   { name: 'artículos', url: '/catalogos/articulos', ready: 'Artículos' },
   { name: 'nuevo ajuste', url: '/inventario/ajustes/nuevo', ready: 'Nuevo ajuste' },
-  { name: 'nuevo pedido de cliente', url: '/ventas/pedidos/nuevo', ready: 'Nuevo pedido de cliente' },
-  { name: 'análisis de consumo', url: '/inventario/analisis-consumo', ready: 'Análisis de consumo' },
+  {
+    name: 'nuevo pedido de cliente',
+    url: '/ventas/pedidos/nuevo',
+    ready: 'Nuevo pedido de cliente',
+  },
+  {
+    name: 'análisis de consumo',
+    url: '/inventario/analisis-consumo',
+    ready: 'Análisis de consumo',
+  },
 ];
 
 async function audit(page: Page, label: string): Promise<void> {
@@ -28,9 +36,17 @@ async function audit(page: Page, label: string): Promise<void> {
     // Chart canvases are decorative (aria-hidden); their data is in a hidden table.
     .exclude('canvas')
     .analyze();
-  const serious = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+  const serious = results.violations.filter(
+    (v) => v.impact === 'serious' || v.impact === 'critical',
+  );
   const report = serious
-    .map((v) => `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes.map((n) => n.target.join(' ')).slice(0, 5).join('\n  ')}`)
+    .map(
+      (v) =>
+        `${v.id} (${v.impact}): ${v.help}\n  ${v.nodes
+          .map((n) => n.target.join(' '))
+          .slice(0, 5)
+          .join('\n  ')}`,
+    )
     .join('\n');
   expect(serious, `${label}\n${report}`).toEqual([]);
 }
@@ -47,16 +63,15 @@ for (const theme of ['light', 'dark'] as const) {
       await audit(page, 'login');
     });
 
-    test('pantallas del sistema', async ({ page, baseURL, isMobile }) => {
+    test('pantallas del sistema', async ({ page, isMobile }) => {
       test.skip(isMobile, 'Las mismas pantallas; el celular lo cubre la revisión de 360 px.');
       test.setTimeout(120_000);
-      const api = await AdminApi.create(baseURL!);
-      await api.ensureCategory('E2E');
-      await api.dispose();
       await signIn(page, adminCredentials());
       for (const screen of SCREENS) {
         await page.goto(screen.url);
-        await expect(page.getByRole('heading', { name: screen.ready, exact: true }).first()).toBeVisible();
+        await expect(
+          page.getByRole('heading', { name: screen.ready, exact: true }).first(),
+        ).toBeVisible();
         // Lists and charts finish loading.
         await page.waitForLoadState('networkidle');
         await audit(page, `${screen.name} (${theme})`);

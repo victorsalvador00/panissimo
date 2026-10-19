@@ -328,7 +328,7 @@ Pipes: `qty`, `mxn`, `statusLabel`.
 ## 9. Pruebas
 
 - **Unitarias obligatorias:** `AuthService` (refresh único ante 401 concurrentes), `permissionGuard` y `*hasPermission`, `error.interceptor` (400 → controles), pipes, `app-lines-editor`, `ThemeService`, acciones por estado de cada documento (`*Actions`), cierre (pendiente, máximo con tolerancia, recálculo de líneas no tocadas), `app-xlsx-import` (errores bloquean, avisos exigen casilla), y la prueba de que toda ruta tiene ayuda.
-- **E2E (Playwright, escritorio y 390 px; tableta 1024 px en el cierre)** contra el backend con la semilla de desarrollo. Credenciales del admin de `PAN_E2E_ADMIN_EMAIL`/`PAN_E2E_ADMIN_PASSWORD` o de `deploy/.env`. Cada prueba documenta si mueve inventario.
+- **E2E (Playwright, escritorio y 390 px; tableta 1024 px en el cierre)** contra el backend con la semilla de desarrollo. Credenciales del admin de `PAN_E2E_ADMIN_EMAIL`/`PAN_E2E_ADMIN_PASSWORD` o de `deploy/.env`. Cada prueba documenta si mueve inventario. Trabajan sobre los catálogos base de `deploy/seed/sample-data.json` (`e2e/support/base-data.ts`): no crean ubicaciones, categorías, artículos, recetas, proveedores, clientes ni flotilla; si falta uno, fallan y lo dicen. Las altas de proveedor, cliente e importación válida de artículos no se prueban de punta a punta para no agregar registros.
   1. Login y menú filtrado (admin vs encargado de sucursal).
   2. Importación CSV de artículos con errores.
   3. Ajuste sin existencia → diálogo de faltantes.

@@ -143,6 +143,7 @@ public static class DependencyInjection
         services.Configure<SeedOptions>(configuration.GetSection(SeedOptions.Section));
         services.Configure<DatabaseOptions>(configuration.GetSection(DatabaseOptions.Section));
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<SampleDataSeeder>();
 
         return services;
     }

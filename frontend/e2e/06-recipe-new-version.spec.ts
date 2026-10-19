@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { AdminApi, signIn } from './support/api';
+import { base } from './support/base-data';
 import { adminCredentials } from './support/env';
 
 interface RecipeRow {
@@ -17,32 +18,23 @@ function today(): string {
 
 /**
  * E2E 6 (frontend §9): editing a recipe already used by a production order saves version N+1 and leaves the previous
- * one inactive. Does not move inventory. The first time it creates E2E-HARINA, E2E-MASA and its recipe; to mark the
- * recipe as used it creates a draft order and cancels it at once.
+ * one inactive. Does not move inventory. Works on the recipe of the packaged donut of the base catalogs, so each run
+ * leaves one more version of it; to mark the recipe as used it creates a draft order and cancels it at once.
  */
 test('receta: editar una receta usada crea la versión N+1', async ({ page, baseURL, isMobile }) => {
   test.skip(isMobile, 'Una versión nueva por corrida.');
+  const product = base.packagedDonut;
   const api = await AdminApi.create(baseURL!);
-  await api.ensureCategory('E2E');
-  await api.ensureItem('E2E-HARINA', 'Harina E2E', 'E2E', 'kg');
-  await api.ensureItem('E2E-MASA', 'Masa E2E', 'E2E', 'kg', 'SemiFinished');
-  const masa = await api.itemId('E2E-MASA');
-  const harina = await api.itemId('E2E-HARINA');
-  let recipe = (await api.get<{ items: RecipeRow[] }>(`recipes?outputItemId=${masa}`)).items[0];
-  if (!recipe) {
-    recipe = await api.post<RecipeRow>('recipes', {
-      factoryId: await api.factoryId(),
-      outputItemId: masa,
-      yieldQty: 10,
-      notes: 'E2E',
-      lines: [{ componentItemId: harina, quantity: 6, wastePct: 0 }],
-    });
-  }
-  if (!recipe.isUsed) {
+  const output = await api.itemId(product);
+  const recipe = (
+    await api.get<{ items: RecipeRow[] }>(`recipes?outputItemId=${output}`)
+  ).items.find((r) => r.isActive);
+  expect(recipe, `receta activa de ${product}`).toBeTruthy();
+  if (!recipe!.isUsed) {
     const order = await api.post<{ id: string; version: number }>('production-orders', {
-      locationId: await api.locationId('PLANTA'),
-      outputItemId: masa,
-      plannedQty: 10,
+      locationId: await api.requireLocation(base.plant),
+      outputItemId: output,
+      plannedQty: 20,
       scheduledDate: today(),
       productionAreaId: null,
       shift: null,
@@ -51,26 +43,35 @@ test('receta: editar una receta usada crea la versión N+1', async ({ page, base
     await api.post(`production-orders/${order.id}/cancel`, { version: order.version });
   }
   await api.dispose();
-  const current = recipe.recipeVersion;
+  const current = recipe!.recipeVersion;
 
   await signIn(page, adminCredentials());
   await page.goto('/produccion/recetas');
-  await page.getByLabel('Buscar por SKU o nombre del producto').fill('E2E-MASA');
-  await page.getByRole('link', { name: 'E2E-MASA', exact: true }).click();
+  await page.getByLabel('Buscar por SKU o nombre del producto').fill(product);
+  await page.getByRole('link', { name: product, exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: `Receta de E2E-MASA · v${current}` })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: `Receta de ${product} · v${current}` }),
+  ).toBeVisible();
   await expect(page.getByText(`creará la versión ${current + 1}`)).toBeVisible();
   const waste = page.getByLabel('Merma del componente 1');
   await waste.fill(String(current % 10));
   await page.getByRole('button', { name: `Guardar versión ${current + 1}` }).click();
-  await page.getByRole('dialog').getByRole('button', { name: `Crear versión ${current + 1}` }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: `Crear versión ${current + 1}` })
+    .click();
 
-  await expect(page.getByRole('heading', { name: `Receta de E2E-MASA · v${current + 1}` })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: `Receta de ${product} · v${current + 1}` }),
+  ).toBeVisible();
   await expect(page.getByText('Activa', { exact: true })).toBeVisible();
 
   // The previous version stays for its orders, inactive and read-only.
   await page.getByRole('link', { name: `v${current}`, exact: true }).click();
-  await expect(page.getByRole('heading', { name: `Receta de E2E-MASA · v${current}` })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: `Receta de ${product} · v${current}` }),
+  ).toBeVisible();
   await expect(page.getByText('Esta versión está inactiva')).toBeVisible();
   await expect(page.getByLabel('Merma del componente 1')).toBeDisabled();
 });

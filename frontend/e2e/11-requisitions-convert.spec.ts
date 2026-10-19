@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { AdminApi, signIn } from './support/api';
+import { base } from './support/base-data';
 import { adminCredentials } from './support/env';
 
 /** Business date of the plant (America/Mexico_City), as the API expects it. */
@@ -9,7 +10,7 @@ function inDays(days: number): string {
 }
 
 /**
- * F-14 (frontend §11, RN-34): a requisition made in the form (preferred supplier and amount), sent and approved, plus
+ * F-14 (frontend §11, RN-34): a requisition of flour made in the form (suggested supplier and amount), sent and approved, plus
  * another approved by API; both are selected and converted, and the generated purchase order is shown with both
  * requisitions. Does not move inventory; each run leaves 2 converted requisitions and a draft purchase order.
  */
@@ -20,17 +21,15 @@ test('convertir varias requisiciones muestra las OC generadas', async ({
 }) => {
   test.skip(isMobile, 'Cada corrida crea requisiciones.');
   const api = await AdminApi.create(baseURL!);
-  await api.ensureCategory('E2E');
-  await api.ensureItem('E2E-HARINA', 'Harina E2E', 'E2E', 'kg');
-  const harina = await api.itemId('E2E-HARINA');
-  // A supplier that sells it (the preferred one is taken by the form).
-  const offer = await api.ensureSupplierOffer('E2E-HARINA');
-  const plant = await api.locationId('PLANTA');
+  const flour = await api.itemId(base.flour);
+  // The supplier of the base catalogs that sells it (the form takes the preferred one, or the first).
+  const offer = await api.supplierOffer(base.flour);
+  const plant = await api.requireLocation(base.plant);
   const viaApi = await api.post<{ id: string; folio: string; version: number }>('requisitions', {
     locationId: plant,
     neededBy: inDays(10),
     notes: 'E2E 11',
-    lines: [{ itemId: harina, quantity: 4, suggestedSupplierId: offer.supplierId, notes: null }],
+    lines: [{ itemId: flour, quantity: 4, suggestedSupplierId: offer.supplierId, notes: null }],
   });
   const submitted = await api.post<{ version: number }>(`requisitions/${viaApi.id}/submit`, {
     version: viaApi.version,
@@ -40,10 +39,10 @@ test('convertir varias requisiciones muestra las OC generadas', async ({
 
   await signIn(page, adminCredentials());
   await page.goto('/compras/requisiciones/nueva');
-  await page.getByRole('combobox', { name: 'Materia prima o insumo' }).fill('E2E-HARINA');
-  await page.getByRole('option', { name: /E2E-HARINA/ }).click();
+  await page.getByRole('combobox', { name: 'Materia prima o insumo' }).fill(base.flour);
+  await page.getByRole('option', { name: new RegExp(base.flour) }).click();
   await page.getByLabel('Cantidad de la línea 1').fill('6');
-  await expect(page.getByRole('combobox', { name: 'Proveedor' })).toContainText('(preferido)');
+  await expect(page.getByRole('combobox', { name: 'Proveedor' })).toContainText(offer.supplierName);
   await expect(page.getByText('Subtotal estimado')).not.toContainText('$0.00');
   await page.getByRole('button', { name: 'Guardar borrador' }).click();
 

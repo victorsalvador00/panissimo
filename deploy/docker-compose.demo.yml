@@ -44,6 +44,9 @@ services:
     restart: unless-stopped
 
   api:
+    environment:
+      # Base catalogs of development and the demo (deploy/seed/sample-data.json); production does not load them.
+      PAN__Seed__SampleDataFile: /seed/sample-data.json
     depends_on:
       postgres:
         condition: service_healthy

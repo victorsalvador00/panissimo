@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { AdminApi, signIn } from './support/api';
+import { base } from './support/base-data';
 import { adminCredentials } from './support/env';
 
 /**
  * E2E 10 (frontend §9): branch order made on the phone → the plant approves less than requested → dispatches its
  * transfer → the branch receives short on the phone; the order ends fulfilled. **Moves inventory** in the database it
- * runs against: it puts 4 pieces of E2E-INSUMO in PLANTA-PT (correction), ships 3 to SUC-E2E and receives 2.
+ * runs against: it puts 4 bags (IN-002) in PLANTA-PT (correction), ships 3 to SUC-001 and receives 2.
  */
 test('pedido de sucursal: aprobar, despachar y recibir con faltante', async ({
   page,
@@ -15,11 +16,9 @@ test('pedido de sucursal: aprobar, despachar y recibir con faltante', async ({
   test.skip(isMobile, 'Recorre 390 px y escritorio en una sola corrida.');
   test.setTimeout(90_000);
   const api = await AdminApi.create(baseURL!);
-  await api.ensureCategory('E2E');
-  await api.ensureFleet();
-  await api.ensureItem('E2E-INSUMO', 'Insumo E2E', 'E2E', 'pza', 'Supply');
-  await api.addStock('PLANTA-PT', 'E2E-INSUMO', 4);
-  const branch = await api.ensureBranch('SUC-E2E', 'Sucursal E2E');
+  await api.fleet();
+  await api.addStock(base.finishedGoods, base.bag, 4);
+  const branch = await api.requireLocation(base.branch);
   await api.dispose();
 
   await signIn(page, adminCredentials());
@@ -28,8 +27,8 @@ test('pedido de sucursal: aprobar, despachar y recibir con faltante', async ({
   // The branch orders 4 on the phone.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/logistica/pedidos/nuevo');
-  await page.getByRole('combobox', { name: 'Producto o insumo' }).fill('E2E-INSUMO');
-  await page.getByRole('option', { name: /E2E-INSUMO/ }).click();
+  await page.getByRole('combobox', { name: 'Producto o insumo' }).fill(base.bag);
+  await page.getByRole('option', { name: new RegExp(base.bag) }).click();
   await page.getByLabel('Cantidad de la línea 1').fill('4');
   await page.getByRole('button', { name: 'Guardar borrador' }).click();
   await expect(page.getByRole('heading', { name: /Pedido PED-/ })).toBeVisible();
@@ -40,7 +39,7 @@ test('pedido de sucursal: aprobar, despachar y recibir con faltante', async ({
   // The plant approves 3 of 4 on the same screen.
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole('button', { name: 'Aprobar' }).click();
-  await page.getByLabel('Aprobar de E2E-INSUMO').fill('3');
+  await page.getByLabel(`Aprobar de ${base.bag}`).fill('3');
   await page.getByRole('button', { name: 'Confirmar aprobación' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Aprobar' }).click();
   await expect(page.locator('app-status-tag').getByText('Aprobado')).toBeVisible();
@@ -56,12 +55,12 @@ test('pedido de sucursal: aprobar, despachar y recibir con faltante', async ({
     .catch(() => false);
   if (hasWarehouses) {
     await warehouse.click();
-    await page.getByRole('option', { name: 'Producto terminado' }).click();
+    await page.getByRole('option', { name: 'Producto terminado', exact: true }).click();
   }
   await dispatch.getByRole('combobox', { name: 'Vehículo' }).click();
-  await page.getByRole('option', { name: /E2E-01/ }).click();
+  await page.getByRole('option', { name: new RegExp(base.vehicle) }).click();
   await dispatch.getByRole('combobox', { name: 'Chofer' }).click();
-  await page.getByRole('option', { name: 'Chofer E2E' }).click();
+  await page.getByRole('option', { name: base.driver }).click();
   await dispatch.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Despachar' }).click();
   await expect(page.locator('app-status-tag').getByText('En tránsito')).toBeVisible();
@@ -69,7 +68,7 @@ test('pedido de sucursal: aprobar, despachar y recibir con faltante', async ({
   // The branch receives 2 of 3 on the phone.
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('link', { name: 'Recibir' }).click();
-  const card = page.locator('article').filter({ hasText: 'E2E-INSUMO' });
+  const card = page.locator('article').filter({ hasText: base.bag });
   await expect(card.getByLabel('Recibido')).toHaveValue('3');
   await card.getByLabel('Recibido').fill('2');
   await card.getByRole('combobox', { name: 'Motivo del faltante' }).click();

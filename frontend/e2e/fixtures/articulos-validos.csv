@@ -1,3 +1,0 @@
-sku,nombre,tipo,categoria,unidad_base,maneja_lotes,vida_util_dias,presentacion,sku_granel,piezas_por_paquete
-E2E-GRANEL,Concha E2E a granel,terminado,E2E,pza,si,3,granel,,
-E2E-PAQ,"Concha E2E, paquete de 4",terminado,E2E,pza,si,3,empaquetado,E2E-GRANEL,4

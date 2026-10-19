@@ -1,5 +1,6 @@
 import { APIRequestContext, Page, expect, request } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
+import { base } from './base-data';
 import { Credentials, adminCredentials } from './env';
 
 const apiBase = '/api/v1';
@@ -26,14 +27,20 @@ export class AdminApi {
   }
 
   async post<T>(path: string, data: unknown): Promise<T> {
-    const response = await this.context.post(`${apiBase}/${path}`, { headers: this.headers(), data });
+    const response = await this.context.post(`${apiBase}/${path}`, {
+      headers: this.headers(),
+      data,
+    });
     expect(response.ok(), `POST ${path}: ${await response.text()}`).toBeTruthy();
     const text = await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
   }
 
   async put<T>(path: string, data: unknown): Promise<T> {
-    const response = await this.context.put(`${apiBase}/${path}`, { headers: this.headers(), data });
+    const response = await this.context.put(`${apiBase}/${path}`, {
+      headers: this.headers(),
+      data,
+    });
     expect(response.ok(), `PUT ${path}: ${await response.text()}`).toBeTruthy();
     const text = await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
@@ -43,7 +50,12 @@ export class AdminApi {
    * A user with one system role and the given locations; created the first time and with a fresh temporary password
    * on every run, so the test can sign in. Does not move inventory.
    */
-  async ensureUser(email: string, fullName: string, roleName: string, locationCodes: string[]): Promise<Credentials> {
+  async ensureUser(
+    email: string,
+    fullName: string,
+    roleName: string,
+    locationCodes: string[],
+  ): Promise<Credentials> {
     const password = `E2e${randomBytes(9).toString('base64url')}9`;
     const roles = await this.get<{ items: { id: string; name: string }[] }>('roles?pageSize=100');
     const role = roles.items.find((r) => r.name === roleName);
@@ -60,13 +72,26 @@ export class AdminApi {
     );
     const user = existing.items.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (!user) {
-      await this.post('users', { email, fullName, password, roleIds: [role!.id], locationIds, defaultLocationId: null });
+      await this.post('users', {
+        email,
+        fullName,
+        password,
+        roleIds: [role!.id],
+        locationIds,
+        defaultLocationId: null,
+      });
       return { email, password };
     }
     const current = await this.get<{ version: number }>(`users/${user.id}`);
     const updated = await this.context.put(`${apiBase}/users/${user.id}`, {
       headers: this.headers(),
-      data: { version: current.version, fullName, roleIds: [role!.id], locationIds, defaultLocationId: null },
+      data: {
+        version: current.version,
+        fullName,
+        roleIds: [role!.id],
+        locationIds,
+        defaultLocationId: null,
+      },
     });
     expect(updated.ok(), `PUT users/${user.id}`).toBeTruthy();
     if (!user.isActive) {
@@ -77,58 +102,57 @@ export class AdminApi {
     return { email, password };
   }
 
-  /** An active item category with this name (created the first time). */
-  async ensureCategory(name: string): Promise<void> {
-    const page = await this.get<{ items: { name: string; isActive: boolean }[] }>(
-      `item-categories?q=${encodeURIComponent(name)}&includeInactive=true&pageSize=100`,
+  /** Id of an item of the base catalogs (support/base-data.ts); fails if it is missing. */
+  async itemId(sku: string): Promise<string> {
+    const found = await this.get<{ id: string; sku: string }[]>(
+      `items/lookup?q=${encodeURIComponent(sku)}`,
     );
-    if (!page.items.some((c) => c.name.toLowerCase() === name.toLowerCase()))
-      await this.post('item-categories', { name });
+    const item = found.find((i) => i.sku === sku);
+    expect(item, `artículo base ${sku} (deploy/seed/sample-data.json)`).toBeTruthy();
+    return item!.id;
   }
 
-  /** A raw material with this SKU (created the first time, never touched afterwards). */
-  async ensureItem(
-    sku: string,
-    name: string,
-    categoryName: string,
-    unitCode: string,
-    type: 'RawMaterial' | 'Supply' | 'SemiFinished' | 'FinishedGood' = 'RawMaterial',
-    lots: { tracksLots: boolean; shelfLifeDays: number | null } = { tracksLots: false, shelfLifeDays: null },
-  ): Promise<void> {
-    const found = await this.get<{ id: string }[]>(`items/lookup?q=${encodeURIComponent(sku)}`);
-    if (found.length > 0) return;
-    const categories = await this.get<{ items: { id: string; name: string }[] }>(
-      `item-categories?pageSize=100&includeInactive=true`,
-    );
-    const units = await this.get<{ items: { id: string; code: string }[] }>('units-of-measure?pageSize=100');
-    await this.post('items', {
-      sku,
-      name,
-      type,
-      categoryId: categories.items.find((c) => c.name === categoryName)!.id,
-      baseUomId: units.items.find((u) => u.code === unitCode)!.id,
-      purchaseUomId: null,
-      purchaseToBaseFactor: null,
-      tracksLots: lots.tracksLots,
-      shelfLifeDays: lots.shelfLifeDays,
-      storageCondition: 'Ambient',
-      taxRate: 0,
-      presentation: type === 'FinishedGood' ? 'Bulk' : null,
-      bulkItemId: null,
-      unitsPerPackage: null,
-      productionAreaId: null,
-      productionMultiple: null,
-      unitWeightGrams: null,
+  /**
+   * Cancels a document a test left open (`production-orders/{id}`, `branch-orders/{id}`, `requisitions/{id}`…), for the
+   * `finally` of the tests that clean up; a document that can no longer be cancelled is left as it is.
+   */
+  async cancelQuietly(path: string): Promise<void> {
+    const current = await this.context.get(`${apiBase}/${path}`, { headers: this.headers() });
+    if (!current.ok()) return;
+    const { version } = (await current.json()) as { version: number };
+    await this.context.post(`${apiBase}/${path}/cancel`, {
+      headers: this.headers(),
+      data: { version },
     });
   }
 
-  async itemId(sku: string): Promise<string> {
-    const found = await this.get<{ id: string; sku: string }[]>(`items/lookup?q=${encodeURIComponent(sku)}`);
-    return found.find((i) => i.sku === sku)!.id;
+  /** Whether the item has a photo (F-23). */
+  async hasPhoto(itemId: string): Promise<boolean> {
+    const response = await this.context.get(`${apiBase}/items/${itemId}/photo`, {
+      headers: this.headers(),
+    });
+    return response.ok();
   }
 
-  /** Puts stock with a correction entry (for tests that move inventory). */
-  async addStock(locationCode: string, sku: string, quantity: number, unitCost = 10): Promise<void> {
+  /** Removes the item's photo (cleanup of the photo test). */
+  async removePhoto(itemId: string): Promise<void> {
+    const response = await this.context.delete(`${apiBase}/items/${itemId}/photo`, {
+      headers: this.headers(),
+    });
+    expect(response.ok(), `DELETE items/${itemId}/photo`).toBeTruthy();
+  }
+
+  /**
+   * Puts stock with a correction entry (for tests that move inventory). Items with lots need `lot`: the lot is created
+   * the first time, expiring in 60 days.
+   */
+  async addStock(
+    locationCode: string,
+    sku: string,
+    quantity: number,
+    unitCost = 10,
+    lot: string | null = null,
+  ): Promise<void> {
     const locationId = await this.locationId(locationCode);
     const itemId = await this.itemId(sku);
     await this.post('adjustments', {
@@ -140,8 +164,8 @@ export class AdminApi {
           itemId,
           quantity,
           lotId: null,
-          lotNumber: null,
-          expirationDate: null,
+          lotNumber: lot,
+          expirationDate: lot ? daysFromToday(60) : null,
           unitCost,
           wasteQty: null,
           wasteReason: null,
@@ -151,33 +175,16 @@ export class AdminApi {
     });
   }
 
-  /** An active supplier that sells the item (the preferred one first); creates "Proveedor E2E base" if none. */
-  async ensureSupplierOffer(sku: string): Promise<{ supplierId: string; supplierName: string }> {
+  /** An active supplier of the base catalogs that sells the item (the preferred one first); fails if there is none. */
+  async supplierOffer(sku: string): Promise<{ supplierId: string; supplierName: string }> {
     const itemId = await this.itemId(sku);
-    const offers = () =>
-      this.get<{ supplierId: string; supplierName: string }[]>(`items/${itemId}/supplier-offers`);
-    let found = await offers();
-    if (found.length === 0) {
-      const suppliers = await this.get<{ id: string; name: string }[]>('suppliers/lookup?q=EEE010101AAA');
-      const supplier =
-        suppliers[0] ??
-        (await this.post<{ id: string }>('suppliers', {
-          taxId: 'EEE010101AAA',
-          name: 'Proveedor E2E base',
-          contactName: null,
-          phone: null,
-          email: null,
-          paymentTermsDays: 0,
-        }));
-      await this.post(`suppliers/${supplier.id}/items`, {
-        itemId,
-        supplierSku: null,
-        price: 18,
-        leadTimeDays: 1,
-        isPreferred: true,
-      });
-      found = await offers();
-    }
+    const found = await this.get<{ supplierId: string; supplierName: string }[]>(
+      `items/${itemId}/supplier-offers`,
+    );
+    expect(
+      found.length,
+      `proveedor que venda ${sku} (deploy/seed/sample-data.json)`,
+    ).toBeGreaterThan(0);
     return found[0];
   }
 
@@ -189,59 +196,58 @@ export class AdminApi {
     return page.items.find((l) => l.code === code)?.id ?? null;
   }
 
-  /** An active branch with this code (created the first time). */
-  async ensureBranch(code: string, name: string): Promise<string> {
-    const existing = await this.locationId(code);
-    if (existing) return existing;
-    const created = await this.post<{ id: string }>('locations', {
-      code,
-      name,
-      type: 'Branch',
-      address: null,
-      parentLocationId: null,
-    });
-    return created.id;
+  /** Id of a location of the base catalogs; fails if it is missing. */
+  async requireLocation(code: string): Promise<string> {
+    const id = await this.locationId(code);
+    expect(id, `ubicación base ${code} (deploy/seed/sample-data.json)`).toBeTruthy();
+    return id!;
   }
 
   /** RN-49: the Planta's active factory, if it has one (recipes then must name it); null on a plant without factory. */
   async factoryId(): Promise<string | null> {
     const plant = await this.locationId('PLANTA');
     if (!plant) return null;
-    const warehouses = await this.get<{ id: string; type: string; isActive: boolean }[]>(`locations/${plant}/warehouses`);
+    const warehouses = await this.get<{ id: string; type: string; isActive: boolean }[]>(
+      `locations/${plant}/warehouses`,
+    );
     return warehouses.find((w) => w.type === 'Factory' && w.isActive)?.id ?? null;
   }
 
   /** RN-112: sends and receives (complete) the ingredients vouchers a released order created, so its factory has them. */
   async sendIngredients(orderId: string): Promise<void> {
-    const order = await this.get<{ vouchers: { id: string; status: string }[] | null }>(`production-orders/${orderId}`);
+    const order = await this.get<{ vouchers: { id: string; status: string }[] | null }>(
+      `production-orders/${orderId}`,
+    );
     for (const { id } of (order.vouchers ?? []).filter((v) => v.status === 'Draft')) {
       const draft = await this.get<{ version: number }>(`internal-transfers/${id}`);
-      const sent = await this.post<{ version: number; lines: { id: string; shippedQty: number }[] }>(
-        `internal-transfers/${id}/dispatch`,
-        { version: draft.version, lines: null },
-      );
+      const sent = await this.post<{
+        version: number;
+        lines: { id: string; shippedQty: number }[];
+      }>(`internal-transfers/${id}/dispatch`, { version: draft.version, lines: null });
       await this.post(`internal-transfers/${id}/receive`, {
         version: sent.version,
-        lines: sent.lines.map((l) => ({ lineId: l.id, receivedQty: l.shippedQty, discrepancyReason: null, discrepancyNotes: null })),
+        lines: sent.lines.map((l) => ({
+          lineId: l.id,
+          receivedQty: l.shippedQty,
+          discrepancyReason: null,
+          discrepancyNotes: null,
+        })),
       });
     }
   }
 
-  /** RN-113: the active E2E vehicle and driver dispatches choose (created the first time, reactivated if needed). */
-  async ensureFleet(): Promise<{ vehicleId: string; driverId: string }> {
-    type Row = { id: string; version: number; isActive: boolean };
-    const vehicles = await this.get<{ items: (Row & { plate: string; description: string })[] }>(
-      'vehicles?q=E2E-01&includeInactive=true&pageSize=100',
+  /** RN-113: the base vehicle and driver dispatches choose (support/base-data.ts); fails if they are missing or inactive. */
+  async fleet(): Promise<{ vehicleId: string; driverId: string }> {
+    const vehicles = await this.get<{ items: { id: string; plate: string }[] }>(
+      `vehicles?q=${encodeURIComponent(base.vehicle)}&pageSize=100`,
     );
-    let vehicle = vehicles.items.find((v) => v.plate === 'E2E-01');
-    if (!vehicle) vehicle = await this.post('vehicles', { plate: 'E2E-01', description: 'Camioneta E2E' });
-    else if (!vehicle.isActive)
-      await this.put(`vehicles/${vehicle.id}`, { version: vehicle.version, description: vehicle.description, isActive: true });
-    const drivers = await this.get<{ items: (Row & { name: string })[] }>('drivers?q=Chofer%20E2E&includeInactive=true&pageSize=100');
-    let driver = drivers.items.find((d) => d.name === 'Chofer E2E');
-    if (!driver) driver = await this.post('drivers', { name: 'Chofer E2E', phone: null });
-    else if (!driver.isActive)
-      await this.put(`drivers/${driver.id}`, { version: driver.version, name: driver.name, phone: null, isActive: true });
+    const vehicle = vehicles.items.find((v) => v.plate === base.vehicle);
+    expect(vehicle, `vehículo base ${base.vehicle} activo`).toBeTruthy();
+    const drivers = await this.get<{ items: { id: string; name: string }[] }>(
+      `drivers?q=${encodeURIComponent(base.driver)}&pageSize=100`,
+    );
+    const driver = drivers.items.find((d) => d.name === base.driver);
+    expect(driver, `chofer base ${base.driver} activo`).toBeTruthy();
     return { vehicleId: vehicle!.id, driverId: driver!.id };
   }
 
@@ -265,6 +271,13 @@ export class AdminApi {
   private headers() {
     return { Authorization: `Bearer ${this.token}` };
   }
+}
+
+/** A business date of the plant (America/Mexico_City) `days` from today, as the API expects it. */
+export function daysFromToday(days: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(
+    new Date(Date.now() + days * 86_400_000),
+  );
 }
 
 /** Signs in through the login screen. */

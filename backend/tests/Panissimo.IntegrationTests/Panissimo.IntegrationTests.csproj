@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The real file of deploy/seed: the sample data test checks what development and the demo load. -->
+    <None Include="..\..\..\deploy\seed\sample-data.json" Link="Fixtures\sample-data.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

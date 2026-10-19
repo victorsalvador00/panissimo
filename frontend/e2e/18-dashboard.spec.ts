@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { AdminApi, signIn } from './support/api';
+import { base } from './support/base-data';
 import { adminCredentials } from './support/env';
 
 /**
@@ -13,13 +14,25 @@ test.describe('tablero por rol', () => {
     await signIn(page, adminCredentials());
     await page.goto('/');
     const main = page.getByRole('main');
-    for (const title of ['Bajo mínimo', 'Traspasos por despachar', 'Pedidos por aprobar', 'OC por aprobar', 'OP en proceso'])
+    for (const title of [
+      'Bajo mínimo',
+      'Traspasos por despachar',
+      'Pedidos por aprobar',
+      'OC por aprobar',
+      'OP en proceso',
+    ])
       await expect(main.getByRole('heading', { name: title, exact: true })).toBeVisible();
     await expect(main.getByRole('heading', { name: 'Traspasos por recibir' })).toHaveCount(0);
     await expect(main.getByRole('heading', { name: 'Producción de hoy por área' })).toBeVisible();
-    await expect(main.getByRole('heading', { name: 'Artículos bajo mínimo por ubicación' })).toBeVisible();
-    // The chart's data, for screen readers.
-    await expect(main.getByRole('table', { name: /Artículos bajo mínimo por ubicación/ })).toBeAttached();
+    await expect(
+      main.getByRole('heading', { name: 'Artículos bajo mínimo por ubicación' }),
+    ).toBeVisible();
+    // The chart's data, for screen readers; with no item below its minimum the card says so.
+    await expect(
+      main
+        .getByRole('table', { name: /Artículos bajo mínimo por ubicación/ })
+        .or(main.getByText('Ninguna ubicación tiene artículos bajo mínimo.')),
+    ).toBeAttached();
 
     if (isMobile) {
       const quick = page.getByRole('navigation', { name: 'Acciones rápidas' });
@@ -31,7 +44,10 @@ test.describe('tablero por rol', () => {
     await expect(page.getByRole('navigation', { name: 'Acciones rápidas' })).toBeHidden();
 
     // The low stock card opens the stock with "Solo bajo mínimo" on.
-    await main.getByRole('link', { name: /Bajo mínimo/ }).first().click();
+    await main
+      .getByRole('link', { name: /Bajo mínimo/ })
+      .first()
+      .click();
     await expect(page).toHaveURL(/\/inventario\/existencias\?bajoMinimo=1/);
     await expect(page.getByRole('switch', { name: 'Solo bajo mínimo' })).toBeChecked();
 
@@ -40,24 +56,43 @@ test.describe('tablero por rol', () => {
     await expect(page.getByText('Costo producido', { exact: true }).first()).toBeVisible();
     await page.getByRole('radio', { name: 'Por día' }).click();
     await expect(
-      page.getByRole('table', { name: 'Resumen de producción' }).getByRole('columnheader', { name: 'Día' }),
+      page
+        .getByRole('table', { name: 'Resumen de producción' })
+        .getByRole('columnheader', { name: 'Día' }),
     ).toBeVisible();
   });
 
   test('encargado de sucursal', async ({ page, baseURL, isMobile }) => {
     const api = await AdminApi.create(baseURL!);
-    await api.ensureBranch('SUC-E2E', 'Sucursal E2E');
-    const manager = await api.ensureUser('e2e.tablero@panissimo.test', 'Tablero E2E', 'Encargado de sucursal', ['SUC-E2E']);
+    await api.requireLocation(base.branch);
+    const manager = await api.ensureUser(
+      'e2e.tablero@panissimo.test',
+      'Tablero E2E',
+      'Encargado de sucursal',
+      [base.branch],
+    );
     await api.dispose();
 
     await signIn(page, manager);
     await page.goto('/');
     const main = page.getByRole('main');
-    for (const title of ['Bajo mínimo', 'Lotes por caducar', 'Traspasos por recibir', 'Pedidos en curso'])
+    for (const title of [
+      'Bajo mínimo',
+      'Lotes por caducar',
+      'Traspasos por recibir',
+      'Pedidos en curso',
+    ])
       await expect(main.getByRole('heading', { name: title, exact: true })).toBeVisible();
-    for (const title of ['OC por aprobar', 'OP en proceso', 'Pedidos por aprobar', 'Producción de hoy por área'])
+    for (const title of [
+      'OC por aprobar',
+      'OP en proceso',
+      'Pedidos por aprobar',
+      'Producción de hoy por área',
+    ])
       await expect(main.getByRole('heading', { name: title })).toHaveCount(0);
-    await expect(main.getByRole('heading', { name: 'Artículos bajo mínimo por ubicación' })).toHaveCount(0);
+    await expect(
+      main.getByRole('heading', { name: 'Artículos bajo mínimo por ubicación' }),
+    ).toHaveCount(0);
 
     if (isMobile) {
       const quick = page.getByRole('navigation', { name: 'Acciones rápidas' });

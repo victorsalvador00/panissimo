@@ -1,17 +1,16 @@
 import { expect, test } from '@playwright/test';
-import { AdminApi, signIn } from './support/api';
+import { signIn } from './support/api';
+import { base } from './support/base-data';
 import { adminCredentials } from './support/env';
 
-/**
- * E2E 3 (frontend §9): an exit adjustment without stock shows the shortages dialog and saves nothing. Does not move
- * inventory (the backend rejects it); it creates the item E2E-SIN-EXISTENCIA the first time, which never gets stock.
- */
-test('un ajuste de salida sin existencia muestra el diálogo de faltantes', async ({ page, baseURL }) => {
-  const api = await AdminApi.create(baseURL!);
-  await api.ensureCategory('E2E');
-  await api.ensureItem('E2E-SIN-EXISTENCIA', 'Artículo E2E sin existencia', 'E2E', 'pza');
-  await api.dispose();
+/** More salt than any test ever puts in finished goods: the exit can never be covered. */
+const quantity = '999999';
 
+/**
+ * E2E 3 (frontend §9): an exit adjustment larger than the stock shows the shortages dialog and saves nothing. Does not
+ * move inventory (the backend rejects it).
+ */
+test('un ajuste de salida sin existencia muestra el diálogo de faltantes', async ({ page }) => {
   await signIn(page, adminCredentials());
   await page.goto('/inventario/ajustes/nuevo');
 
@@ -24,21 +23,21 @@ test('un ajuste de salida sin existencia muestra el diálogo de faltantes', asyn
     .catch(() => false);
   if (hasWarehouses) {
     await warehouse.click();
-    await page.getByRole('option', { name: 'Producto terminado' }).click();
+    await page.getByRole('option', { name: 'Producto terminado', exact: true }).click();
   }
   await page.getByRole('combobox', { name: 'Motivo' }).click();
   await page.getByRole('option', { name: 'Merma', exact: true }).click();
 
-  await page.getByRole('combobox', { name: 'Artículo' }).fill('E2E-SIN-EXISTENCIA');
-  await page.getByRole('option', { name: /E2E-SIN-EXISTENCIA/ }).click();
-  await page.getByLabel('Cantidad de la línea 1').fill('3');
+  await page.getByRole('combobox', { name: 'Artículo' }).fill(base.salt);
+  await page.getByRole('option', { name: new RegExp(base.salt) }).click();
+  await page.getByLabel('Cantidad de la línea 1').fill(quantity);
 
   await page.getByRole('button', { name: 'Registrar ajuste' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Registrar ajuste' }).click();
 
   const dialog = page.getByRole('dialog').filter({ hasText: 'Existencia insuficiente' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('row').filter({ hasText: 'E2E-SIN-EXISTENCIA' })).toContainText('3');
+  await expect(dialog.getByRole('row').filter({ hasText: base.salt })).toContainText('999,999');
   await dialog.getByRole('button', { name: 'Entendido' }).click();
 
   // Nothing was saved: the form is still there to fix it.

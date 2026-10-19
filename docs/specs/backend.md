@@ -110,6 +110,7 @@ backend/
   - Permisos y roles (dominio §6), identificados por `system_key`.
   - Usuario administrador con credenciales de variables de entorno.
   - `AppSetting` con sus valores por defecto (dominio §4.8).
+  - **Catálogos base de desarrollo y demo** (`PAN__Seed__SampleDataFile`, `deploy/seed/sample-data.json`; vacío en producción): subalmacenes y fábricas de la planta, sucursal, categorías, artículos, recetas (v1), proveedores con sus artículos, clientes con puntos de entrega, vehículos y choferes. Solo inserta lo que falta (por código, SKU, RFC, placa o nombre) y nunca sobrescribe; con el archivo, los subalmacenes de la planta salen de él y no de los cuatro por omisión. Las E2E trabajan sobre estos registros y no crean catálogos.
 
 ## 5. Motor de inventario (núcleo crítico)
 
@@ -374,6 +375,7 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 | `PAN__Jwt__Key`, `PAN__Jwt__Issuer`, `PAN__Jwt__Audience` | Firma del JWT |
 | `PAN__Seed__AdminEmail` / `PAN__Seed__AdminPassword` | Solo para la primera semilla |
 | `PAN__Seed__LocationsCsv` | CSV de sucursales (default `deploy/seed/locations.csv`) |
+| `PAN__Seed__SampleDataFile` | Catálogos base de desarrollo y demo (`deploy/seed/sample-data.json`); vacío en producción |
 | `PAN__RateLimiting__LoginPermitLimit` | Default 10 |
 | `ASPNETCORE_ENVIRONMENT` | `Development` / `Production` |
 

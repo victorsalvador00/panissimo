@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { AdminApi, signIn } from './support/api';
+import { base } from './support/base-data';
 import { adminCredentials } from './support/env';
 
 /** Business date of the plant (America/Mexico_City), as the API expects it. */
@@ -12,34 +13,25 @@ function inDays(days: number): string {
  * E2E 11 (frontend §9): customer order confirmed → partial shipment from its screen → dispatch → the order is
  * partially shipped and the shipment prints on a letter sheet → delivery with one piece rejected that returns (RN-114,
  * F-27), pending again in the order. **Moves inventory** in the database it runs against:
- * it puts 5 pieces of E2E-PAN in PLANTA-PT (correction) and ships them to a customer.
+ * it puts 5 packaged donuts (lot E2E-15) in PLANTA-PT (correction) and ships them to the customer OXXO-001.
  */
 test('pedido de cliente: remisión parcial y despacho', async ({ page, baseURL, isMobile }) => {
   test.skip(isMobile, 'Cada corrida remisiona un pedido.');
   const api = await AdminApi.create(baseURL!);
-  await api.ensureCategory('E2E');
-  await api.ensureFleet();
-  await api.ensureItem('E2E-PAN', 'Pan E2E', 'E2E', 'pza', 'FinishedGood');
-  await api.addStock('PLANTA-PT', 'E2E-PAN', 5, 3);
-  const customers = await api.get<{ id: string }[]>('customers/lookup?q=E2E-BASE');
-  const customer =
-    customers[0] ??
-    (await api.post<{ id: string }>('customers', {
-      code: 'E2E-BASE',
-      name: 'Cliente E2E base',
-      taxId: null,
-      contactName: null,
-      phone: null,
-      email: null,
-      notes: null,
-    }));
+  await api.fleet();
+  await api.addStock(base.finishedGoods, base.packagedDonut, 5, 3, 'E2E-15');
+  const customers = await api.get<{ id: string; code: string }[]>(
+    `customers/lookup?q=${base.customer}`,
+  );
+  const customer = customers.find((c) => c.code === base.customer);
+  expect(customer, `cliente base ${base.customer}`).toBeTruthy();
   const order = await api.post<{ id: string; folio: string; version: number }>('customer-orders', {
-    customerId: customer.id,
+    customerId: customer!.id,
     deliveryPointId: null,
     requiredDate: inDays(2),
     customerReference: 'E2E 11',
     notes: null,
-    lines: [{ itemId: await api.itemId('E2E-PAN'), quantity: 12, unitPrice: 4.5 }],
+    lines: [{ itemId: await api.itemId(base.packagedDonut), quantity: 12, unitPrice: 4.5 }],
   });
   await api.post(`customer-orders/${order.id}/confirm`, { version: order.version });
   await api.dispose();
@@ -56,12 +48,12 @@ test('pedido de cliente: remisión parcial y despacho', async ({ page, baseURL, 
   const warehouse = page.getByRole('combobox', { name: 'Sale del subalmacén' });
   if (await warehouse.isVisible()) {
     await warehouse.click();
-    await page.getByRole('option', { name: 'Producto terminado' }).click();
+    await page.getByRole('option', { name: 'Producto terminado', exact: true }).click();
   }
   await page.getByRole('combobox', { name: 'Vehículo' }).click();
-  await page.getByRole('option', { name: /E2E-01/ }).click();
+  await page.getByRole('option', { name: new RegExp(base.vehicle) }).click();
   await page.getByRole('combobox', { name: 'Chofer' }).click();
-  await page.getByRole('option', { name: 'Chofer E2E' }).click();
+  await page.getByRole('option', { name: base.driver }).click();
   await page.getByLabel('Recibe (opcional)').fill('Encargado de tienda');
   await page.getByRole('button', { name: 'Despachar' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Despachar' }).click();
@@ -85,7 +77,7 @@ test('pedido de cliente: remisión parcial y despacho', async ({ page, baseURL, 
   const back = delivery.getByRole('combobox', { name: 'Regresa al subalmacén' });
   if (await back.isVisible()) {
     await back.click();
-    await page.getByRole('option', { name: 'Producto terminado' }).click();
+    await page.getByRole('option', { name: 'Producto terminado', exact: true }).click();
   }
   await delivery.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Registrar entrega' }).click();
@@ -95,5 +87,7 @@ test('pedido de cliente: remisión parcial y despacho', async ({ page, baseURL, 
   // The rejected piece is pending again in the order.
   await page.getByRole('link', { name: 'Volver al pedido' }).click();
   await expect(page.locator('app-status-tag').getByText('Remisionado parcial')).toBeVisible();
-  await expect(page.getByRole('row').filter({ hasText: 'E2E-PAN' })).toContainText('8 pza');
+  await expect(page.getByRole('row').filter({ hasText: base.packagedDonut })).toContainText(
+    '8 pza',
+  );
 });

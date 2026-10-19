@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { AdminApi, signIn } from './support/api';
+import { base } from './support/base-data';
 import { adminCredentials } from './support/env';
 
 /** Business date of the plant (America/Mexico_City), as the API expects it. */
@@ -9,9 +10,10 @@ function inDays(days: number): string {
 }
 
 /**
- * F-20 (frontend §11, RN-50): a draft production order of 50,000 kg of E2E-MASA leaves E2E-HARINA "por comprar"; the
- * suggested requisition of that row is a draft with its preferred supplier. Does not move inventory; it cancels the
- * order and the requisition at the end, so they do not cover the requirement of the next runs.
+ * F-20 (frontend §11, RN-50): a draft production order of 10,000,000 donuts (500,000 kg of flour, more than any stock)
+ * leaves MP-001 "por comprar" (none of its offers is preferred: "Sin proveedor preferido"); the suggested requisition
+ * of that row is a draft with the flour. Does
+ * not move inventory; it cancels the order and the requisition at the end, so they do not stay open.
  */
 test('requerimiento: faltante de harina y requisición sugerida', async ({
   page,
@@ -20,49 +22,38 @@ test('requerimiento: faltante de harina y requisición sugerida', async ({
 }) => {
   test.skip(isMobile, 'Cada corrida crea una OP y una requisición.');
   const api = await AdminApi.create(baseURL!);
-  await api.ensureCategory('E2E');
-  await api.ensureItem('E2E-HARINA', 'Harina E2E', 'E2E', 'kg');
-  await api.ensureItem('E2E-MASA', 'Masa E2E', 'E2E', 'kg', 'SemiFinished');
-  const offer = await api.ensureSupplierOffer('E2E-HARINA');
-  const masa = await api.itemId('E2E-MASA');
-  const recipes = await api.get<{ items: unknown[] }>(`recipes?outputItemId=${masa}`);
-  if (recipes.items.length === 0)
-    await api.post('recipes', {
-      factoryId: await api.factoryId(),
-      outputItemId: masa,
-      yieldQty: 10,
-      notes: 'E2E',
-      lines: [{ componentItemId: await api.itemId('E2E-HARINA'), quantity: 6, wastePct: 0 }],
-    });
+  const donut = await api.itemId(base.donut);
   const order = await api.post<{ id: string; version: number }>('production-orders', {
-    locationId: await api.locationId('PLANTA'),
-    outputItemId: masa,
-    plannedQty: 50000,
+    locationId: await api.requireLocation(base.plant),
+    outputItemId: donut,
+    plannedQty: 10000000,
     scheduledDate: inDays(1),
     productionAreaId: null,
     shift: null,
     notes: 'E2E requerimiento',
   });
 
-  await signIn(page, adminCredentials());
-  await page.goto('/compras/requerimiento');
-  const row = page.getByRole('row').filter({ hasText: 'E2E-HARINA' });
-  await expect(row).toBeVisible();
-  await expect(row).toContainText(offer.supplierName);
-  await row.getByRole('checkbox', { name: 'Elegir E2E-HARINA' }).check();
-  await page.getByRole('button', { name: /Crear requisición sugerida \(1\)/ }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Crear requisición' }).click();
+  let requisitionId: string | null = null;
+  try {
+    await signIn(page, adminCredentials());
+    await page.goto('/compras/requerimiento');
+    const row = page.getByRole('row').filter({ hasText: base.flour });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText('Sin proveedor preferido');
+    await row.getByRole('checkbox', { name: `Elegir ${base.flour}` }).check();
+    await page.getByRole('button', { name: /Crear requisición sugerida \(1\)/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Crear requisición' }).click();
 
-  // The suggested requisition is a draft with the flour and its preferred supplier.
-  await expect(page.getByRole('heading', { name: /Requisición REQ-/ })).toBeVisible();
-  await expect(page.locator('app-status-tag').getByText('Borrador')).toBeVisible();
-  const line = page.getByRole('row').filter({ hasText: 'E2E-HARINA' });
-  await expect(line).toContainText(offer.supplierName);
-
-  // Cleanup: neither the order nor the requisition stay open.
-  const requisitionId = page.url().split('/').pop()!;
-  const requisition = await api.get<{ version: number }>(`requisitions/${requisitionId}`);
-  await api.post(`requisitions/${requisitionId}/cancel`, { version: requisition.version });
-  await api.post(`production-orders/${order.id}/cancel`, { version: order.version });
-  await api.dispose();
+    // The suggested requisition is a draft with the flour.
+    await expect(page.getByRole('heading', { name: /Requisición REQ-/ })).toBeVisible();
+    requisitionId = page.url().split('/').pop()!;
+    await expect(page.locator('app-status-tag').getByText('Borrador')).toBeVisible();
+    const line = page.getByRole('row').filter({ hasText: base.flour });
+    await expect(line).toBeVisible();
+  } finally {
+    // Cleanup, also when the test fails: neither the order nor the requisition stay open.
+    if (requisitionId) await api.cancelQuietly(`requisitions/${requisitionId}`);
+    await api.cancelQuietly(`production-orders/${order.id}`);
+    await api.dispose();
+  }
 });

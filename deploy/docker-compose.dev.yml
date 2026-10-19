@@ -60,6 +60,8 @@ services:
       PAN__Seed__AdminEmail: ${PAN__Seed__AdminEmail:-}
       PAN__Seed__AdminPassword: ${PAN__Seed__AdminPassword:-}
       PAN__Seed__LocationsCsv: /seed/locations.csv
+      # Base catalogs (sub-warehouses, factories, branch, items, recipes, suppliers, customers, fleet): the E2E tests use them.
+      PAN__Seed__SampleDataFile: /seed/sample-data.json
       # Solo desarrollo: las pruebas E2E inician sesión muchas veces por minuto (producción: 10/min por IP).
       PAN__RateLimiting__LoginPermitLimit: ${PAN__RateLimiting__LoginPermitLimit:-60}
     ports:

@@ -1,5 +1,5 @@
 sku;nombre;tipo;categoria;unidad_base;presentacion
-E2E-MALO-1;Tipo inválido;pastel;E2E;pza;
+E2E-MALO-1;Tipo inválido;pastel;Harinas;pza;
 E2E-MALO-2;Categoría que no existe;materia_prima;No Existe;kg;
-E2E-MALO-3;Presentación en materia prima;materia_prima;E2E;kg;granel
-E2E-MALO-4;Unidad que no existe;insumo;E2E;zzz;
+E2E-MALO-3;Presentación en materia prima;materia_prima;Harinas;kg;granel
+E2E-MALO-4;Unidad que no existe;insumo;Harinas;zzz;

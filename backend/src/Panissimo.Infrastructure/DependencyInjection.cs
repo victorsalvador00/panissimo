@@ -101,6 +101,7 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfMeasureService, UnitOfMeasureService>();
         services.AddScoped<IItemCategoryService, ItemCategoryService>();
         services.AddScoped<IProductionAreaService, ProductionAreaService>();
+        services.AddScoped<IFleetService, FleetService>();
         services.AddScoped<IItemService, ItemService>();
         services.AddScoped<IItemImportService, ItemImportService>();
         services.AddScoped<IInventoryPostingService, InventoryPostingService>();

@@ -41,7 +41,7 @@ public class TransferTests(ApiFactory factory)
         Assert.StartsWith("TR-", transfer.Folio);
 
         var dispatched = await (await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
-            new DispatchTransferRequest(transfer.Version, "Nissan NP300", "Juan Pérez", null))).Content.ReadJsonAsync<TransferDto>();
+            new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null))).Content.ReadJsonAsync<TransferDto>();
         Assert.Equal(TransferStatus.Dispatched, dispatched!.Status);
         Assert.Equal([("OP-9-01", 20m), ("OP-9-02", 16m)], dispatched.Lines.Where(l => l.ItemId == bread.Id).Select(l => (l.LotNumber!, l.ShippedQty)));
         Assert.Equal(14m, await factory.StockAsync(plant, bread.Id));
@@ -74,7 +74,7 @@ public class TransferTests(ApiFactory factory)
         var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(flour.Id, null, 30));
 
         var responses = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ =>
-            admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, "Camión", "Ana", null))));
+            admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null))));
 
         Assert.Equal([HttpStatusCode.OK, HttpStatusCode.Conflict], responses.Select(r => r.StatusCode).Order());
         Assert.Equal(70m, await factory.StockAsync(plant, flour.Id));
@@ -90,7 +90,7 @@ public class TransferTests(ApiFactory factory)
         await factory.AddStockAsync(plant, flour.Id, 5, 18);
         var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(flour.Id, null, 8));
 
-        var response = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, "Camión", "Ana", null));
+        var response = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("insufficient_stock", await CodeOf(response));
@@ -132,7 +132,7 @@ public class TransferTests(ApiFactory factory)
         await factory.AddStockAsync(plant, flour.Id, 10, 18);
         var transfer = await CreateAsync(admin, plant, suc2, new TransferLineRequest(flour.Id, null, 4));
         var dispatched = await (await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
-            new DispatchTransferRequest(transfer.Version, "Camión", "Ana", null))).Content.ReadJsonAsync<TransferDto>();
+            new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null))).Content.ReadJsonAsync<TransferDto>();
 
         var email = ApiFactory.UniqueEmail("encargado");
         await factory.CreateUserAsync(email, ["branch_manager"], ["SUC-01"]);
@@ -164,12 +164,10 @@ public class TransferTests(ApiFactory factory)
         var fresh = lots.Single(l => l.LotNumber == "NUEVO").LotId!.Value;
 
         var transfer = await CreateAsync(admin, plant, branch, new TransferLineRequest(bread.Id, null, 6));
-        var withExpired = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version,
-            "Camión", "Ana", [new DispatchLineRequest(transfer.Lines[0].Id, [new LotQuantity(expired, 6)])]));
+        var withExpired = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, [new DispatchLineRequest(transfer.Lines[0].Id, [new LotQuantity(expired, 6)])]));
         Assert.Equal("lot_expired", await CodeOf(withExpired));
 
-        var ok = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version,
-            "Camión", "Ana", [new DispatchLineRequest(transfer.Lines[0].Id, [new LotQuantity(fresh, 6)])]));
+        var ok = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch", new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, [new DispatchLineRequest(transfer.Lines[0].Id, [new LotQuantity(fresh, 6)])]));
         Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
         Assert.Equal("NUEVO", (await ok.Content.ReadJsonAsync<TransferDto>())!.Lines.Single().LotNumber);
     }

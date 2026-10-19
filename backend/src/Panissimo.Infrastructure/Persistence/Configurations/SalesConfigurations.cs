@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Sales;
 
@@ -90,12 +91,14 @@ internal sealed class CustomerShipmentConfiguration : IEntityTypeConfiguration<C
     public void Configure(EntityTypeBuilder<CustomerShipment> builder)
     {
         builder.ToTable("customer_shipment", "sales");
+        builder.HasOne<Vehicle>().WithMany().HasForeignKey(s => s.VehicleId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Driver>().WithMany().HasForeignKey(s => s.DriverId).OnDelete(DeleteBehavior.Restrict);
         builder.Property(s => s.Folio).HasMaxLength(30);
-        builder.Property(s => s.Status).HasMaxLength(20);
+        builder.Property(s => s.Status).HasMaxLength(30);
         builder.Property(s => s.Notes).HasMaxLength(CustomerShipment.NotesMaxLength);
         builder.Property(s => s.VehicleDescription).HasMaxLength(150);
         builder.Property(s => s.DriverName).HasMaxLength(150);
-        builder.Property(s => s.ReceivedByName).HasMaxLength(150);
+        builder.Property(s => s.ReceivedByName).HasMaxLength(CustomerShipment.ReceivedByMaxLength);
         builder.HasIndex(s => s.Folio).IsUnique();
         builder.HasIndex(s => s.Status);
         builder.HasIndex(s => s.CustomerOrderId);
@@ -107,6 +110,27 @@ internal sealed class CustomerShipmentConfiguration : IEntityTypeConfiguration<C
         builder.HasOne<Location>().WithMany().HasForeignKey(s => s.FromLocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(s => s.Lines).WithOne().HasForeignKey(l => l.ShipmentId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(s => s.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
+        builder.HasMany(s => s.Rejections).WithOne().HasForeignKey(r => r.ShipmentId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(s => s.Rejections).UsePropertyAccessMode(PropertyAccessMode.Field);
+    }
+}
+
+/// <summary>RN-114: what the customer rejected on delivery.</summary>
+internal sealed class CustomerShipmentRejectionConfiguration : IEntityTypeConfiguration<CustomerShipmentRejection>
+{
+    public void Configure(EntityTypeBuilder<CustomerShipmentRejection> builder)
+    {
+        builder.ToTable("customer_shipment_rejection", "sales");
+        builder.Property(r => r.Reason).HasMaxLength(20);
+        builder.Property(r => r.Disposition).HasMaxLength(10);
+        builder.Property(r => r.Notes).HasMaxLength(CustomerShipment.RejectionNotesMaxLength);
+        builder.Ignore(r => r.Value);
+        builder.HasIndex(r => r.ShipmentId);
+        builder.HasIndex(r => r.LotId);
+        builder.HasOne<CustomerShipmentLine>().WithMany().HasForeignKey(r => r.LineId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Lot>().WithMany().HasForeignKey(r => r.LotId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Location>().WithMany().HasForeignKey(r => r.ReturnLocationId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<InventoryAdjustment>().WithMany().HasForeignKey(r => r.ReturnAdjustmentId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

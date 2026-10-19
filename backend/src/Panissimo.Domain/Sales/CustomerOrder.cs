@@ -121,6 +121,19 @@ public class CustomerOrder : AuditableEntity, IVersioned
         Status = _lines.All(l => l.ShippedQty >= l.Quantity) ? CustomerOrderStatus.Shipped : CustomerOrderStatus.PartiallyShipped;
     }
 
+    /// <summary>
+    /// RN-114: what the customer rejected on delivery stops counting as shipped and may be shipped again. A closed or
+    /// cancelled order is not reopened.
+    /// </summary>
+    public void RegisterRejection(IReadOnlyDictionary<Guid, decimal> quantitiesByLine)
+    {
+        if (Status is not (CustomerOrderStatus.Shipped or CustomerOrderStatus.PartiallyShipped))
+            return;
+        foreach (var (lineId, quantity) in quantitiesByLine)
+            _lines.Single(l => l.Id == lineId).Unship(quantity);
+        Status = _lines.All(l => l.ShippedQty >= l.Quantity) ? CustomerOrderStatus.Shipped : CustomerOrderStatus.PartiallyShipped;
+    }
+
     /// <summary>RN-82: a partially shipped order may be closed with its balance, with a reason.</summary>
     public void Close(string reason, DateTimeOffset now, Guid? userId)
     {
@@ -206,4 +219,6 @@ public class CustomerOrderLine : Entity
                 $"(pedido {Quantity:0.####}, tolerancia {tolerancePct:0.##} %, RN-82).");
         ShippedQty += quantity;
     }
+
+    internal void Unship(decimal quantity) => ShippedQty = Math.Max(0, ShippedQty - quantity);
 }

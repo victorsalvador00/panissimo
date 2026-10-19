@@ -257,11 +257,11 @@ public class WarehouseProcessTests(ApiFactory factory)
         var transfer = await OkAsync<TransferDto>(admin.PostJsonAsync("/api/v1/transfers",
             new CreateTransferRequest(site.Plant.Id, branch.Id, null, [new TransferLineRequest(bread.Id, null, 30)])));
         var withoutWarehouse = await admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
-            new DispatchTransferRequest(transfer.Version, "Camioneta", "Luis", null));
+            new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null));
         Assert.Contains("warehouse_required", await withoutWarehouse.Content.ReadAsStringAsync());
 
         transfer = await OkAsync<TransferDto>(admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
-            new DispatchTransferRequest(transfer.Version, "Camioneta", "Luis", null, site.Pt.Id)));
+            new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null, site.Pt.Id)));
         Assert.Equal(site.Pt.Code, transfer.Lines.Single().FromStockLocationCode);
         Assert.Equal(50m, await factory.StockAsync(site.Pt.Id, bread.Id));
 
@@ -297,11 +297,11 @@ public class WarehouseProcessTests(ApiFactory factory)
 
         var shipment = await OkAsync<CustomerShipmentDto>(admin.PostAsync($"/api/v1/customer-orders/{orderId}/shipments", null));
         var withoutWarehouse = await admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/dispatch",
-            new DispatchCustomerShipmentRequest(shipment.Version, "Camioneta", "Luis", null, null));
+            new DispatchCustomerShipmentRequest(shipment.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null, null));
         Assert.Contains("warehouse_required", await withoutWarehouse.Content.ReadAsStringAsync());
 
         shipment = await OkAsync<CustomerShipmentDto>(admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/dispatch",
-            new DispatchCustomerShipmentRequest(shipment.Version, "Camioneta", "Luis", null, null, site.Pt.Id)));
+            new DispatchCustomerShipmentRequest(shipment.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null, null, site.Pt.Id)));
         Assert.Equal(site.Pt.Code, shipment.Lines.Single().LocationCode);
         Assert.Equal(28m, await factory.StockAsync(site.Pt.Id, packaged.Id));
     }

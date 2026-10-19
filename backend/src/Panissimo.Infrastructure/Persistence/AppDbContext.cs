@@ -29,6 +29,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Lot> Lots => Set<Lot>();
     public DbSet<StockBalance> StockBalances => Set<StockBalance>();
     public DbSet<StockReservation> StockReservations => Set<StockReservation>();
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+    public DbSet<Driver> Drivers => Set<Driver>();
     public DbSet<ItemLocationCost> ItemLocationCosts => Set<ItemLocationCost>();
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public DbSet<InventoryAdjustment> InventoryAdjustments => Set<InventoryAdjustment>();

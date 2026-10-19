@@ -58,7 +58,7 @@ public sealed class InternalTransfersController(ITransferService transfers) : Co
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
     public Task<TransferDto> Dispatch(Guid id, DispatchInternalTransferRequest request, CancellationToken ct) =>
-        transfers.DispatchAsync(id, new DispatchTransferRequest(request.Version, "", "", request.Lines), TransferKind.Internal, ct);
+        transfers.DispatchAsync(id, new DispatchTransferRequest(request.Version, null, null, request.Lines), TransferKind.Internal, ct);
 
     /// <summary>Recibe el vale en el subalmacén destino; si llega menos, indica el motivo de la diferencia.</summary>
     [HttpPost("{id:guid}/receive")]

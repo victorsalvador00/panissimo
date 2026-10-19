@@ -203,6 +203,24 @@ export class AdminApi {
     return created.id;
   }
 
+  /** RN-113: the active E2E vehicle and driver dispatches choose (created the first time, reactivated if needed). */
+  async ensureFleet(): Promise<{ vehicleId: string; driverId: string }> {
+    type Row = { id: string; version: number; isActive: boolean };
+    const vehicles = await this.get<{ items: (Row & { plate: string; description: string })[] }>(
+      'vehicles?q=E2E-01&includeInactive=true&pageSize=100',
+    );
+    let vehicle = vehicles.items.find((v) => v.plate === 'E2E-01');
+    if (!vehicle) vehicle = await this.post('vehicles', { plate: 'E2E-01', description: 'Camioneta E2E' });
+    else if (!vehicle.isActive)
+      await this.put(`vehicles/${vehicle.id}`, { version: vehicle.version, description: vehicle.description, isActive: true });
+    const drivers = await this.get<{ items: (Row & { name: string })[] }>('drivers?q=Chofer%20E2E&includeInactive=true&pageSize=100');
+    let driver = drivers.items.find((d) => d.name === 'Chofer E2E');
+    if (!driver) driver = await this.post('drivers', { name: 'Chofer E2E', phone: null });
+    else if (!driver.isActive)
+      await this.put(`drivers/${driver.id}`, { version: driver.version, name: driver.name, phone: null, isActive: true });
+    return { vehicleId: vehicle!.id, driverId: driver!.id };
+  }
+
   /** Cancels the drafts and counts in progress of a location, so a test can start a new one (RN-06). */
   async cancelOpenCounts(locationId: string): Promise<void> {
     for (const status of ['Draft', 'InProgress']) {

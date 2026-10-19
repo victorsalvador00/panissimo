@@ -32,10 +32,10 @@ public static class SystemRoles
             [ProductionView, ProductionOrdersClose, InventoryView, CatalogView]),
         new("plant_warehouse", "Almacén planta", "Inventario, despachos, recepción de compras y remisiones",
             // Module("inventory") includes inventory.traceability (D-11).
-            [.. Module("inventory"), LogisticsView, LogisticsOrdersApprove, LogisticsTransfersDispatch, LogisticsTransfersSpecial,
-                PurchasingView, PurchasingReceive, SalesView, SalesShipmentsDispatch]),
+            [.. Module("inventory"), LogisticsView, LogisticsOrdersApprove, LogisticsTransfersDispatch, LogisticsTransfersSpecial, LogisticsFleetManage,
+                PurchasingView, PurchasingReceive, SalesView, SalesShipmentsDispatch, SalesShipmentsDeliver]),
         new("distribution", "Distribución", "Despacho de traspasos y remisiones",
-            [LogisticsView, LogisticsTransfersDispatch, SalesView, SalesShipmentsDispatch, InventoryView]),
+            [LogisticsView, LogisticsTransfersDispatch, LogisticsFleetManage, SalesView, SalesShipmentsDispatch, SalesShipmentsDeliver, InventoryView]),
         new("customer_sales", "Ventas a clientes", "Clientes y pedidos de cliente",
             [SalesView, SalesCustomersManage, SalesOrdersManage, InventoryView, ProductionView]),
         new("branch_manager", "Encargado de sucursal", "Operación diaria de sucursal",

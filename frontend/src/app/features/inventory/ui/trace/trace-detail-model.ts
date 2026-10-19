@@ -125,7 +125,43 @@ export function detailModel(
     case 'shipment':
     case 'customer':
       return shipmentDetail(card, ctx);
+    case 'rejection':
+      return rejectionDetail(card);
   }
+}
+
+/** RN-114: what the customer rejected of a shipment, returned to the plant or lost. */
+function rejectionDetail(card: TraceCard): DetailModel {
+  const n = card.node;
+  const uom = n.baseUom ?? null;
+  const returned = n.returnedQty ?? 0;
+  const lost = n.lostQty ?? 0;
+  return {
+    icon: CARD_ICONS.rejection.icon,
+    type: 'Rechazo en la entrega',
+    title: n.folio ?? n.label,
+    subtitle: n.customerName ?? '',
+    status: null,
+    stats: stats(
+      stat('Rechazado', formatQty(returned + lost, uom)),
+      stat('Regresó', formatQty(returned, uom)),
+      stat('Merma', formatQty(lost, uom)),
+      stat('Entrega', shortDateTime(n.deliveredAt)),
+    ),
+    sections: [
+      {
+        kind: 'facts',
+        title: 'Destino',
+        items: [
+          { label: 'Regresó a', value: returned > 0 ? (n.returnLocationCodes ?? '—') : '—' },
+          { label: 'Ajuste de devolución', value: n.returnFolios ?? '—' },
+          { label: 'Merma', value: lost > 0 ? 'No regresa; queda como pérdida' : '—' },
+        ],
+      },
+    ],
+    link: n.shipmentId ? documentLink('CustomerShipment', n.shipmentId) : null,
+    traceFrom: null,
+  };
 }
 
 interface Ctx {

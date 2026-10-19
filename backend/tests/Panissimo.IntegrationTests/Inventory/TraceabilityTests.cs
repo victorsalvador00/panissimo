@@ -73,7 +73,7 @@ public class TraceabilityTests(ApiFactory factory)
         var transfer = await OkAsync<TransferDto>(admin.PostJsonAsync("/api/v1/transfers",
             new CreateTransferRequest(from, to, null, [new TransferLineRequest(itemId, null, qty)])));
         return await OkAsync<TransferDto>(admin.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
-            new DispatchTransferRequest(transfer.Version, "U-07", "Chofer", null)));
+            new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null)));
     }
 
     private static Task<TransferDto> ReceivedAsync(HttpClient admin, TransferDto transfer, Func<TransferLineDto, ReceiveLineRequest>? line = null) =>
@@ -148,7 +148,7 @@ public class TraceabilityTests(ApiFactory factory)
             new VersionRequest(customerOrder.Version)));
         var shipment = await OkAsync<CustomerShipmentDto>(admin.PostAsync($"/api/v1/customer-orders/{customerOrder.Id}/shipments", null));
         shipment = await OkAsync<CustomerShipmentDto>(admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/dispatch",
-            new DispatchCustomerShipmentRequest(shipment.Version, "Camioneta 3", "Luis", "Marta", null)));
+            new DispatchCustomerShipmentRequest(shipment.Version, ApiFactory.VehicleId, ApiFactory.DriverId, "Marta", null)));
 
         return _scenario = new Scenario(plant, suc1, suc2, suc3, suc3Code, flour, sugar, water, bread, oldOrder, newOrder, sugarOrder,
             await LotAsync(flour.Id, "HT-2609-C"), await LotAsync(flour.Id, "HT-2610-A"), c2.Order, c1.Close.OutputLotNumber!,

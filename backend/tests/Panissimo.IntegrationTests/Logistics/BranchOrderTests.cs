@@ -52,7 +52,7 @@ public class BranchOrderTests(ApiFactory factory)
     private static async Task<TransferDto> DispatchAsync(HttpClient client, TransferDto transfer)
     {
         var response = await client.PostJsonAsync($"/api/v1/transfers/{transfer.Id}/dispatch",
-            new DispatchTransferRequest(transfer.Version, "Camioneta 3", "Luis", null));
+            new DispatchTransferRequest(transfer.Version, ApiFactory.VehicleId, ApiFactory.DriverId, null));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadJsonAsync<TransferDto>())!;
     }

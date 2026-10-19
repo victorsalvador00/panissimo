@@ -482,6 +482,16 @@ export const HELP: Readonly<Record<string, HelpTopic>> = {
   },
 
   // Logística
+  'logistica/flotilla': {
+    title: 'Vehículos y choferes',
+    summary:
+      'Catálogo de la flotilla. Al despachar un traspaso o una remisión se elige un vehículo y un chofer activos de aquí.',
+    steps: [
+      'Da de alta cada vehículo con sus placas (únicas) y una descripción que lo identifique.',
+      'Da de alta a los choferes; el teléfono es opcional.',
+      'Desactiva lo que ya no se usa: deja de aparecer al despachar y los documentos anteriores conservan su nombre.',
+    ],
+  },
   'logistica/pedidos': {
     title: 'Pedidos de sucursal',
     summary: 'Pedidos de la sucursal activa; quien aprueba ve también la pestaña "Por aprobar".',
@@ -537,8 +547,18 @@ export const HELP: Readonly<Record<string, HelpTopic>> = {
   },
   'ventas/remisiones/:id': {
     title: 'Remisión',
-    summary: 'Prepara la remisión: cantidades, lotes y datos del vehículo; despáchala e imprímela.',
-    tips: ['No se pueden surtir lotes vencidos. La impresión cabe en una hoja carta.'],
+    summary:
+      'Prepara la remisión: cantidades, lotes, vehículo y chofer; despáchala, imprímela y registra su entrega.',
+    steps: [
+      'Despacha eligiendo vehículo y chofer del catálogo; imprime la remisión para que el cliente la firme.',
+      'Al regresar el chofer, usa "Registrar entrega": fecha y hora, quién recibió y lo que el cliente rechazó por lote.',
+      'Cada rechazo lleva motivo y destino: regresa a la Planta (entra al subalmacén que elijas, en el mismo lote) o es merma.',
+      'Lo rechazado vuelve a quedar pendiente en el pedido: remisiónalo otra vez o cierra el pedido con saldo.',
+    ],
+    tips: [
+      'No se pueden surtir lotes vencidos. La impresión cabe en una hoja carta.',
+      'La entrega es final: si algo quedó mal, corrígelo con un ajuste de inventario.',
+    ],
   },
 
   // Compras

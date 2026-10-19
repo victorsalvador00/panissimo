@@ -12,6 +12,7 @@ import {
 import { rxResource } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -29,7 +30,7 @@ import { Stamp } from '../../../shared/components/stamp/stamp';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { controlError } from '../../../shared/forms/control-error';
 import { FormErrors } from '../../../shared/forms/form-errors';
-import { MxnPipe, QtyPipe, formatQty } from '../../../shared/pipes/pipes';
+import { MxnPipe, QtyPipe, StatusLabelPipe, formatQty } from '../../../shared/pipes/pipes';
 import { LotSplit, lotSplitValid } from '../../inventory/ui/lot-split';
 import { stockWarehouses } from '../../inventory/ui/stock-warehouses';
 import {
@@ -38,6 +39,8 @@ import {
   CustomerShipmentsApi,
 } from '../data-access/sales-api';
 import { TraceLink } from '../../inventory/ui/trace/trace-link';
+import { activeFleet, vehicleLabel } from '../../logistics/ui/fleet-options';
+import { DeliveryDialog, DeliveryDialogData, DeliveryResult } from '../ui/delivery-dialog';
 
 interface DraftLine {
   line: CustomerShipmentLine;
@@ -50,13 +53,14 @@ interface DraftLine {
  * ★ /ventas/remisiones/:id (frontend §7.7, RN-81..RN-83). A draft edits its quantities (up to the balance plus the
  * tolerance), vehicle, driver, who receives and "Elegir lotes" per line, and is **dispatched** with confirmation (it
  * posts the exit from the plant). A dispatched one is read-only and **prints** on a letter sheet (`@media print`):
- * a delivery document, not an invoice.
+ * a delivery document, not an invoice. "Registrar entrega" (RN-114, F-27) closes it with what the customer rejected.
  */
 @Component({
   selector: 'app-shipment-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TraceLink,
+    StatusLabelPipe,
     DatePipe,
     ReactiveFormsModule,
     RouterLink,
@@ -88,6 +92,9 @@ export class ShipmentPage {
   private readonly document = inject(DOCUMENT);
   protected readonly controlError = controlError;
   protected readonly canDispatch = this.auth.can('sales.shipments.dispatch');
+  /** RN-114: registers the delivery of a dispatched shipment. */
+  protected readonly canDeliver = this.auth.can('sales.shipments.deliver');
+  private readonly dialog = inject(MatDialog);
   protected readonly busy = signal(false);
 
   protected readonly resource = rxResource({
@@ -108,16 +115,14 @@ export class ShipmentPage {
     }),
   );
 
+  /** RN-113: the vehicle and driver come from the fleet catalog. */
+  protected readonly fleet = activeFleet();
+  protected readonly vehicleLabel = vehicleLabel;
+
   protected readonly form = new FormGroup({
     warehouseId: new FormControl<string | null>(null),
-    vehicleDescription: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(200)],
-    }),
-    driverName: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(200)],
-    }),
+    vehicleId: new FormControl<string | null>(null, Validators.required),
+    driverId: new FormControl<string | null>(null, Validators.required),
     receivedByName: new FormControl('', {
       nonNullable: true,
       validators: Validators.maxLength(200),
@@ -166,6 +171,56 @@ export class ShipmentPage {
 
   protected print(): void {
     this.document.defaultView?.print();
+  }
+
+  /** RN-114: delivery with what the customer rejected, confirmed with a summary. */
+  protected async deliver(s: CustomerShipment): Promise<void> {
+    const warehouses = this.warehouses().filter((w) => w.type === 'Warehouse');
+    const result = await firstValueFrom(
+      this.dialog
+        .open<DeliveryDialog, DeliveryDialogData, DeliveryResult>(DeliveryDialog, {
+          data: { shipment: s, warehouses },
+          width: '760px',
+          maxWidth: '95vw',
+          autoFocus: 'first-tabbable',
+        })
+        .afterClosed(),
+    );
+    if (!result) return;
+
+    const rejected = result.rejections ?? [];
+    const lineOf = (lineId: string) => s.lines.find((l) => l.id === lineId)!;
+    const confirmed = await this.confirmService.confirm({
+      title: 'Registrar entrega',
+      message:
+        rejected.length === 0
+          ? 'La remisión queda entregada tal como se despachó. La entrega no se edita ni se deshace.'
+          : 'Lo que regresa entra a la Planta en su mismo lote; la merma no regresa. El pedido recupera como pendiente lo rechazado. La entrega no se edita ni se deshace.',
+      summary: [
+        { label: 'Recibió', value: result.receivedByName },
+        ...rejected.map((r) => {
+          const line = lineOf(r.lineId);
+          const warehouse = warehouses.find((w) => w.id === r.returnWarehouseId);
+          return {
+            label: `${line.sku} rechazado`,
+            value: `${formatQty(r.quantity, line.uomCode)} · ${r.disposition === 'Return' ? `regresa${warehouse ? ' a ' + warehouse.name : ''}` : 'merma'}`,
+          };
+        }),
+      ],
+      confirmLabel: 'Registrar entrega',
+    });
+    if (!confirmed) return;
+
+    this.busy.set(true);
+    try {
+      const delivered = await firstValueFrom(
+        this.api.deliver(s.id, { version: s.version, ...result }),
+      );
+      this.resource.set(delivered);
+      this.notifier.info(`Remisión ${delivered.folio} entregada.`);
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   /** Saves the quantities of the draft; returns the shipment with its new version. */
@@ -217,7 +272,10 @@ export class ShipmentPage {
       summary: [
         { label: 'Cliente', value: `${s.customerCode} · ${s.customerName}` },
         ...(s.deliveryPointName ? [{ label: 'Entrega', value: s.deliveryPointName }] : []),
-        { label: 'Vehículo y chofer', value: `${v.vehicleDescription} · ${v.driverName}` },
+        {
+          label: 'Vehículo y chofer',
+          value: `${this.vehicleName(v.vehicleId)} · ${this.fleet.drivers().find((d) => d.id === v.driverId)?.name ?? ''}`,
+        },
         ...drafts
           .filter((d) => (d.quantity.value ?? 0) > 0)
           .map((d) => ({
@@ -243,8 +301,8 @@ export class ShipmentPage {
       const dispatched = await firstValueFrom(
         this.api.dispatch(current.id, {
           version: current.version,
-          vehicleDescription: v.vehicleDescription.trim(),
-          driverName: v.driverName.trim(),
+          vehicleId: v.vehicleId!,
+          driverId: v.driverId!,
           receivedByName: v.receivedByName.trim() || null,
           fromWarehouseId: v.warehouseId,
           lines: lines.length > 0 ? lines : null,
@@ -298,11 +356,14 @@ export class ShipmentPage {
     );
     if (!this.form.dirty)
       this.form.patchValue({
-        vehicleDescription: s.vehicleDescription ?? '',
-        driverName: s.driverName ?? '',
         receivedByName: s.receivedByName ?? '',
         notes: s.notes ?? '',
       });
     this.edits.update((n) => n + 1);
+  }
+
+  private vehicleName(id: string | null): string {
+    const vehicle = this.fleet.vehicles().find((v) => v.id === id);
+    return vehicle ? vehicleLabel(vehicle) : '';
   }
 }

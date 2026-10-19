@@ -111,6 +111,7 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
   const first = await close(order.version, 'Partial');
   await close(first.order.version, 'Final');
 
+  const fleet = await api.ensureFleet();
   for (const [branch, quantity] of [
     [branches[0], 30],
     [branches[1], 40],
@@ -128,8 +129,7 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
       lines: { id: string; shippedQty: number }[];
     }>(`transfers/${draft.id}/dispatch`, {
       version: draft.version,
-      vehicleDescription: 'U-E2E',
-      driverName: 'Chofer E2E',
+      ...fleet,
       lines: null,
       fromWarehouseId: finishedGoods,
     });

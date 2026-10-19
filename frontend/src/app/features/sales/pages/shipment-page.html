@@ -43,9 +43,16 @@
           <dt>Vehículo y chofer</dt>
           <dd>{{ s.vehicleDescription }} · {{ s.driverName }}</dd>
           @if (s.receivedByName) {
-            <dt>Recibe</dt>
+            <dt>{{ s.deliveredAt ? 'Recibió' : 'Recibe' }}</dt>
             <dd>{{ s.receivedByName }}</dd>
           }
+        }
+        @if (s.deliveredAt) {
+          <dt>Entregada</dt>
+          <dd>
+            {{ s.deliveredAt | date: 'dd/MM/yyyy HH:mm' }}
+            <span class="muted pan-no-print">· registró {{ s.deliveredByName ?? '—' }}</span>
+          </dd>
         }
         @if (s.notes && !editable()) {
           <dt>Notas</dt>
@@ -79,13 +86,30 @@
         }
         <mat-form-field>
           <mat-label>Vehículo</mat-label>
-          <input matInput formControlName="vehicleDescription" />
-          <mat-error>{{ controlError(form.controls.vehicleDescription) }}</mat-error>
+          <mat-select formControlName="vehicleId">
+            @for (vehicle of fleet.vehicles(); track vehicle.id) {
+              <mat-option [value]="vehicle.id">{{ vehicleLabel(vehicle) }}</mat-option>
+            }
+          </mat-select>
+          @if (fleet.vehicles().length === 0) {
+            <mat-hint
+              >No hay vehículos activos: dalos de alta en Logística › Vehículos y
+              choferes.</mat-hint
+            >
+          }
+          <mat-error>{{ controlError(form.controls.vehicleId) }}</mat-error>
         </mat-form-field>
         <mat-form-field>
           <mat-label>Chofer</mat-label>
-          <input matInput formControlName="driverName" />
-          <mat-error>{{ controlError(form.controls.driverName) }}</mat-error>
+          <mat-select formControlName="driverId">
+            @for (driver of fleet.drivers(); track driver.id) {
+              <mat-option [value]="driver.id">{{ driver.name }}</mat-option>
+            }
+          </mat-select>
+          @if (fleet.drivers().length === 0) {
+            <mat-hint>No hay choferes activos.</mat-hint>
+          }
+          <mat-error>{{ controlError(form.controls.driverId) }}</mat-error>
         </mat-form-field>
         <mat-form-field>
           <mat-label>Recibe (opcional)</mat-label>
@@ -187,6 +211,59 @@
         </div>
       </section>
 
+      @if (s.rejections?.length) {
+        <section class="pan-card" aria-labelledby="shipment-rejections">
+          <h2 id="shipment-rejections">Rechazos en la entrega</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Producto</th>
+                  <th scope="col">Lote</th>
+                  <th scope="col" class="end">Rechazado</th>
+                  <th scope="col">Motivo</th>
+                  <th scope="col">Destino</th>
+                  <th scope="col" class="end pan-no-print">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of s.rejections; track r.id) {
+                  <tr>
+                    <td>
+                      <strong>{{ r.sku }}</strong> {{ r.itemName }}
+                    </td>
+                    <td>{{ r.lotNumber ?? '—' }}</td>
+                    <td class="end">{{ r.quantity | qty: r.uomCode }}</td>
+                    <td>
+                      {{ r.reason | statusLabel: 'ShipmentRejectionReason' }}
+                      @if (r.notes) {
+                        <span class="muted">· {{ r.notes }}</span>
+                      }
+                    </td>
+                    <td>
+                      @if (r.disposition === 'Return') {
+                        Regresó a {{ r.returnLocationCode }}
+                        @if (r.returnAdjustmentId) {
+                          <a
+                            class="pan-no-print"
+                            [routerLink]="['/inventario/ajustes', r.returnAdjustmentId]"
+                          >
+                            ({{ r.returnAdjustmentFolio }})
+                          </a>
+                        }
+                      } @else {
+                        Merma
+                      }
+                    </td>
+                    <td class="end pan-no-print">{{ r.value | mxn }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
       @if (s.status === 'Dispatched') {
         <div class="signatures pan-print-only">
           <div><span></span>Entregó · {{ s.driverName }}</div>
@@ -209,11 +286,21 @@
       <button matButton="filled" type="submit" form="shipment-form" [disabled]="busy()">
         Despachar
       </button>
-    } @else if (s.status === 'Dispatched') {
-      <button matButton="filled" type="button" (click)="print()">
+    } @else if (s.status !== 'Draft' && s.status !== 'Cancelled') {
+      <button
+        [matButton]="s.status === 'Dispatched' && canDeliver ? 'tonal' : 'filled'"
+        type="button"
+        (click)="print()"
+      >
         <mat-icon>print</mat-icon>
         Imprimir
       </button>
+      @if (s.status === 'Dispatched' && canDeliver) {
+        <button matButton="filled" type="button" [disabled]="busy()" (click)="deliver(s)">
+          <mat-icon>task_alt</mat-icon>
+          Registrar entrega
+        </button>
+      }
     }
   </div>
 } @else if (resource.isLoading()) {

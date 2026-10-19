@@ -339,7 +339,7 @@ export class TransferDetailPage {
           value: warehouse ? `${t.from.name} · ${warehouse.name}` : t.from.name,
         },
         { label: 'Destino', value: t.to.name },
-        { label: 'Vehículo', value: result.vehicleDescription },
+        { label: 'Vehículo', value: result.vehicleLabel },
         { label: 'Chofer', value: result.driverName },
         ...t.lines.map((l) => ({ label: l.sku, value: formatQty(l.shippedQty, l.baseUomCode) })),
       ],
@@ -347,7 +347,13 @@ export class TransferDetailPage {
     });
     if (!confirmed) return;
     await this.run(
-      this.api.dispatch(t.id, { version: t.version, ...result }),
+      this.api.dispatch(t.id, {
+        version: t.version,
+        vehicleId: result.vehicleId,
+        driverId: result.driverId,
+        fromWarehouseId: result.fromWarehouseId,
+        lines: result.lines,
+      }),
       `Traspaso ${t.folio} despachado.`,
     );
   }

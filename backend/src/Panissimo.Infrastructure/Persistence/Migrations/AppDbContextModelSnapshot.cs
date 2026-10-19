@@ -1307,6 +1307,58 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("branch_order_line", "logistics");
                 });
 
+            modelBuilder.Entity("Panissimo.Domain.Logistics.Driver", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("phone");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_driver");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("ix_driver_name");
+
+                    b.ToTable("driver", "logistics");
+                });
+
             modelBuilder.Entity("Panissimo.Domain.Logistics.Transfer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1332,6 +1384,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DispatchedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("dispatched_by");
+
+                    b.Property<Guid?>("DriverId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("driver_id");
 
                     b.Property<string>("DriverName")
                         .HasMaxLength(150)
@@ -1394,6 +1450,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(150)")
                         .HasColumnName("vehicle_description");
 
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_id");
+
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -1406,6 +1466,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.HasIndex("BranchOrderId")
                         .HasDatabaseName("ix_transfer_branch_order_id");
 
+                    b.HasIndex("DriverId")
+                        .HasDatabaseName("ix_transfer_driver_id");
+
                     b.HasIndex("Folio")
                         .IsUnique()
                         .HasDatabaseName("ix_transfer_folio");
@@ -1415,6 +1478,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_transfer_status");
+
+                    b.HasIndex("VehicleId")
+                        .HasDatabaseName("ix_transfer_vehicle_id");
 
                     b.HasIndex("FromLocationId", "Status")
                         .HasDatabaseName("ix_transfer_from_location_id_status");
@@ -1498,6 +1564,60 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_transfer_line_transfer_id");
 
                     b.ToTable("transfer_line", "logistics");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Logistics.Vehicle", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Plate")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("character varying(15)")
+                        .HasColumnName("plate");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_vehicle");
+
+                    b.HasIndex("Plate")
+                        .IsUnique()
+                        .HasDatabaseName("ix_vehicle_plate");
+
+                    b.ToTable("vehicle", "logistics");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Organization.AppSetting", b =>
@@ -3320,6 +3440,14 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("customer_order_id");
 
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at");
+
+                    b.Property<Guid?>("DeliveredBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("delivered_by");
+
                     b.Property<Guid?>("DeliveryPointId")
                         .HasColumnType("uuid")
                         .HasColumnName("delivery_point_id");
@@ -3331,6 +3459,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("DispatchedBy")
                         .HasColumnType("uuid")
                         .HasColumnName("dispatched_by");
+
+                    b.Property<Guid?>("DriverId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("driver_id");
 
                     b.Property<string>("DriverName")
                         .HasMaxLength(150)
@@ -3359,8 +3491,8 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
                         .HasColumnName("status");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
@@ -3375,6 +3507,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)")
                         .HasColumnName("vehicle_description");
+
+                    b.Property<Guid?>("VehicleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("vehicle_id");
 
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
@@ -3394,12 +3530,18 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.HasIndex("DeliveryPointId")
                         .HasDatabaseName("ix_customer_shipment_delivery_point_id");
 
+                    b.HasIndex("DriverId")
+                        .HasDatabaseName("ix_customer_shipment_driver_id");
+
                     b.HasIndex("Folio")
                         .IsUnique()
                         .HasDatabaseName("ix_customer_shipment_folio");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_customer_shipment_status");
+
+                    b.HasIndex("VehicleId")
+                        .HasDatabaseName("ix_customer_shipment_vehicle_id");
 
                     b.HasIndex("FromLocationId", "Status")
                         .HasDatabaseName("ix_customer_shipment_from_location_id_status");
@@ -3486,6 +3628,80 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_customer_shipment_line_lot_lot_id");
 
                     b.ToTable("customer_shipment_line_lot", "sales");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentRejection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Disposition")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("disposition");
+
+                    b.Property<Guid>("LineId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("line_id");
+
+                    b.Property<Guid?>("LotId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("lot_id");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("notes");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid?>("ReturnAdjustmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("return_adjustment_id");
+
+                    b.Property<Guid?>("ReturnLocationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("return_location_id");
+
+                    b.Property<Guid>("ShipmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("shipment_id");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("unit_cost");
+
+                    b.HasKey("Id")
+                        .HasName("pk_customer_shipment_rejection");
+
+                    b.HasIndex("LineId")
+                        .HasDatabaseName("ix_customer_shipment_rejection_line_id");
+
+                    b.HasIndex("LotId")
+                        .HasDatabaseName("ix_customer_shipment_rejection_lot_id");
+
+                    b.HasIndex("ReturnAdjustmentId")
+                        .HasDatabaseName("ix_customer_shipment_rejection_return_adjustment_id");
+
+                    b.HasIndex("ReturnLocationId")
+                        .HasDatabaseName("ix_customer_shipment_rejection_return_location_id");
+
+                    b.HasIndex("ShipmentId")
+                        .HasDatabaseName("ix_customer_shipment_rejection_shipment_id");
+
+                    b.ToTable("customer_shipment_rejection", "sales");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Security.AuditLog", b =>
@@ -4210,6 +4426,12 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_transfer_branch_order_branch_order_id");
 
+                    b.HasOne("Panissimo.Domain.Logistics.Driver", null)
+                        .WithMany()
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_transfer_driver_driver_id");
+
                     b.HasOne("Panissimo.Domain.Organization.Location", null)
                         .WithMany()
                         .HasForeignKey("FromLocationId")
@@ -4229,6 +4451,12 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_transfer_location_to_location_id");
+
+                    b.HasOne("Panissimo.Domain.Logistics.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_transfer_vehicles_vehicle_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Logistics.TransferLine", b =>
@@ -4674,12 +4902,24 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_customer_shipment_customer_delivery_point_delivery_point_id");
 
+                    b.HasOne("Panissimo.Domain.Logistics.Driver", null)
+                        .WithMany()
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_customer_shipment_drivers_driver_id");
+
                     b.HasOne("Panissimo.Domain.Organization.Location", null)
                         .WithMany()
                         .HasForeignKey("FromLocationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_customer_shipment_locations_from_location_id");
+
+                    b.HasOne("Panissimo.Domain.Logistics.Vehicle", null)
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_customer_shipment_vehicles_vehicle_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentLine", b =>
@@ -4727,6 +4967,41 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_customer_shipment_line_lot_lots_lot_id");
+                });
+
+            modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentRejection", b =>
+                {
+                    b.HasOne("Panissimo.Domain.Sales.CustomerShipmentLine", null)
+                        .WithMany()
+                        .HasForeignKey("LineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_rejection_customer_shipment_line_line_id");
+
+                    b.HasOne("Panissimo.Domain.Inventory.Lot", null)
+                        .WithMany()
+                        .HasForeignKey("LotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_customer_shipment_rejection_lots_lot_id");
+
+                    b.HasOne("Panissimo.Domain.Inventory.InventoryAdjustment", null)
+                        .WithMany()
+                        .HasForeignKey("ReturnAdjustmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_customer_shipment_rejection_inventory_adjustments_return_ad");
+
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("ReturnLocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_customer_shipment_rejection_locations_return_location_id");
+
+                    b.HasOne("Panissimo.Domain.Sales.CustomerShipment", null)
+                        .WithMany("Rejections")
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_shipment_rejection_customer_shipment_shipment_id");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Security.RefreshToken", b =>
@@ -4843,6 +5118,8 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipment", b =>
                 {
                     b.Navigation("Lines");
+
+                    b.Navigation("Rejections");
                 });
 
             modelBuilder.Entity("Panissimo.Domain.Sales.CustomerShipmentLine", b =>

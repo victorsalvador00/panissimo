@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Panissimo.Application.Common;
 using Panissimo.Application.Security;
+using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Security;
 using Panissimo.Infrastructure.Identity;
 using Panissimo.Infrastructure.Persistence;
@@ -43,7 +44,21 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await _postgres.StartAsync();
         // Builds the host now: migrations and seed run before the first test.
         _ = Services;
+
+        // RN-113: dispatches choose a vehicle and a driver of the catalog.
+        await using var scope = CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var vehicle = new Vehicle("PRUEBA-01", "Camioneta de prueba");
+        var driver = new Driver("Chofer de prueba", null);
+        db.AddRange(vehicle, driver);
+        await db.SaveChangesAsync();
+        (VehicleId, DriverId) = (vehicle.Id, driver.Id);
     }
+
+    /// <summary>Active vehicle and driver for dispatches (RN-113); one test database per run.</summary>
+    public static Guid VehicleId { get; private set; }
+
+    public static Guid DriverId { get; private set; }
 
     public new async Task DisposeAsync()
     {

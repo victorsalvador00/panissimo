@@ -132,6 +132,12 @@ export const NAVIGATION: readonly NavSection[] = [
         route: '/logistica/traspasos',
         permission: 'logistics.view',
       },
+      {
+        label: 'Vehículos y choferes',
+        icon: 'person_check',
+        route: '/logistica/flotilla',
+        permission: 'logistics.fleet.manage',
+      },
     ],
   },
   {

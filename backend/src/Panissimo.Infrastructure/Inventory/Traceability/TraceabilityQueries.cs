@@ -163,16 +163,48 @@ public sealed class TraceabilityQueries(IAppDbContext db, IUserDirectory userDir
         })];
     }
 
-    public async Task<IReadOnlyList<TraceShipmentLot>> ShipmentLotsAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct) =>
-        await (from s in db.CustomerShipments.AsNoTracking()
-               from l in s.Lines
-               from x in l.Lots
-               where lotIds.Contains(x.LotId) && s.Status == CustomerShipmentStatus.Dispatched
-               join o in db.CustomerOrders on s.CustomerOrderId equals o.Id
-               join c in db.Customers on s.CustomerId equals c.Id
-               select new TraceShipmentLot(s.Id, s.Folio, o.Folio, c.Id, c.Code, c.Name, s.FromLocationId, l.LocationId ?? s.FromLocationId,
-                   s.DispatchedAt, s.Status, s.VehicleDescription, s.DriverName, x.LotId, l.ItemId, x.Quantity))
+    public async Task<IReadOnlyList<TraceShipmentLot>> ShipmentLotsAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct)
+    {
+        var lots = await (from s in db.CustomerShipments.AsNoTracking()
+                          from l in s.Lines
+                          from x in l.Lots
+                          where lotIds.Contains(x.LotId) && (s.Status == CustomerShipmentStatus.Dispatched || s.Status == CustomerShipmentStatus.Delivered
+                                                             || s.Status == CustomerShipmentStatus.DeliveredWithDiscrepancies)
+                          join o in db.CustomerOrders on s.CustomerOrderId equals o.Id
+                          join c in db.Customers on s.CustomerId equals c.Id
+                          select new TraceShipmentLot(s.Id, s.Folio, o.Folio, c.Id, c.Code, c.Name, s.FromLocationId, l.LocationId ?? s.FromLocationId,
+                              s.DispatchedAt, s.Status, s.VehicleDescription, s.DriverName, x.LotId, l.ItemId, x.Quantity, s.DeliveredAt))
             .ToListAsync(ct);
+        var shipmentIds = lots.Where(l => l.Status != CustomerShipmentStatus.Dispatched).Select(l => l.ShipmentId).Distinct().ToList();
+        if (shipmentIds.Count == 0)
+            return lots;
+
+        // RN-114: what the customer rejected of each lot, where it returned and with which CustomerReturn adjustment.
+        var rejections = await (from shipment in db.CustomerShipments.AsNoTracking()
+                                from r in shipment.Rejections
+                                where shipmentIds.Contains(r.ShipmentId) && r.LotId != null
+                                join loc in db.Locations on r.ReturnLocationId equals loc.Id into locs
+                                from loc in locs.DefaultIfEmpty()
+                                join a in db.InventoryAdjustments on r.ReturnAdjustmentId equals a.Id into adjs
+                                from a in adjs.DefaultIfEmpty()
+                                select new { r.ShipmentId, LotId = r.LotId!.Value, r.Quantity, r.Disposition, Location = loc == null ? null : loc.Code,
+                                    Folio = a == null ? null : a.Folio })
+            .ToListAsync(ct);
+        static string? Join(IEnumerable<string?> values) =>
+            string.Join(", ", values.OfType<string>().Distinct().Order()) is { Length: > 0 } text ? text : null;
+        return lots.Select(l =>
+        {
+            var own = rejections.Where(r => r.ShipmentId == l.ShipmentId && r.LotId == l.LotId).ToList();
+            var returned = own.Where(r => r.Disposition == RejectionDisposition.Return).ToList();
+            return own.Count == 0 ? l : l with
+            {
+                ReturnedQty = returned.Sum(r => r.Quantity),
+                LostQty = own.Where(r => r.Disposition == RejectionDisposition.Loss).Sum(r => r.Quantity),
+                ReturnLocationCodes = Join(returned.Select(r => r.Location)),
+                ReturnFolios = Join(returned.Select(r => r.Folio)),
+            };
+        }).ToList();
+    }
 
     public async Task<IReadOnlyList<TraceMovement>> MovementsAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct) =>
         await db.InventoryMovements.AsNoTracking()

@@ -125,6 +125,7 @@ SVG en una capa debajo de las tarjetas, con `pointer-events: none`. Trazo cúbic
 | Materia prima | `Lot → ProductionClose` | 1.3 px, `--pan-trace-edge` | Cantidad con unidad, **solo** al seleccionar |
 | Producto | `ProductionClose → Lot` y todo lo que sigue | Grosor proporcional, `--pan-trace-flow`, opacidad 0.5 | Cantidad siempre visible |
 | Diferencia | `Transfer → Stock` con `ReceivedQty < ShippedQty` | Como producto, en `--pan-trace-warn` | "990 de 1,000" |
+| Rechazo | `CustomerShipment → Rejection` (RN-114) | Como diferencia, en `--pan-trace-warn` | "15 pza" |
 
 - **Grosor del producto:** `max(2.5, 12 × qty / maxQty)`, donde `maxQty` es la mayor cantidad de una arista de producto en el grafo.
 - **Puertos apilados (estilo Sankey):** en cada tarjeta, las aristas de salida se ordenan por la posición vertical del destino y se apilan centradas en la mitad de la tarjeta, cada una con su grosor y 3 px de separación (5 px entre líneas finas). Lo mismo con las de entrada, por la posición del origen. Así las cintas no se enciman.
@@ -148,7 +149,8 @@ SVG en una capa debajo de las tarjetas, con `pointer-events: none`. Trazo cúbic
 | Almacén | `Existencia del lote` | — | Número de lote | `400 pzas de saldo` | `2 salidas a sucursal` |
 | Traspaso | `PLANTA → SUC-02` | Recibido (verde) / Diferencia (naranja) | Folio TR | `1,000 pzas enviadas` | `Sale 05:55 · 55 min` |
 | Sucursal | `Sucursal` | Completo (verde) / `−10` (naranja) | Código | `990 de 1,000 pzas` | `Recibió 06:50` |
-| Remisión | Cliente | Estado | Folio RM | Piezas | Fecha |
+| Remisión | Cliente | Entregada (verde) / Con rechazo (naranja) | Folio RM | Piezas | Fecha |
+| Rechazo (carril Destino, RN-114) | `Rechazo del cliente` | Regresó / Merma (naranja) | Folio RM | `15 pza rechazadas` | `10 pza a PLANTA-PT · 5 pza merma` |
 
 - **Lote:** borde izquierdo de 4 px en `--pan-trace-lot`.
 - **Diferencia:** borde completo en `--pan-trace-warn`.

@@ -88,6 +88,10 @@ public class Transfer : AuditableEntity, IVersioned
 
     public TransferStatus Status { get; private set; }
     public string? Notes { get; private set; }
+    /// <summary>RN-113: the vehicle and driver of the catalog; the text fields keep their copy at dispatch.</summary>
+    public Guid? VehicleId { get; private set; }
+
+    public Guid? DriverId { get; private set; }
     public string? VehicleDescription { get; private set; }
     public string? DriverName { get; private set; }
     public DateTimeOffset? DispatchedAt { get; private set; }
@@ -172,6 +176,13 @@ public class Transfer : AuditableEntity, IVersioned
         DispatchedAt = now;
         DispatchedBy = userId;
         Status = TransferStatus.Dispatched;
+    }
+
+    /// <summary>RN-113: links the dispatch to the fleet catalog (call right after <see cref="Dispatch"/>).</summary>
+    public void AssignFleet(Guid vehicleId, Guid driverId)
+    {
+        VehicleId = vehicleId;
+        DriverId = driverId;
     }
 
     /// <summary>Shipped quantity per item (RN-24 updates the branch order with it).</summary>

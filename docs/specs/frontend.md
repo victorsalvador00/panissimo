@@ -244,6 +244,7 @@ El archivo se guarda en memoria del componente para reenviarlo en el alta (el se
 | `/logistica/pedidos/:id` | Solicitado / aprobado / despachado, traspasos ligados ("Ir a despachar"), motivo de rechazo. **Aprobar** en la misma pantalla con existencia en origen, cantidad aprobada (0 a solicitado; aviso si pasa de la existencia), sin permitir todo en 0. Rechazar con motivo | [logistics.view] |
 | `/logistica/traspasos` | Pestañas Por despachar / En tránsito / Recibidos / Todos; botón **Recibir** en los que llegan a la ubicación activa | [logistics.view] |
 | `/logistica/traspasos/nuevo`, `/:id` | Origen, destino (filtrado por ruta, RN-25), líneas con lote planeado opcional. **Despachar**: vehículo, chofer, "Elegir lotes" por línea, confirmación. Cancelar un traspaso de pedido advierte que cancela el pedido | [logistics.transfers.dispatch] |
+| `/logistica/flotilla` | Vehículos y choferes (RN-113): pestañas Vehículos (placas, descripción, estado) y Choferes (nombre, teléfono, estado), alta y edición en diálogo, "Mostrar inactivos". El despacho de traspasos y remisiones elige de los activos | [logistics.fleet.manage] |
 | ★ `/logistica/traspasos/:id/recibir` | Tarjeta por línea prellenada con lo enviado; si llega menos, motivo y notas; nunca más de lo enviado; barra fija; confirmación | [logistics.transfers.receive] |
 
 ### 7.6 Ventas a terceros
@@ -437,3 +438,4 @@ Cada tarea deja `npm run lint` y `npm test` en verde. **Una tarea por sesión, e
 | ID | Tarea | Requiere | Criterio de aceptación |
 |---|---|---|---|
 | F-26 | Pantalla de trazabilidad (búsqueda, mapa y ficha emergente según `trazabilidad-ui.md`, resumen, bitácora, CSV) y accesos directos | B-28, F-11, F-15, F-16, F-18 | `trazabilidad.md` §6.5 y `trazabilidad-ui.md` §12 |
+| F-27 | **Entrega de remisión** (RN-114): en `/ventas/remisiones/:id` despachada, acción "Registrar entrega" (fecha y hora, quién recibió, por lote rechazado con motivo, nota y destino regresa/merma con subalmacén) con resumen de confirmación; estado y detalle de rechazos en la remisión y en el pedido; pestaña "Por entregar" en la lista de remisiones; la impresión muestra la entrega | B-29, F-18 | Entrega con rechazo que regresa y otro en merma; la existencia de PLANTA-PT sube lo que regresa; el pedido vuelve a mostrar pendiente (E2E, escritorio y 390 px) |

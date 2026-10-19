@@ -30,6 +30,7 @@ type Tab = NonNullable<ApiEnum<'CustomerShipmentTab'>>;
 
 const TABS: readonly { value: Tab; label: string }[] = [
   { value: 'ToDispatch', label: 'Por despachar' },
+  { value: 'ToDeliver', label: 'Por entregar' },
   { value: 'All', label: 'Todas' },
 ];
 

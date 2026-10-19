@@ -38,6 +38,9 @@ public enum TraceNodeType
     Transfer,
     CustomerShipment,
     Customer,
+
+    /// <summary>RN-114: what the customer rejected on delivery: returned to the plant or lost.</summary>
+    Rejection,
 }
 
 public enum TraceEdgeKind
@@ -51,6 +54,9 @@ public enum TraceEdgeKind
     Dispatched,
     Delivered,
     Shipped,
+
+    /// <summary>RN-114: from a shipment to what its customer rejected.</summary>
+    Rejected,
 }
 
 public sealed record TraceQuery
@@ -191,6 +197,12 @@ public sealed record TraceNodeDto
     public Guid? CustomerId { get; init; }
     public string? CustomerCode { get; init; }
     public string? CustomerName { get; init; }
+
+    // Rejection (RN-114): returned to the plant (its locations and CustomerReturn adjustments) or lost.
+    public decimal? ReturnedQty { get; init; }
+    public decimal? LostQty { get; init; }
+    public string? ReturnLocationCodes { get; init; }
+    public string? ReturnFolios { get; init; }
 }
 
 /// <param name="ShippedQty">On a delivery: what left; <c>Qty</c> is what arrived (RN-107).</param>

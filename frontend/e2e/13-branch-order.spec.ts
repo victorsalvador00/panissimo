@@ -16,6 +16,7 @@ test('pedido de sucursal: aprobar, despachar y recibir con faltante', async ({
   test.setTimeout(90_000);
   const api = await AdminApi.create(baseURL!);
   await api.ensureCategory('E2E');
+  await api.ensureFleet();
   await api.ensureItem('E2E-INSUMO', 'Insumo E2E', 'E2E', 'pza', 'Supply');
   await api.addStock('PLANTA-PT', 'E2E-INSUMO', 4);
   const branch = await api.ensureBranch('SUC-E2E', 'Sucursal E2E');
@@ -57,8 +58,10 @@ test('pedido de sucursal: aprobar, despachar y recibir con faltante', async ({
     await warehouse.click();
     await page.getByRole('option', { name: 'Producto terminado' }).click();
   }
-  await dispatch.getByLabel('Vehículo').fill('Camioneta E2E');
-  await dispatch.getByLabel('Chofer').fill('Chofer E2E');
+  await dispatch.getByRole('combobox', { name: 'Vehículo' }).click();
+  await page.getByRole('option', { name: /E2E-01/ }).click();
+  await dispatch.getByRole('combobox', { name: 'Chofer' }).click();
+  await page.getByRole('option', { name: 'Chofer E2E' }).click();
   await dispatch.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Despachar' }).click();
   await expect(page.locator('app-status-tag').getByText('En tránsito')).toBeVisible();

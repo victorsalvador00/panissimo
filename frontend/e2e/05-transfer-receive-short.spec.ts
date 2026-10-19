@@ -11,6 +11,7 @@ test('traspaso directo: despachar y recibir con faltante', async ({ page, baseUR
   test.skip(isMobile, 'Un solo traspaso por corrida.');
   const api = await AdminApi.create(baseURL!);
   await api.ensureCategory('E2E');
+  await api.ensureFleet();
   await api.ensureItem('E2E-TRASPASO', 'Artículo E2E para traspasos', 'E2E', 'pza');
   await api.ensureBranch('SUC-E2E', 'Sucursal E2E');
   await api.addStock('PLANTA-PT', 'E2E-TRASPASO', 3);
@@ -44,8 +45,10 @@ test('traspaso directo: despachar y recibir con faltante', async ({ page, baseUR
     await warehouse.click();
     await page.getByRole('option', { name: 'Producto terminado' }).click();
   }
-  await dispatch.getByLabel('Vehículo').fill('Camioneta E2E');
-  await dispatch.getByLabel('Chofer').fill('Chofer E2E');
+  await dispatch.getByRole('combobox', { name: 'Vehículo' }).click();
+  await page.getByRole('option', { name: /E2E-01/ }).click();
+  await dispatch.getByRole('combobox', { name: 'Chofer' }).click();
+  await page.getByRole('option', { name: 'Chofer E2E' }).click();
   await dispatch.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Despachar' }).click();
   await expect(page.getByText('En tránsito', { exact: true })).toBeVisible();

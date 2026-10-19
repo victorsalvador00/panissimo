@@ -28,6 +28,7 @@ export const CARD_ICONS: Readonly<Record<TraceCard['kind'], { icon: string }>> =
   shipment: { icon: 'local_shipping' },
   branch: { icon: 'store' },
   customer: { icon: 'person' },
+  rejection: { icon: 'move_to_inbox' },
 };
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -224,8 +225,19 @@ export function cardText(
       return {
         ...base,
         header: n.customerName ?? 'Remisión',
-        tag: null,
-        tone: null,
+        // RN-114: delivered as dispatched, or with something rejected.
+        tag:
+          n.shipmentStatus === 'Delivered'
+            ? 'Entregada'
+            : n.shipmentStatus === 'DeliveredWithDiscrepancies'
+              ? 'Con rechazo'
+              : null,
+        tone:
+          n.shipmentStatus === 'Delivered'
+            ? 'green'
+            : n.shipmentStatus === 'DeliveredWithDiscrepancies'
+              ? 'orange'
+              : null,
         title: n.folio ?? n.label,
         figure: formatQty(sum(ins), uom),
         secondary: shortDateTime(n.dispatchedAt),
@@ -238,5 +250,25 @@ export function cardText(
         figure: formatQty(sum(ins), ins[0]?.uom),
         secondary: n.customerCode ?? '',
       };
+    case 'rejection': {
+      const returned = n.returnedQty ?? 0;
+      const lost = n.lostQty ?? 0;
+      return {
+        ...base,
+        header: 'Rechazo del cliente',
+        tag: returned > 0 ? 'Regresó' : 'Merma',
+        tone: 'orange',
+        title: n.folio ?? n.label,
+        figure: `${formatQty(returned + lost, uom)} rechazadas`,
+        secondary: [
+          returned > 0
+            ? `${formatQty(returned, uom)} a ${n.returnLocationCodes ?? 'la Planta'}`
+            : null,
+          lost > 0 ? `${formatQty(lost, uom)} merma` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      };
+    }
   }
 }

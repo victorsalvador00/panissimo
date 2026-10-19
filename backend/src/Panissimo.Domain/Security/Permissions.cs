@@ -30,11 +30,13 @@ public static class Permissions
     public const string LogisticsTransfersDispatch = "logistics.transfers.dispatch";
     public const string LogisticsTransfersReceive = "logistics.transfers.receive";
     public const string LogisticsTransfersSpecial = "logistics.transfers.special";
+    public const string LogisticsFleetManage = "logistics.fleet.manage";
 
     public const string SalesView = "sales.view";
     public const string SalesCustomersManage = "sales.customers.manage";
     public const string SalesOrdersManage = "sales.orders.manage";
     public const string SalesShipmentsDispatch = "sales.shipments.dispatch";
+    public const string SalesShipmentsDeliver = "sales.shipments.deliver";
 
     public const string PurchasingView = "purchasing.view";
     public const string PurchasingSuppliersManage = "purchasing.suppliers.manage";
@@ -74,12 +76,14 @@ public static class Permissions
         new(LogisticsOrdersCreate, "Logística", "Crear pedidos de sucursal"),
         new(LogisticsOrdersApprove, "Logística", "Aprobar pedidos de sucursal"),
         new(LogisticsTransfersDispatch, "Logística", "Despachar traspasos"),
+        new(LogisticsFleetManage, "Logística", "Administrar vehículos y choferes"),
         new(LogisticsTransfersReceive, "Logística", "Recibir traspasos"),
         new(LogisticsTransfersSpecial, "Logística", "Traspasos entre sucursales y devoluciones a la Planta"),
         new(SalesView, "Ventas", "Ver ventas a terceros"),
         new(SalesCustomersManage, "Ventas", "Administrar clientes"),
         new(SalesOrdersManage, "Ventas", "Administrar pedidos de cliente"),
         new(SalesShipmentsDispatch, "Ventas", "Despachar remisiones"),
+        new(SalesShipmentsDeliver, "Ventas", "Registrar la entrega de remisiones y sus rechazos"),
         new(PurchasingView, "Compras", "Ver compras"),
         new(PurchasingSuppliersManage, "Compras", "Administrar proveedores"),
         new(PurchasingRequisitionsManage, "Compras", "Administrar requisiciones"),

@@ -30,7 +30,9 @@ public sealed record DispatchLineRequest(Guid LineId, IReadOnlyList<LotQuantity>
 
 /// <param name="Lines">Optional: lots chosen per line. Lines not listed use their planned lot or FEFO.</param>
 /// <param name="FromWarehouseId">Sub-warehouse of the origin every line leaves (RN-45); required when the origin has sub-warehouses.</param>
-public sealed record DispatchTransferRequest(uint Version, string VehicleDescription, string DriverName, IReadOnlyList<DispatchLineRequest>? Lines,
+/// <param name="VehicleId">RN-113: active vehicle of the catalog; an internal voucher has none.</param>
+/// <param name="DriverId">RN-113: active driver of the catalog; an internal voucher has none.</param>
+public sealed record DispatchTransferRequest(uint Version, Guid? VehicleId, Guid? DriverId, IReadOnlyList<DispatchLineRequest>? Lines,
     Guid? FromWarehouseId = null);
 
 /// <param name="WarehouseId">Sub-warehouse this line enters; empty takes the receipt's (RN-45).</param>
@@ -135,8 +137,8 @@ public sealed class DispatchTransferRequestValidator : AbstractValidator<Dispatc
 {
     public DispatchTransferRequestValidator()
     {
-        RuleFor(x => x.VehicleDescription).NotEmpty().MaximumLength(150).WithName("Vehículo");
-        RuleFor(x => x.DriverName).NotEmpty().MaximumLength(150).WithName("Chofer");
+        RuleFor(x => x.VehicleId).NotEmpty().WithName("Vehículo");
+        RuleFor(x => x.DriverId).NotEmpty().WithName("Chofer");
     }
 }
 
@@ -338,7 +340,15 @@ public sealed class TransferService(
         // RN-110: an ingredients voucher takes out what it reserved; the reservation goes before the exit is checked.
         await ReleaseReservationsAsync(transfer, ct);
         var movements = await posting.PostAsync(requests, ct);
-        transfer.Dispatch(request.VehicleDescription, request.DriverName, clock.UtcNow, currentUser.UserId, movements);
+        if (kind == TransferKind.Internal)
+            transfer.Dispatch("", "", clock.UtcNow, currentUser.UserId, movements);
+        else
+        {
+            // RN-113: the vehicle and driver come from the catalog; the transfer keeps their text copy.
+            var (vehicle, driver) = await FleetService.ForDispatchAsync(db, request.VehicleId ?? Guid.Empty, request.DriverId ?? Guid.Empty, ct);
+            transfer.Dispatch(vehicle.Label, driver.Name, clock.UtcNow, currentUser.UserId, movements);
+            transfer.AssignFleet(vehicle.Id, driver.Id);
+        }
         await links.OnDispatchedAsync(transfer, ct);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

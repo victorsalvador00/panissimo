@@ -5,6 +5,7 @@ using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 using Panissimo.Domain.Purchasing;
+using Panissimo.Domain.Sales;
 
 namespace Panissimo.UnitTests.Domain;
 
@@ -21,6 +22,7 @@ internal sealed class FakeTraceData : ITraceDataSource
     public List<TraceCloseLot> CloseLots { get; } = [];
     public List<TraceReceiptLine> Receipts { get; } = [];
     public List<TraceTransferLine> Transfers { get; } = [];
+    public List<TraceShipmentLot> Shipments { get; } = [];
     public List<TraceMovement> Movements { get; } = [];
     public List<TraceBalance> Balances { get; } = [];
     public int Queries { get; private set; }
@@ -89,7 +91,8 @@ internal sealed class FakeTraceData : ITraceDataSource
     public Task<IReadOnlyList<TraceOrigin>> OriginsAsync(IReadOnlyCollection<TraceLot> lots, CancellationToken ct) => Q<TraceOrigin>([]);
     public Task<IReadOnlyList<TraceTransferLine>> TransferLinesAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct) =>
         Q<TraceTransferLine>(Transfers.Where(t => lotIds.Contains(t.LotId)));
-    public Task<IReadOnlyList<TraceShipmentLot>> ShipmentLotsAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct) => Q<TraceShipmentLot>([]);
+    public Task<IReadOnlyList<TraceShipmentLot>> ShipmentLotsAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct) =>
+        Q<TraceShipmentLot>(Shipments.Where(s => lotIds.Contains(s.LotId)));
     public Task<IReadOnlyList<TraceMovement>> MovementsAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct) =>
         Q<TraceMovement>(Movements.Where(m => lotIds.Contains(m.LotId)));
     public Task<IReadOnlyList<TraceBalance>> BalancesAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct) =>
@@ -223,6 +226,32 @@ public class TraceGraphBuilderTests
         var close = result.Nodes.Single(n => n.Type == TraceNodeType.ProductionClose);
         Assert.Equal([("AGUA", 45.05m)], close.UnlottedConsumption!.Select(u => (u.Sku, u.Qty)));
         Assert.Contains(TraceWarnings.UnlottedComponents, result.Warnings);
+    }
+
+    [Fact]
+    public async Task A_rejection_on_delivery_gets_its_card_and_the_customer_keeps_what_it_accepted()
+    {
+        var data = new FakeTraceData();
+        var bread = data.Item("DONA", ItemType.FinishedGood, "pza");
+        var lot = data.Lot(bread, "OP-000003-01", "ProductionClose");
+        data.Move(lot, data.Plant, MovementType.ProductionOutput, 200, "CP-000002");
+        data.Move(lot, data.Plant, MovementType.CustomerShipment, -100, "RM-000001", 10);
+        data.Move(lot, data.Plant, MovementType.Adjustment, 10, "AJ-000007", 30);
+        var shipment = Guid.NewGuid();
+        var customer = Guid.NewGuid();
+        data.Shipments.Add(new TraceShipmentLot(shipment, "RM-000001", "PC-000001", customer, "CLI-00001", "OXXO-01", data.Plant, data.Plant,
+            FakeTraceData.T0.AddMinutes(10), CustomerShipmentStatus.DeliveredWithDiscrepancies, "Camioneta", "Juan", lot.Id, bread.Id, 100,
+            FakeTraceData.T0.AddMinutes(30), ReturnedQty: 10, LostQty: 5, ReturnLocationCodes: "PLANTA-PT", ReturnFolios: "AJ-000007"));
+
+        var result = await Build(data, lot, Options(TraceDirection.Forward));
+
+        Assert.Equal(85m, result.Edges.Single(e => e.Kind == TraceEdgeKind.Delivered && e.To == TraceGraphBuilder.CustomerId(customer)).Qty);
+        var rejected = result.Edges.Single(e => e.Kind == TraceEdgeKind.Rejected);
+        Assert.Equal((TraceGraphBuilder.ShipmentId(shipment), TraceGraphBuilder.RejectionId(shipment), 15m), (rejected.From, rejected.To, rejected.Qty!.Value));
+        var card = result.Nodes.Single(n => n.Type == TraceNodeType.Rejection);
+        Assert.Equal(("Rechazo de RM-000001", 10m, 5m, "PLANTA-PT", "AJ-000007"),
+            (card.Label, card.ReturnedQty!.Value, card.LostQty!.Value, card.ReturnLocationCodes!, card.ReturnFolios!));
+        Assert.Contains(result.Events, e => e.Description.StartsWith("Rechazo de OXXO-01") && e.Qty == 15);
     }
 
     [Fact]

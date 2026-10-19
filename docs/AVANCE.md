@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-19 (origen por renglón, reserva y vales de ingredientes, RN-110..112).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-19 (rechazo de entrega en la trazabilidad).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-18)
@@ -8,7 +8,7 @@
 **Dónde quedamos**
 - **Plan completo:** backend B-01..B-28 y frontend F-01..F-26 terminados y en `main`, incluida la ampliación de trazabilidad (B-28 y F-26).
 - Pruebas en verde: backend 282 unitarias y 167 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers); frontend 187 unitarias, lint y build; E2E: suite completa 45 en verde y 22 omitidas por diseño (escritorio y celular); la E2E 7 falló una vez por el botón de ayuda (corregido abajo) y se volvió a correr en verde con las que usan barra de acciones.
-- Migraciones hasta `AddProductionSupply` (RN-110..112).
+- Migraciones hasta `AddShipmentDelivery` (RN-114).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las migraciones vigentes.
 
 **Decisiones:** D-01..D-11 en `docs/specs/dominio.md` §8. D-11 (roles de la trazabilidad) decidida con el usuario el 2026-10-18. D-10 sigue abierta (no bloquea). El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
@@ -947,4 +947,80 @@
 - **Pendiente:**
   - La vista previa de la importación no avisa de la falta de existencia libre; "Liberar al importar" falla al importar.
   - El aviso de faltantes de la nueva OP se calcula en el navegador con las opciones; la validación real es la del backend al liberar.
+
+### Catálogo de vehículos y choferes, RN-113 (2026-10-19)
+
+- **Decisiones del usuario:** campos mínimos, solo del catálogo al despachar y un permiso nuevo de logística.
+- **Backend:**
+  - Entidades `Vehicle` (placas únicas, normalizadas en mayúsculas y sin espacios; no cambian) y `Driver` (nombre y teléfono opcional), con baja lógica. `FleetRules.EnsureCanDispatch`.
+  - `FleetService` y controladores `/vehicles` y `/drivers` (listar con `logistics.view` o `sales.view`; alta y edición con el nuevo `logistics.fleet.manage`, que reciben Administrador, Almacén planta y Distribución con `GrantNewPermissionsAsync`).
+  - Despacho: `DispatchTransferRequest` y `DispatchCustomerShipmentRequest` cambian `VehicleDescription/DriverName` por `VehicleId/DriverId`. El documento guarda la liga (`Transfer`/`CustomerShipment.VehicleId/DriverId`) y su copia de texto ("Descripción · PLACAS" y el nombre). El vale interno sigue sin vehículo. Vehículo o chofer inactivo o inexistente: 422 `vehicle_not_available` / `driver_not_available`.
+  - Migración `AddFleet` (tablas y FK opcionales). Probada hacia arriba y abajo en `panissimo_design_time` y aplicada a la de desarrollo. Ejemplos OpenAPI.
+- **Frontend:**
+  - `/logistica/flotilla` "Vehículos y choferes", con pestañas, diálogo de alta y edición y "Mostrar inactivos". Menú de Logística con el ícono `person_check`, porque el subconjunto de íconos es fijo y `local_shipping` ya es de Traspasos. Ayuda de la pantalla.
+  - Diálogo de despacho de traspasos y página de remisión: selectores de vehículo y chofer activos (`activeFleet()`), con aviso si el catálogo está vacío.
+  - E2E 05, 13, 15 y 24: `api.ensureFleet()` crea "E2E-01 · Camioneta E2E" y "Chofer E2E", y las pruebas los eligen en los selectores.
+- **Pruebas:**
+  - Backend 296 unitarias en verde (`FleetTests`).
+  - Integración nueva `Logistics/FleetTests` (normalización, placas repetidas, inactivo no despacha, copia de texto, permisos). Las pruebas que despachan ahora usan `ApiFactory.VehicleId/DriverId`, sembrados al iniciar. No se corrieron (sin Docker).
+  - Frontend 192 unitarias, lint y build en verde; E2E compilan (no se corrieron).
+  - Revisado en Chrome: pantalla y diálogo de alta (sin guardar).
+
+### B-29 y F-27: entrega de remisión, RN-114 (2026-10-19)
+
+- **Definición con el usuario:**
+  - Destino por renglón: regresa o es merma.
+  - Lo rechazado reabre el pedido.
+  - Permiso nuevo `sales.shipments.deliver`.
+  - Sin evidencia adjunta.
+  - Se reutiliza el ajuste `CustomerReturn` de D-08 para lo que regresa.
+  - Specs: `dominio.md` (RN-114, entidad `CustomerShipmentRejection`), `backend.md` (B-29) y `frontend.md` (F-27).
+- **Backend:**
+  - `CustomerShipmentStatus` agrega `Delivered` y `DeliveredWithDiscrepancies` (la columna `status` pasa de 20 a 30 caracteres). Enums `ShipmentRejectionReason` y `RejectionDisposition`.
+  - `CustomerShipment.Deliver`:
+    - Solo desde `Dispatched`; fecha entre el despacho y ahora; quién recibió es obligatorio.
+    - Rechazos por lote, o por línea sin lotes: lo rechazado no excede lo enviado, `Other` exige nota y el destino es coherente con el subalmacén.
+    - La entrega es final. `IsDispatched` cubre los tres estados.
+  - `CustomerOrder.RegisterRejection`: baja `ShippedQty` y recalcula el estado (`Shipped` pasa a `PartiallyShipped`); un pedido cerrado o cancelado no se toca.
+  - `POST /customer-shipments/{id}/deliver` (`sales.shipments.deliver`; Administrador, Almacén planta y Distribución):
+    - El regreso se resuelve con `WarehousePicker` (RN-45).
+    - Lo que regresa crea, en la misma transacción, un ajuste `CustomerReturn` por subalmacén, con mismo lote y costo de salida (`AdjustmentService.CreateInTransactionAsync`, vía el motor).
+    - La merma no mueve nada; se valúa al costo de salida.
+  - DTO con `DeliveredAt`, `DeliveredByName` y `Rejections` (lote, motivo, destino, ajuste, valor). El "remisionado previo" descuenta lo rechazado. Pestaña `ToDeliver`. La trazabilidad incluye las remisiones entregadas.
+  - Migración `AddShipmentDelivery`, probada arriba y abajo en `panissimo_design_time` y aplicada a la de desarrollo. Ejemplo OpenAPI.
+- **Frontend:**
+  - `DeliveryDialog` (fecha y hora, recibió y, por lote enviado, rechazado con motivo, destino, subalmacén y nota; validador `rejectionValidator`) y confirmación con resumen.
+  - "Registrar entrega" en la remisión despachada.
+  - Sección "Rechazos en la entrega", con enlace al ajuste de devolución y el valor oculto al imprimir; "Entregada" y "Recibió" en los datos y en la impresión.
+  - Pestaña "Por entregar", etiquetas y colores de estado y ayuda de la remisión.
+- **Pruebas:**
+  - Backend 300 unitarias en verde (`ShipmentDeliveryTests`).
+  - Integración en `CustomerShipmentTests` (100 pza: 10 regresan y 5 de merma; ajuste de +10 a 2.5; pedido con 85 remisionadas en `PartiallyShipped`; entrega sin rechazos; permisos; segunda entrega rechazada). No se corrió (sin Docker).
+  - Frontend 194 unitarias, lint y build en verde.
+  - E2E 15 ampliada con la entrega y 1 pieza que regresa (compila; no se corrió).
+  - API local: `deliver` con fecha futura sobre RM-000001 → 422 sin cambios.
+  - Chrome: diálogo revisado y cancelado; RM-000001 sigue despachada.
+
+### Trazabilidad: rechazo en la entrega (2026-10-19)
+
+- **Pedido del usuario:** que el retorno de lo rechazado se vea en el mapa. Diseño elegido: una tarjeta de rechazo en el carril Destino, sin arista hacia atrás.
+- **Backend:**
+  - `TraceNodeType.Rejection` y `TraceEdgeKind.Rejected`.
+  - `TraceShipmentLot` gana `DeliveredAt`, `ReturnedQty`, `LostQty`, `ReturnLocationCodes` y `ReturnFolios`. `ShipmentLotsAsync` los llena con los `CustomerShipmentRejection` del lote, el subalmacén y el folio del ajuste.
+  - El grafo:
+    - "Entregado" al cliente lleva solo lo aceptado.
+    - La arista `Rejected` va a `rej:{remisión}`, con lo que regresó y lo que fue merma.
+    - La remisión gana `DeliveredAt`.
+    - La bitácora agrega el evento "Rechazo de {cliente}".
+  - `TraceNodeDto` gana `ReturnedQty`, `LostQty`, `ReturnLocationCodes` y `ReturnFolios`.
+- **Frontend:**
+  - Tarjeta `rejection` en Destino (ícono `move_to_inbox`; "Regresó" o "Merma"; "15 pza rechazadas"; "10 pza a PLANTA-PT · 5 pza merma"). La arista se dibuja como diferencia; la leyenda dice "Diferencia o rechazo".
+  - La remisión muestra la etiqueta "Entregada" o "Con rechazo".
+  - Ficha "Rechazo en la entrega" (rechazado, regresó, merma, entrega, ajuste de devolución) con enlace a la remisión. Etiquetas de los enums.
+- **Specs:** `trazabilidad.md` §4 (regla) y `trazabilidad-ui.md` (arista y tarjeta).
+- **Pruebas:**
+  - Backend 301 unitarias en verde (`TraceGraphBuilderTests`: tarjeta, aristas y evento).
+  - La integración de la entrega ahora revisa también el mapa (85 al cliente, 15 rechazadas, 10/5 y el folio del ajuste); no se corrió.
+  - Frontend 196 unitarias (`trace-rejection.spec.ts`: carril, tipo de arista, textos y ficha), lint y build en verde.
+  - No se revisó en Chrome con datos reales: la base local no tiene remisiones entregadas con rechazo (RM-000001 sigue despachada).
 

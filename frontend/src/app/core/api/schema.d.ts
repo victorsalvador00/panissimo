@@ -3242,6 +3242,122 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/customer-shipments/{id}/deliver': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Registra la entrega de una remisión despachada (RN-114): fecha y hora, quién recibió y lo rechazado por lote con motivo y
+     *     destino. Lo que regresa entra a la Planta con un ajuste de devolución de cliente (mismo lote, costo de salida); la merma
+     *     no mueve inventario. El pedido recupera como pendiente lo rechazado.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['DeliverCustomerShipmentRequest'];
+          'text/json': components['schemas']['DeliverCustomerShipmentRequest'];
+          'application/*+json': components['schemas']['DeliverCustomerShipmentRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['CustomerShipmentDto'];
+            'application/json': components['schemas']['CustomerShipmentDto'];
+            'text/json': components['schemas']['CustomerShipmentDto'];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unprocessable Entity */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/customer-shipments/{id}/cancel': {
     parameters: {
       query?: never;
@@ -9796,6 +9912,486 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/vehicles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Vehículos de la flotilla (RN-113). Quien despacha traspasos o remisiones elige de los activos. */
+    get: {
+      parameters: {
+        query?: {
+          IncludeInactive?: boolean;
+          Page?: number;
+          PageSize?: number;
+          Sort?: string;
+          Q?: string;
+          Skip?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['PagedResultOfVehicleDto'];
+            'application/json': components['schemas']['PagedResultOfVehicleDto'];
+            'text/json': components['schemas']['PagedResultOfVehicleDto'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Da de alta un vehículo. Las placas son únicas y se guardan en mayúsculas, sin espacios. */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CreateVehicleRequest'];
+          'text/json': components['schemas']['CreateVehicleRequest'];
+          'application/*+json': components['schemas']['CreateVehicleRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['VehicleDto'];
+            'application/json': components['schemas']['VehicleDto'];
+            'text/json': components['schemas']['VehicleDto'];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unprocessable Entity */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/vehicles/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Edita la descripción y el estado. Las placas no cambian. */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['UpdateVehicleRequest'];
+          'text/json': components['schemas']['UpdateVehicleRequest'];
+          'application/*+json': components['schemas']['UpdateVehicleRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['VehicleDto'];
+            'application/json': components['schemas']['VehicleDto'];
+            'text/json': components['schemas']['VehicleDto'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unprocessable Entity */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/drivers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Choferes de la flotilla (RN-113). Quien despacha traspasos o remisiones elige de los activos. */
+    get: {
+      parameters: {
+        query?: {
+          IncludeInactive?: boolean;
+          Page?: number;
+          PageSize?: number;
+          Sort?: string;
+          Q?: string;
+          Skip?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['PagedResultOfDriverDto'];
+            'application/json': components['schemas']['PagedResultOfDriverDto'];
+            'text/json': components['schemas']['PagedResultOfDriverDto'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Da de alta un chofer; el teléfono es opcional. */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['CreateDriverRequest'];
+          'text/json': components['schemas']['CreateDriverRequest'];
+          'application/*+json': components['schemas']['CreateDriverRequest'];
+        };
+      };
+      responses: {
+        /** @description Created */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['DriverDto'];
+            'application/json': components['schemas']['DriverDto'];
+            'text/json': components['schemas']['DriverDto'];
+          };
+        };
+        /** @description Bad Request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unprocessable Entity */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/drivers/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Edita nombre, teléfono y estado. */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['UpdateDriverRequest'];
+          'text/json': components['schemas']['UpdateDriverRequest'];
+          'application/*+json': components['schemas']['UpdateDriverRequest'];
+        };
+      };
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['DriverDto'];
+            'application/json': components['schemas']['DriverDto'];
+            'text/json': components['schemas']['DriverDto'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Not Found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Conflict */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Unprocessable Entity */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transfers': {
     parameters: {
       query?: never;
@@ -15180,6 +15776,16 @@ export interface components {
     };
     /**
      * @example {
+     *       "name": "Juan Pérez",
+     *       "phone": "477 123 4567"
+     *     }
+     */
+    CreateDriverRequest: {
+      name: string;
+      phone: null | string;
+    };
+    /**
+     * @example {
      *       "purchaseOrderId": "0199a1b2-0000-7000-8000-0000000000b9",
      *       "poVersion": 1234,
      *       "supplierInvoiceNumber": "A-15873",
@@ -15620,6 +16226,16 @@ export interface components {
       /** Format: uuid */
       defaultLocationId: null | string;
     };
+    /**
+     * @example {
+     *       "plate": "GTO-12-345",
+     *       "description": "Nissan NP300 blanca"
+     *     }
+     */
+    CreateVehicleRequest: {
+      plate: string;
+      description: string;
+    };
     CustomerDto: {
       /** Format: uuid */
       id: string;
@@ -15836,6 +16452,10 @@ export interface components {
       createdByName: null | string;
       /** Format: uint32 */
       version: number;
+      /** Format: date-time */
+      deliveredAt?: null | string;
+      deliveredByName?: null | string;
+      rejections?: null | components['schemas']['CustomerShipmentRejectionDto'][];
     };
     CustomerShipmentLineDto: {
       /** Format: uuid */
@@ -15900,10 +16520,34 @@ export interface components {
       /** Format: double */
       quantity: number;
     };
+    CustomerShipmentRejectionDto: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      lineId: string;
+      sku: string;
+      itemName: string;
+      uomCode: string;
+      /** Format: uuid */
+      lotId: null | string;
+      lotNumber: null | string;
+      /** Format: double */
+      quantity: number;
+      reason: components['schemas']['ShipmentRejectionReason'];
+      notes: null | string;
+      disposition: components['schemas']['RejectionDisposition'];
+      returnLocationCode: null | string;
+      /** Format: uuid */
+      returnAdjustmentId: null | string;
+      returnAdjustmentFolio: null | string;
+      /** Format: double */
+      value: number;
+    };
     /** @enum {unknown} */
-    CustomerShipmentStatus: 'Draft' | 'Dispatched' | 'Cancelled';
+    CustomerShipmentStatus:
+      'Draft' | 'Dispatched' | 'Cancelled' | 'Delivered' | 'DeliveredWithDiscrepancies';
     /** @enum {unknown} */
-    CustomerShipmentTab: 'All' | 'ToDispatch' | null;
+    CustomerShipmentTab: 'All' | 'ToDispatch' | 'ToDeliver' | null;
     DashboardDocumentDto: {
       /** Format: uuid */
       id: string;
@@ -15936,6 +16580,41 @@ export interface components {
       customerShipmentsToDispatch: null | components['schemas']['DashboardDocumentsBlock'];
       lowStockByLocation: null | components['schemas']['LocationLowStockDto'][];
     };
+    /**
+     * @example {
+     *       "version": 1234,
+     *       "deliveredAt": "2026-10-19T11:30:00-06:00",
+     *       "receivedByName": "Marta López (encargada)",
+     *       "rejections": [
+     *         {
+     *           "lineId": "0199a1b2-0000-7000-8000-0000000000c1",
+     *           "lotId": "0199a1b2-0000-7000-8000-0000000000f1",
+     *           "quantity": 10,
+     *           "reason": "Damaged",
+     *           "notes": "Caja aplastada",
+     *           "disposition": "Return",
+     *           "returnWarehouseId": "0199a1b2-0000-7000-8000-0000000000a4"
+     *         },
+     *         {
+     *           "lineId": "0199a1b2-0000-7000-8000-0000000000c1",
+     *           "lotId": "0199a1b2-0000-7000-8000-0000000000f1",
+     *           "quantity": 5,
+     *           "reason": "ShortShelfLife",
+     *           "notes": null,
+     *           "disposition": "Loss",
+     *           "returnWarehouseId": null
+     *         }
+     *       ]
+     *     }
+     */
+    DeliverCustomerShipmentRequest: {
+      /** Format: uint32 */
+      version: number;
+      /** Format: date-time */
+      deliveredAt: string;
+      receivedByName: string;
+      rejections: null | components['schemas']['ShipmentRejectionRequest'][];
+    };
     DeliveryPointDto: {
       /** Format: uuid */
       id: string;
@@ -15954,8 +16633,8 @@ export interface components {
     /**
      * @example {
      *       "version": 1234,
-     *       "vehicleDescription": "Camioneta 3 (GTO-12-345)",
-     *       "driverName": "Luis Pérez",
+     *       "vehicleId": "0199a1b2-0000-7000-8000-0000000000a5",
+     *       "driverId": "0199a1b2-0000-7000-8000-0000000000a6",
      *       "receivedByName": null,
      *       "lines": [
      *         {
@@ -15977,8 +16656,10 @@ export interface components {
     DispatchCustomerShipmentRequest: {
       /** Format: uint32 */
       version: number;
-      vehicleDescription: string;
-      driverName: string;
+      /** Format: uuid */
+      vehicleId: string;
+      /** Format: uuid */
+      driverId: string;
       receivedByName: null | string;
       lines: null | components['schemas']['CustomerShipmentDispatchLineRequest'][];
       /** Format: uuid */
@@ -16005,8 +16686,8 @@ export interface components {
     /**
      * @example {
      *       "version": 1234,
-     *       "vehicleDescription": "Nissan NP300 blanca ABC-123",
-     *       "driverName": "Juan Pérez",
+     *       "vehicleId": "0199a1b2-0000-7000-8000-0000000000a5",
+     *       "driverId": "0199a1b2-0000-7000-8000-0000000000a6",
      *       "lines": [
      *         {
      *           "lineId": "0199a1b2-0000-7000-8000-0000000000e1",
@@ -16027,11 +16708,22 @@ export interface components {
     DispatchTransferRequest: {
       /** Format: uint32 */
       version: number;
-      vehicleDescription: string;
-      driverName: string;
+      /** Format: uuid */
+      vehicleId: null | string;
+      /** Format: uuid */
+      driverId: null | string;
       lines: null | components['schemas']['DispatchLineRequest'][];
       /** Format: uuid */
       fromWarehouseId?: null | string;
+    };
+    DriverDto: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      phone: null | string;
+      isActive: boolean;
+      /** Format: uint32 */
+      version: number;
     };
     ExpiringLotAlertDto: {
       /** Format: uuid */
@@ -16713,6 +17405,15 @@ export interface components {
       /** Format: int32 */
       total: number;
     };
+    PagedResultOfDriverDto: {
+      items: components['schemas']['DriverDto'][];
+      /** Format: int32 */
+      page: number;
+      /** Format: int32 */
+      pageSize: number;
+      /** Format: int32 */
+      total: number;
+    };
     PagedResultOfGoodsReceiptListItemDto: {
       items: components['schemas']['GoodsReceiptListItemDto'][];
       /** Format: int32 */
@@ -16877,6 +17578,15 @@ export interface components {
     };
     PagedResultOfUserListItemDto: {
       items: components['schemas']['UserListItemDto'][];
+      /** Format: int32 */
+      page: number;
+      /** Format: int32 */
+      pageSize: number;
+      /** Format: int32 */
+      total: number;
+    };
+    PagedResultOfVehicleDto: {
+      items: components['schemas']['VehicleDto'][];
       /** Format: int32 */
       page: number;
       /** Format: int32 */
@@ -17772,6 +18482,8 @@ export interface components {
       version: number;
       reason: string;
     };
+    /** @enum {unknown} */
+    RejectionDisposition: 'Return' | 'Loss';
     /**
      * @example {
      *       "version": 1234,
@@ -17938,6 +18650,21 @@ export interface components {
     };
     /** @enum {unknown} */
     Shift: 'Day' | 'Afternoon' | 'Night' | null;
+    /** @enum {unknown} */
+    ShipmentRejectionReason: 'Damaged' | 'ShortShelfLife' | 'Excess' | 'WrongProduct' | 'Other';
+    ShipmentRejectionRequest: {
+      /** Format: uuid */
+      lineId: string;
+      /** Format: uuid */
+      lotId: null | string;
+      /** Format: double */
+      quantity: number;
+      reason: components['schemas']['ShipmentRejectionReason'];
+      notes: null | string;
+      disposition: components['schemas']['RejectionDisposition'];
+      /** Format: uuid */
+      returnWarehouseId: null | string;
+    };
     /** @enum {unknown} */
     ShortfallReason:
       'MissingMaterial' | 'MissingStaff' | 'EquipmentFailure' | 'DemandChange' | 'Other' | null;
@@ -18128,7 +18855,8 @@ export interface components {
       | 'Produced'
       | 'Dispatched'
       | 'Delivered'
-      | 'Shipped';
+      | 'Shipped'
+      | 'Rejected';
     TraceEventDto: {
       /** Format: date-time */
       at: string;
@@ -18344,6 +19072,12 @@ export interface components {
       customerId?: null | string;
       customerCode?: null | string;
       customerName?: null | string;
+      /** Format: double */
+      returnedQty?: null | number;
+      /** Format: double */
+      lostQty?: null | number;
+      returnLocationCodes?: null | string;
+      returnFolios?: null | string;
     };
     /** @enum {unknown} */
     TraceNodeType:
@@ -18355,7 +19089,8 @@ export interface components {
       | 'Stock'
       | 'Transfer'
       | 'CustomerShipment'
-      | 'Customer';
+      | 'Customer'
+      | 'Rejection';
     TraceOriginDto: {
       supplierName: null | string;
       purchaseOrderFolio: null | string;
@@ -18664,6 +19399,21 @@ export interface components {
       version: number;
       name: string;
       address: null | string;
+      isActive: boolean;
+    };
+    /**
+     * @example {
+     *       "version": 1234,
+     *       "name": "Juan Pérez López",
+     *       "phone": null,
+     *       "isActive": true
+     *     }
+     */
+    UpdateDriverRequest: {
+      /** Format: uint32 */
+      version: number;
+      name: string;
+      phone: null | string;
       isActive: boolean;
     };
     /**
@@ -19064,6 +19814,19 @@ export interface components {
       /** Format: uuid */
       defaultLocationId: null | string;
     };
+    /**
+     * @example {
+     *       "version": 1234,
+     *       "description": "Nissan NP300 blanca (refrigerada)",
+     *       "isActive": true
+     *     }
+     */
+    UpdateVehicleRequest: {
+      /** Format: uint32 */
+      version: number;
+      description: string;
+      isActive: boolean;
+    };
     UserDto: {
       /** Format: uuid */
       id: string;
@@ -19093,6 +19856,15 @@ export interface components {
       isLockedOut: boolean;
       roles: string[];
       locationCodes: string[];
+    };
+    VehicleDto: {
+      /** Format: uuid */
+      id: string;
+      plate: string;
+      description: string;
+      isActive: boolean;
+      /** Format: uint32 */
+      version: number;
     };
     /**
      * @example {

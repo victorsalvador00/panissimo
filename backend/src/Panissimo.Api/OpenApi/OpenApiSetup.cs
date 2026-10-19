@@ -95,8 +95,12 @@ public static class OpenApiSetup
             { "version": 1234, "toLocationId": "0199a1b2-0000-7000-8000-0000000000a1", "notes": null,
               "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "lotId": null, "quantity": 150 } ] }
             """,
+        [typeof(CreateVehicleRequest)] = """{ "plate": "GTO-12-345", "description": "Nissan NP300 blanca" }""",
+        [typeof(UpdateVehicleRequest)] = """{ "version": 1234, "description": "Nissan NP300 blanca (refrigerada)", "isActive": true }""",
+        [typeof(CreateDriverRequest)] = """{ "name": "Juan Pérez", "phone": "477 123 4567" }""",
+        [typeof(UpdateDriverRequest)] = """{ "version": 1234, "name": "Juan Pérez López", "phone": null, "isActive": true }""",
         [typeof(DispatchTransferRequest)] = """
-            { "version": 1234, "vehicleDescription": "Nissan NP300 blanca ABC-123", "driverName": "Juan Pérez",
+            { "version": 1234, "vehicleId": "0199a1b2-0000-7000-8000-0000000000a5", "driverId": "0199a1b2-0000-7000-8000-0000000000a6",
               "lines": [ { "lineId": "0199a1b2-0000-7000-8000-0000000000e1",
                            "lots": [ { "lotId": "0199a1b2-0000-7000-8000-0000000000f1", "qty": 100 },
                                      { "lotId": "0199a1b2-0000-7000-8000-0000000000f2", "qty": 20 } ] } ] }
@@ -177,8 +181,17 @@ public static class OpenApiSetup
               "lines": [ { "lineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 96 },
                          { "lineId": "0199a1b2-0000-7000-8000-0000000000c2", "quantity": 0 } ] }
             """,
+        [typeof(DeliverCustomerShipmentRequest)] = """
+            { "version": 1234, "deliveredAt": "2026-10-19T11:30:00-06:00", "receivedByName": "Marta López (encargada)",
+              "rejections": [
+                { "lineId": "0199a1b2-0000-7000-8000-0000000000c1", "lotId": "0199a1b2-0000-7000-8000-0000000000f1", "quantity": 10,
+                  "reason": "Damaged", "notes": "Caja aplastada", "disposition": "Return",
+                  "returnWarehouseId": "0199a1b2-0000-7000-8000-0000000000a4" },
+                { "lineId": "0199a1b2-0000-7000-8000-0000000000c1", "lotId": "0199a1b2-0000-7000-8000-0000000000f1", "quantity": 5,
+                  "reason": "ShortShelfLife", "notes": null, "disposition": "Loss", "returnWarehouseId": null } ] }
+            """,
         [typeof(DispatchCustomerShipmentRequest)] = """
-            { "version": 1234, "vehicleDescription": "Camioneta 3 (GTO-12-345)", "driverName": "Luis Pérez", "receivedByName": null,
+            { "version": 1234, "vehicleId": "0199a1b2-0000-7000-8000-0000000000a5", "driverId": "0199a1b2-0000-7000-8000-0000000000a6", "receivedByName": null,
               "lines": [ { "lineId": "0199a1b2-0000-7000-8000-0000000000c1",
                            "lots": [ { "lotId": "0199a1b2-0000-7000-8000-0000000000f1", "qty": 60 },
                                      { "lotId": "0199a1b2-0000-7000-8000-0000000000f2", "qty": 36 } ] } ] }

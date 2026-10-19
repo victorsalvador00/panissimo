@@ -53,7 +53,9 @@ public sealed record TraceTransferLine(Guid TransferId, string Folio, Guid LineI
 
 public sealed record TraceShipmentLot(Guid ShipmentId, string Folio, string CustomerOrderFolio, Guid CustomerId, string CustomerCode,
     string CustomerName, Guid FromLocationId, Guid LineLocationId, DateTimeOffset? DispatchedAt, CustomerShipmentStatus Status,
-    string? VehicleDescription, string? DriverName, Guid LotId, Guid ItemId, decimal Qty);
+    string? VehicleDescription, string? DriverName, Guid LotId, Guid ItemId, decimal Qty,
+    DateTimeOffset? DeliveredAt = null, decimal ReturnedQty = 0, decimal LostQty = 0, string? ReturnLocationCodes = null,
+    string? ReturnFolios = null);
 
 public sealed record TraceMovement(long Sequence, Guid LotId, Guid LocationId, MovementType Type, decimal Quantity, DateTimeOffset At,
     string SourceDocType, string Folio);

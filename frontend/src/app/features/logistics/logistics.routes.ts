@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { permissionGuard } from '../../core/auth/guards';
 
-/** Logistics (frontend §7.5): branch orders and transfers. */
+/** Logistics (frontend §7.5): branch orders, transfers and the fleet (RN-113). */
 export const LOGISTICS_ROUTES: Routes = [
   {
     path: 'pedidos',
@@ -79,5 +79,12 @@ export const LOGISTICS_ROUTES: Routes = [
           import('./pages/transfer-receive-page').then((m) => m.TransferReceivePage),
       },
     ],
+  },
+  {
+    path: 'flotilla',
+    title: 'Vehículos y choferes · SGO Paníssimo',
+    canActivate: [permissionGuard],
+    data: { permission: 'logistics.fleet.manage', breadcrumb: 'Vehículos y choferes' },
+    loadComponent: () => import('./pages/fleet-page').then((m) => m.FleetPage),
   },
 ];

@@ -193,6 +193,7 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
     public static string TransferId(Guid id) => $"tr:{id}";
     public static string ShipmentId(Guid id) => $"rm:{id}";
     public static string CustomerId(Guid id) => $"cus:{id}";
+    public static string RejectionId(Guid shipmentId) => $"rej:{shipmentId}";
     public static string OrderId(Guid id) => $"op:{id}";
     private static string ReceiptId(Guid receiptId, Guid lotId) => $"rec:{receiptId}:{lotId}";
     private static string SupplierId(Guid id) => $"sup:{id}";
@@ -313,8 +314,15 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
         });
         var uom = Uom(s.ItemId);
         AddEdge(new TraceEdgeDto(Stock(s.LotId, s.LineLocationId), ShipmentId(s.ShipmentId), TraceEdgeKind.Shipped, s.Qty, uom, s.DispatchedAt));
+        var lots = _shipmentLots.Values.Where(x => x.ShipmentId == s.ShipmentId).ToList();
+        // RN-114: the customer keeps what it accepted; what it rejected goes to its own card.
         AddEdge(new TraceEdgeDto(ShipmentId(s.ShipmentId), CustomerId(s.CustomerId), TraceEdgeKind.Delivered,
-            _shipmentLots.Values.Where(x => x.ShipmentId == s.ShipmentId).Sum(x => x.Qty), uom, s.DispatchedAt));
+            lots.Sum(x => x.Qty - x.ReturnedQty - x.LostQty), uom, s.DeliveredAt ?? s.DispatchedAt));
+        var rejected = lots.Sum(x => x.ReturnedQty + x.LostQty);
+        if (rejected <= 0)
+            return;
+        _nodes.TryAdd(RejectionId(s.ShipmentId), new TraceNodeDto { Id = RejectionId(s.ShipmentId), Type = TraceNodeType.Rejection, Label = s.Folio });
+        AddEdge(new TraceEdgeDto(ShipmentId(s.ShipmentId), RejectionId(s.ShipmentId), TraceEdgeKind.Rejected, rejected, uom, s.DeliveredAt));
     }
 
     private string Code(Guid locationId) => _locations.TryGetValue(RootId(locationId), out var l) ? l.Code : "";
@@ -483,8 +491,23 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
                 CustomerCode = first.CustomerCode, CustomerName = first.CustomerName, DispatchedAt = first.DispatchedAt,
                 FromLocationCode = Code(first.FromLocationId), VehicleDescription = first.VehicleDescription, DriverName = first.DriverName,
                 ItemId = first.ItemId, Sku = _items.GetValueOrDefault(first.ItemId)?.Sku, ItemName = _items.GetValueOrDefault(first.ItemId)?.Name,
-                BaseUom = Uom(first.ItemId), ProducedQty = shipment.Sum(s => s.Qty),
+                BaseUom = Uom(first.ItemId), ProducedQty = shipment.Sum(s => s.Qty), DeliveredAt = first.DeliveredAt,
             };
+            // RN-114: the rejection card of the shipment.
+            if (_nodes.TryGetValue(RejectionId(first.ShipmentId), out var rejection))
+            {
+                static string? Join(IEnumerable<string?> values) =>
+                    string.Join(", ", values.SelectMany(v => (v ?? "").Split(", ", StringSplitOptions.RemoveEmptyEntries)).Distinct().Order()) is { Length: > 0 } text
+                        ? text : null;
+                _nodes[rejection.Id] = rejection with
+                {
+                    Label = $"Rechazo de {first.Folio}", ShipmentId = first.ShipmentId, Folio = first.Folio, CustomerName = first.CustomerName,
+                    ItemId = first.ItemId, Sku = _items.GetValueOrDefault(first.ItemId)?.Sku, ItemName = _items.GetValueOrDefault(first.ItemId)?.Name,
+                    BaseUom = Uom(first.ItemId), DeliveredAt = first.DeliveredAt, ReturnedQty = shipment.Sum(s => s.ReturnedQty),
+                    LostQty = shipment.Sum(s => s.LostQty), ReturnLocationCodes = Join(shipment.Select(s => s.ReturnLocationCodes)),
+                    ReturnFolios = Join(shipment.Select(s => s.ReturnFolios)),
+                };
+            }
         }
     }
 
@@ -522,6 +545,12 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
         foreach (var s in _shipmentLots.Values.Where(s => s.DispatchedAt is not null))
             events.Add(new TraceEventDto(s.DispatchedAt!.Value, "CustomerShipment", s.ShipmentId, s.Folio, $"Remisión a {s.CustomerName}",
                 Sku(s.ItemId), LotNumber(s.LotId), s.Qty, Uom(s.ItemId), Code(s.FromLocationId)));
+        // RN-114: what the customer rejected on delivery (the return itself is the CustomerReturn adjustment's entry).
+        foreach (var s in _shipmentLots.Values.Where(s => s.DeliveredAt is not null && s.ReturnedQty + s.LostQty > 0))
+            events.Add(new TraceEventDto(s.DeliveredAt!.Value, "CustomerShipment", s.ShipmentId, s.Folio,
+                s.LostQty == 0 ? $"Rechazo de {s.CustomerName}: regresa" : s.ReturnedQty == 0 ? $"Rechazo de {s.CustomerName}: merma"
+                    : $"Rechazo de {s.CustomerName}: {s.ReturnedQty:0.####} regresan y {s.LostQty:0.####} de merma",
+                Sku(s.ItemId), LotNumber(s.LotId), s.ReturnedQty + s.LostQty, Uom(s.ItemId), s.ReturnLocationCodes ?? Code(s.FromLocationId)));
         // What happened to the lot in each location that no document of the chain explains: consumption, waste, adjustments.
         foreach (var m in movements.Where(m => _stocks.Contains((m.LotId, RootId(m.LocationId))) && (Consumptions.Contains(m.Type) || Losses.Contains(m.Type))
                      && m.Type != MovementType.ProductionConsumption

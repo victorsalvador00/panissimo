@@ -29,6 +29,8 @@ public interface IAppDbContext
     DbSet<Lot> Lots { get; }
     DbSet<StockBalance> StockBalances { get; }
     DbSet<StockReservation> StockReservations { get; }
+    DbSet<Vehicle> Vehicles { get; }
+    DbSet<Driver> Drivers { get; }
     DbSet<ItemLocationCost> ItemLocationCosts { get; }
     DbSet<InventoryMovement> InventoryMovements { get; }
     DbSet<InventoryAdjustment> InventoryAdjustments { get; }

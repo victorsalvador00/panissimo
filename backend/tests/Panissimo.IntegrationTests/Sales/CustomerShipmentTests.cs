@@ -2,6 +2,8 @@ using System.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Panissimo.Application.Common;
+using Panissimo.Application.Inventory;
+using Panissimo.Application.Inventory.Traceability;
 using Panissimo.Application.Sales;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
@@ -43,7 +45,7 @@ public class CustomerShipmentTests(ApiFactory factory)
     private static Task<HttpResponseMessage> DispatchAsync(HttpClient client, CustomerShipmentDto shipment,
         IReadOnlyList<CustomerShipmentDispatchLineRequest>? lines = null) =>
         client.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/dispatch",
-            new DispatchCustomerShipmentRequest(shipment.Version, "Camioneta 3", "Luis", "Marta", lines));
+            new DispatchCustomerShipmentRequest(shipment.Version, ApiFactory.VehicleId, ApiFactory.DriverId, "Marta", lines));
 
     private static async Task<CustomerShipmentDto> DispatchedAsync(HttpClient client, CustomerShipmentDto shipment,
         IReadOnlyList<CustomerShipmentDispatchLineRequest>? lines = null)
@@ -236,4 +238,85 @@ public class CustomerShipmentTests(ApiFactory factory)
         var all = await sales.GetJsonAsync<PagedResult<CustomerShipmentListItemDto>>($"/api/v1/customer-orders/{order.Id}/shipments");
         Assert.Equal([shipment.Id], all!.Items.Select(s => s.Id));
     }
+
+    [Fact]
+    public async Task Delivery_returns_part_of_the_rejection_loses_the_rest_and_reopens_the_order()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var (plant, item, order) = await ConfirmedOrderAsync(admin, 100, tracksLots: true);
+        await factory.AddStockAsync(plant, item.Id, 100, 2.5m, "L-ENT", Today.AddDays(4));
+        var shipment = await DispatchedAsync(admin, await NewShipmentAsync(admin, order));
+        Assert.Equal(CustomerOrderStatus.Shipped, (await OrderAsync(admin, order)).Status);
+        var line = shipment.Lines.Single();
+        var lot = line.Lots.Single().LotId;
+
+        // RN-114: invalid deliveries change nothing.
+        var early = await admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/deliver",
+            new DeliverCustomerShipmentRequest(shipment.Version, shipment.DispatchedAt!.Value.AddMinutes(-5), "Marta", null));
+        Assert.Contains("delivery_date_invalid", await early.Content.ReadAsStringAsync());
+        var tooMuch = await admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/deliver",
+            new DeliverCustomerShipmentRequest(shipment.Version, DateTimeOffset.UtcNow, "Marta",
+                [new ShipmentRejectionRequest(line.Id, lot, 101, ShipmentRejectionReason.Damaged, null, RejectionDisposition.Loss, null)]));
+        Assert.Contains("rejection_over_shipped", await tooMuch.Content.ReadAsStringAsync());
+        var noNote = await admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/deliver",
+            new DeliverCustomerShipmentRequest(shipment.Version, DateTimeOffset.UtcNow, "Marta",
+                [new ShipmentRejectionRequest(line.Id, lot, 1, ShipmentRejectionReason.Other, null, RejectionDisposition.Loss, null)]));
+        Assert.Contains("rejection_notes_required", await noNote.Content.ReadAsStringAsync());
+
+        // 10 damaged return to the plant (same lot, dispatch cost); 5 with short shelf life are lost.
+        var delivered = await admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/deliver",
+            new DeliverCustomerShipmentRequest(shipment.Version, DateTimeOffset.UtcNow, "Marta López",
+            [
+                new ShipmentRejectionRequest(line.Id, lot, 10, ShipmentRejectionReason.Damaged, "Caja aplastada", RejectionDisposition.Return, null),
+                new ShipmentRejectionRequest(line.Id, lot, 5, ShipmentRejectionReason.ShortShelfLife, null, RejectionDisposition.Loss, null),
+            ]));
+        Assert.Equal(HttpStatusCode.OK, delivered.StatusCode);
+        var result = (await delivered.Content.ReadJsonAsync<CustomerShipmentDto>())!;
+        Assert.Equal((CustomerShipmentStatus.DeliveredWithDiscrepancies, "Marta López"), (result.Status, result.ReceivedByName));
+        var returned = result.Rejections!.Single(r => r.Disposition == RejectionDisposition.Return);
+        Assert.Equal((10m, 25m, "L-ENT"), (returned.Quantity, returned.Value, returned.LotNumber!));
+        Assert.Equal(12.5m, result.Rejections!.Single(r => r.Disposition == RejectionDisposition.Loss).Value);
+
+        Assert.Equal(10m, await factory.StockAsync(plant, item.Id));
+        var adjustment = (await admin.GetJsonAsync<AdjustmentDto>($"/api/v1/adjustments/{returned.ReturnAdjustmentId}"))!;
+        Assert.Equal((AdjustmentReason.CustomerReturn, 10m, 2.5m), (adjustment.Reason, adjustment.Lines.Single().Quantity, adjustment.Lines.Single().UnitCost!.Value));
+
+        var reopened = await OrderAsync(admin, order);
+        Assert.Equal((CustomerOrderStatus.PartiallyShipped, 85m), (reopened.Status, reopened.Lines.Single().ShippedQty));
+
+        // The traceability map shows the rejection: the customer keeps 85 and its own card says what returned and what was lost.
+        var trace = (await admin.GetJsonAsync<TraceGraphDto>($"/api/v1/traceability/graph?sourceType=CustomerShipment&sourceId={shipment.Id}&direction=Both"))!;
+        var card = trace.Nodes.Single(n => n.Type == TraceNodeType.Rejection);
+        Assert.Equal((10m, 5m, adjustment.Folio), (card.ReturnedQty!.Value, card.LostQty!.Value, card.ReturnFolios!));
+        Assert.Equal(85m, trace.Edges.Single(e => e.Kind == TraceEdgeKind.Delivered && e.From == card.Id.Replace("rej:", "rm:")).Qty);
+        Assert.Equal(15m, trace.Edges.Single(e => e.Kind == TraceEdgeKind.Rejected).Qty);
+
+        // Final: a second delivery is refused.
+        var again = await admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/deliver",
+            new DeliverCustomerShipmentRequest(result.Version, DateTimeOffset.UtcNow, "Marta", null));
+        Assert.Contains("customer_shipment_not_dispatched", await again.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Without_rejections_it_is_delivered_and_only_deliverers_may_do_it()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var (plant, item, order) = await ConfirmedOrderAsync(admin, 20);
+        await factory.AddStockAsync(plant, item.Id, 20, 3m);
+        var shipment = await DispatchedAsync(admin, await NewShipmentAsync(admin, order));
+        var toDeliver = (await admin.GetJsonAsync<PagedResult<CustomerShipmentListItemDto>>("/api/v1/customer-shipments?tab=ToDeliver&pageSize=200"))!;
+        Assert.Contains(toDeliver.Items, s => s.Id == shipment.Id);
+
+        var email = ApiFactory.UniqueEmail("ventas");
+        await factory.CreateUserAsync(email, ["customer_sales"], ["PLANTA"]);
+        var sales = await factory.LoginAsync(email);
+        Assert.Equal(HttpStatusCode.Forbidden, (await sales.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/deliver",
+            new DeliverCustomerShipmentRequest(shipment.Version, DateTimeOffset.UtcNow, "Marta", null))).StatusCode);
+
+        var delivered = (await (await admin.PostJsonAsync($"/api/v1/customer-shipments/{shipment.Id}/deliver",
+            new DeliverCustomerShipmentRequest(shipment.Version, DateTimeOffset.UtcNow, "Marta", null))).Content.ReadJsonAsync<CustomerShipmentDto>())!;
+        Assert.Equal(CustomerShipmentStatus.Delivered, delivered.Status);
+        Assert.Equal(CustomerOrderStatus.Shipped, (await OrderAsync(admin, order)).Status);
+    }
 }
+

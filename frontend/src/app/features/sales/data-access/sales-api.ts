@@ -175,4 +175,12 @@ export class CustomerShipmentsApi {
     const body: Schemas['VersionRequest'] = { version };
     return this.http.post<CustomerShipment>(`customer-shipments/${id}/cancel`, body);
   }
+
+  /** RN-114: marks a dispatched shipment delivered; what returns re-enters the plant, what is lost moves nothing. */
+  deliver(
+    id: string,
+    request: Schemas['DeliverCustomerShipmentRequest'],
+  ): Observable<CustomerShipment> {
+    return this.http.post<CustomerShipment>(`customer-shipments/${id}/deliver`, request);
+  }
 }

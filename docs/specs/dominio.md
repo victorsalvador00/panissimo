@@ -233,10 +233,16 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - `Status`: `Draft → Submitted → Approved → PartiallyFulfilled | Fulfilled`; además `Rejected` y `Cancelled`.
 - Líneas: `ItemId`, `RequestedQty`, `ApprovedQty`, `ShippedQty`.
 
+**Vehicle** (RN-113): `Plate` (placas, únicas, en mayúsculas y sin espacios; no cambian), `Description`, `IsActive`.
+
+**Driver** (RN-113): `Name`, `Phone` (opcional), `IsActive`.
+
+- **RN-113 (flotilla)**: al despachar un traspaso (no un vale interno) o una remisión se elige un **vehículo y un chofer activos del catálogo**; no se captura texto libre. El documento guarda la liga y una copia de texto ("Descripción · PLACAS" y el nombre) para el historial y la impresión; los despachados antes del catálogo conservan solo su texto. Desactivar un vehículo o chofer lo quita de las opciones sin tocar documentos. Administra el catálogo el permiso `logistics.fleet.manage` (Administrador, Almacén planta y Distribución); lo consultan quienes ven logística o ventas. Decidido con el usuario el 2026-10-19 (campos mínimos, solo del catálogo, permiso nuevo).
+
 **Transfer** (traspaso con datos de envío)
 - Encabezado: `Folio`, `FromLocationId`, `ToLocationId`, `BranchOrderId` (opcional), `ProductionOrderId` (vale de ingredientes de una OP, RN-112), `Notes`.
 - `Status`: `Draft → Dispatched → Received | ReceivedWithDiscrepancies`; además `Cancelled` (solo desde `Draft`).
-- Envío: `VehicleDescription`, `DriverName`, `DispatchedAt`, `DispatchedBy`.
+- Envío: `VehicleId`, `DriverId` (catálogo, RN-113), `VehicleDescription`, `DriverName` (copia de texto al despachar), `DispatchedAt`, `DispatchedBy`.
 - Recepción: `ReceivedAt`, `ReceivedBy`.
 - Líneas: `ItemId`, `PlannedLotId` (opcional), `ShippedQty`, `ReceivedQty`, `UnitCost`, `DiscrepancyReason` (`Missing | Damaged | Other`), `DiscrepancyNotes`. Lotes despachados: `TransferLineLot` (`LineId`, `LotId`, `Quantity`).
 
@@ -255,9 +261,11 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 **CustomerShipment** (remisión)
 - Encabezado: `Folio` (`RM-…`), `CustomerOrderId`, `CustomerId`, `DeliveryPointId`, `FromLocationId` (Plant), `Notes`.
-- `Status`: `Draft → Dispatched`; además `Cancelled` (solo en `Draft`).
-- Envío: `VehicleDescription`, `DriverName`, `DispatchedAt`, `DispatchedBy`, `ReceivedByName` (quién firma de recibido, opcional).
+- `Status`: `Draft → Dispatched → Delivered | DeliveredWithDiscrepancies` (RN-114); además `Cancelled` (solo en `Draft`).
+- Envío: `VehicleId`, `DriverId` (catálogo, RN-113), `VehicleDescription`, `DriverName` (copia de texto al despachar), `DispatchedAt`, `DispatchedBy`, `ReceivedByName` (quién firma de recibido, opcional).
 - Líneas: `CustomerOrderLineId`, `ItemId`, `Quantity`, `UnitCost` (al despachar). Lotes: `CustomerShipmentLineLot` (`LineId`, `LotId`, `Quantity`).
+- Rechazos (`CustomerShipmentRejection`, RN-114): `LineId`, `LotId` (opcional: artículo sin lotes), `Quantity`, `Reason`, `Notes`, `Disposition` (`Return | Loss`), `ReturnLocationId`, `UnitCost` (el de salida), `ReturnAdjustmentId`.
+- Entrega (RN-114): `DeliveredAt` (fecha y hora de entrega), `DeliveredBy` (quién la registra), `ReceivedByName` (quién recibió; se confirma o corrige).
 
 ### 4.7 Compras
 
@@ -426,6 +434,14 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   - Una remisión despachada no se edita ni se cancela.
 - **RN-82 (avance del pedido)**: al despachar se suma a `ShippedQty`; lo remisionado por línea no excede lo pedido × (1 + `sales.shipment_tolerance_pct` / 100). Todas las líneas completas → `Shipped`; si no, `PartiallyShipped`. Un pedido `PartiallyShipped` puede **cerrarse con saldo** (`Closed`, con motivo).
 - **RN-83 (alcance)**: la remisión es un documento de entrega. No es factura ni genera cuenta por cobrar; los precios son informativos (D-06). Las devoluciones de cliente se registran como ajuste de entrada (D-08).
+- **RN-114 (entrega de la remisión)**: una remisión `Dispatched` se marca **entregada** con la fecha y hora de entrega (no anterior al despacho ni futura) y el nombre de quien recibió (obligatorio). Por cada lote despachado se captura lo **rechazado** (0 a lo enviado; lo demás se da por aceptado):
+  - Cada rechazo lleva **motivo** (`Damaged` dañado, `ShortShelfLife` caducidad corta o vencido, `Excess` de más o no pedido, `WrongProduct` producto equivocado, `Other` otro con nota obligatoria) y **destino**:
+    - `Return` (regresa): entra a un subalmacén de la Planta que se elige (RN-45), en el **mismo lote** y al **costo de salida** de la remisión. Se registra como un ajuste de entrada `CustomerReturn` (D-08) generado por la entrega (uno por subalmacén de regreso) y ligado a cada rechazo; un lote vencido puede regresar (RN-05 solo bloquea salidas) y después se da de baja con un ajuste.
+    - `Loss` (merma): no regresa. No genera movimiento (la salida ya ocurrió al despachar); queda como pérdida con su valor, como la pérdida en tránsito de RN-22.
+  - Sin rechazos → `Delivered`; con alguno → `DeliveredWithDiscrepancies`. La entrega es final: no se edita ni se deshace (se corrige con un ajuste).
+  - El pedido baja su `ShippedQty` en lo rechazado y recalcula su estado (RN-82): un pedido `Shipped` vuelve a `PartiallyShipped` y lo rechazado se puede remisionar otra vez o cerrar con saldo. Un pedido `Closed` o `Cancelled` no se reabre.
+  - Permiso `sales.shipments.deliver` (Administrador, Almacén planta y Distribución). Sin evidencia adjunta: la remisión firmada se archiva en papel.
+  - Decidido con el usuario el 2026-10-19 (destino por renglón, reabre el pedido, permiso nuevo, sin foto).
 
 ### Compras
 

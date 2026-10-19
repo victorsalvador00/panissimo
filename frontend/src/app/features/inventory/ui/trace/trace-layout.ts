@@ -28,7 +28,9 @@ export type CardKind =
   | 'transfer'
   | 'shipment'
   | 'branch'
-  | 'customer';
+  | 'customer'
+  /** RN-114: what a customer rejected on delivery. */
+  | 'rejection';
 
 export type LinkType = 'supplier' | 'material' | 'product' | 'difference';
 
@@ -169,6 +171,9 @@ export function layoutTrace(graph: TraceGraph): TraceLayout {
         break;
       case 'Customer':
         add(n, 'customer', 'destination', null);
+        break;
+      case 'Rejection':
+        add(n, 'rejection', 'destination', n.deliveredAt ?? null);
         break;
     }
   }
@@ -468,6 +473,8 @@ function linkType(edge: TraceEdge, from: TraceCard): LinkType {
     return 'material';
   if (edge.kind === 'Delivered' && edge.shippedQty != null && (edge.qty ?? 0) < edge.shippedQty)
     return 'difference';
+  // RN-114: what the customer rejected is drawn like a difference.
+  if (edge.kind === 'Rejected') return 'difference';
   return 'product';
 }
 

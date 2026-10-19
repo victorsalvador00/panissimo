@@ -15,6 +15,7 @@ import { controlError } from '../../../shared/forms/control-error';
 import { QtyPipe } from '../../../shared/pipes/pipes';
 import { LotStock, StockApi, WarehouseOption } from '../../inventory/data-access/inventory-api';
 import type { Transfer, TransferLine } from '../data-access/logistics-api';
+import { activeFleet, vehicleLabel } from './fleet-options';
 import { lotsTotal } from './transfer-rules';
 
 export interface DispatchDialogData {
@@ -23,7 +24,11 @@ export interface DispatchDialogData {
   warehouses: WarehouseOption[];
 }
 
-export type DispatchResult = Omit<Schemas['DispatchTransferRequest'], 'version'>;
+/** The request without its version, and the names of the vehicle and driver for the confirmation. */
+export type DispatchResult = Omit<Schemas['DispatchTransferRequest'], 'version'> & {
+  vehicleLabel: string;
+  driverName: string;
+};
 
 /** Lots chosen for one line: open or not, the lots with stock and a quantity per lot. */
 class LineLots {
@@ -105,13 +110,30 @@ class LineLots {
         <div class="pair">
           <mat-form-field>
             <mat-label>Vehículo</mat-label>
-            <input matInput formControlName="vehicleDescription" />
-            <mat-error>{{ controlError(form.controls.vehicleDescription) }}</mat-error>
+            <mat-select formControlName="vehicleId">
+              @for (vehicle of fleet.vehicles(); track vehicle.id) {
+                <mat-option [value]="vehicle.id">{{ label(vehicle) }}</mat-option>
+              }
+            </mat-select>
+            @if (fleet.vehicles().length === 0) {
+              <mat-hint
+                >No hay vehículos activos: dalos de alta en Logística › Vehículos y
+                choferes.</mat-hint
+              >
+            }
+            <mat-error>{{ controlError(form.controls.vehicleId) }}</mat-error>
           </mat-form-field>
           <mat-form-field>
             <mat-label>Chofer</mat-label>
-            <input matInput formControlName="driverName" />
-            <mat-error>{{ controlError(form.controls.driverName) }}</mat-error>
+            <mat-select formControlName="driverId">
+              @for (driver of fleet.drivers(); track driver.id) {
+                <mat-option [value]="driver.id">{{ driver.name }}</mat-option>
+              }
+            </mat-select>
+            @if (fleet.drivers().length === 0) {
+              <mat-hint>No hay choferes activos.</mat-hint>
+            }
+            <mat-error>{{ controlError(form.controls.driverId) }}</mat-error>
           </mat-form-field>
         </div>
 
@@ -243,20 +265,16 @@ export class DispatchDialog {
   private readonly ref = inject<MatDialogRef<DispatchDialog, DispatchResult>>(MatDialogRef);
   private readonly stockApi = inject(StockApi);
   protected readonly controlError = controlError;
+  protected readonly fleet = activeFleet();
+  protected readonly label = vehicleLabel;
 
   protected readonly form = new FormGroup({
     fromWarehouseId: new FormControl<string | null>(
       this.data.warehouses.length === 1 ? this.data.warehouses[0].id : null,
       this.data.warehouses.length > 0 ? Validators.required : null,
     ),
-    vehicleDescription: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(200)],
-    }),
-    driverName: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(200)],
-    }),
+    vehicleId: new FormControl<string | null>(null, Validators.required),
+    driverId: new FormControl<string | null>(null, Validators.required),
   });
   protected readonly entries = this.data.transfer.lines.map((line) => new LineLots(line));
   private readonly allValid = computed(() => this.entries.every((e) => e.valid()));
@@ -281,13 +299,17 @@ export class DispatchDialog {
       this.form.markAllAsTouched();
       return;
     }
-    const { fromWarehouseId, vehicleDescription, driverName } = this.form.getRawValue();
+    const { fromWarehouseId, vehicleId, driverId } = this.form.getRawValue();
+    const vehicle = this.fleet.vehicles().find((v) => v.id === vehicleId)!;
+    const driver = this.fleet.drivers().find((d) => d.id === driverId)!;
     const lines = this.entries
       .map((e) => ({ lineId: e.line.id, lots: e.chosen() }))
       .filter((l) => l.lots.length > 0);
     this.ref.close({
-      vehicleDescription: vehicleDescription.trim(),
-      driverName: driverName.trim(),
+      vehicleId,
+      driverId,
+      vehicleLabel: vehicleLabel(vehicle),
+      driverName: driver.name,
       fromWarehouseId,
       lines: lines.length > 0 ? lines : null,
     });

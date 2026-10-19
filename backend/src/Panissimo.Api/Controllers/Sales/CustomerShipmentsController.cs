@@ -74,6 +74,20 @@ public sealed class CustomerShipmentsController(ICustomerShipmentService shipmen
     public Task<CustomerShipmentDto> Dispatch(Guid id, DispatchCustomerShipmentRequest request, CancellationToken ct) =>
         shipments.DispatchAsync(id, request, ct);
 
+    /// <summary>
+    /// Registra la entrega de una remisión despachada (RN-114): fecha y hora, quién recibió y lo rechazado por lote con motivo y
+    /// destino. Lo que regresa entra a la Planta con un ajuste de devolución de cliente (mismo lote, costo de salida); la merma
+    /// no mueve inventario. El pedido recupera como pendiente lo rechazado.
+    /// </summary>
+    [HttpPost("{id:guid}/deliver")]
+    [RequirePermission(Permissions.SalesShipmentsDeliver)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity)]
+    public Task<CustomerShipmentDto> Deliver(Guid id, DeliverCustomerShipmentRequest request, CancellationToken ct) =>
+        shipments.DeliverAsync(id, request, ct);
+
     /// <summary>Cancela una remisión en borrador.</summary>
     [HttpPost("{id:guid}/cancel")]
     [RequirePermission(Permissions.SalesShipmentsDispatch)]

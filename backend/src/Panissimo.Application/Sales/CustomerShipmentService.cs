@@ -3,6 +3,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Panissimo.Application.Common;
 using Panissimo.Application.Inventory;
+using Panissimo.Application.Logistics;
 using Panissimo.Application.Security;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
@@ -24,14 +25,41 @@ public sealed record CustomerShipmentDispatchLineRequest(Guid LineId, IReadOnlyL
 /// <param name="Lines">Optional: lots chosen per line. Lines not listed are taken by FEFO.</param>
 /// <param name="FromWarehouseId">Sub-warehouse of the plant every line leaves (RN-45); required when the plant has sub-warehouses.</param>
 public sealed record DispatchCustomerShipmentRequest(
-    uint Version, string VehicleDescription, string DriverName, string? ReceivedByName, IReadOnlyList<CustomerShipmentDispatchLineRequest>? Lines,
+    uint Version, Guid VehicleId, Guid DriverId, string? ReceivedByName, IReadOnlyList<CustomerShipmentDispatchLineRequest>? Lines,
     Guid? FromWarehouseId = null);
 
-/// <summary>Tabs of the shipments screen (frontend: Por despachar, Todas).</summary>
+/// <param name="LotId">The dispatched lot; null for an item without lots.</param>
+/// <param name="ReturnWarehouseId">Only when it returns: the plant's sub-warehouse (or the plant) it re-enters (RN-45).</param>
+public sealed record ShipmentRejectionRequest(Guid LineId, Guid? LotId, decimal Quantity, ShipmentRejectionReason Reason, string? Notes,
+    RejectionDisposition Disposition, Guid? ReturnWarehouseId);
+
+/// <summary>RN-114: when it was delivered, who received and what the customer rejected (the rest is accepted).</summary>
+public sealed record DeliverCustomerShipmentRequest(uint Version, DateTimeOffset DeliveredAt, string ReceivedByName,
+    IReadOnlyList<ShipmentRejectionRequest>? Rejections);
+
+public sealed class DeliverCustomerShipmentRequestValidator : AbstractValidator<DeliverCustomerShipmentRequest>
+{
+    public DeliverCustomerShipmentRequestValidator()
+    {
+        RuleFor(x => x.ReceivedByName).NotEmpty().MaximumLength(CustomerShipment.ReceivedByMaxLength).WithName("Recibió");
+        RuleForEach(x => x.Rejections).ChildRules(r =>
+        {
+            r.RuleFor(x => x.Quantity).GreaterThan(0).WithName("Rechazado");
+            r.RuleFor(x => x.Reason).IsInEnum().WithName("Motivo");
+            r.RuleFor(x => x.Disposition).IsInEnum().WithName("Destino");
+            r.RuleFor(x => x.Notes).MaximumLength(CustomerShipment.RejectionNotesMaxLength).WithName("Nota");
+        });
+    }
+}
+
+/// <summary>Tabs of the shipments screen (frontend: Por despachar, Por entregar, Todas).</summary>
 public enum CustomerShipmentTab
 {
     All,
     ToDispatch,
+
+    /// <summary>RN-114: dispatched and not yet delivered.</summary>
+    ToDeliver,
 }
 
 public sealed record CustomerShipmentListQuery : PageQuery
@@ -57,12 +85,19 @@ public sealed record CustomerShipmentLineDto(
     decimal OrderedQty, decimal PreviouslyShippedQty, decimal MaxQuantity, decimal Quantity, decimal? UnitCost, decimal? LineCost,
     IReadOnlyList<CustomerShipmentLotDto> Lots);
 
+/// <param name="Value">Quantity × dispatch cost: what returned re-entered at it; what was lost is worth it.</param>
+public sealed record CustomerShipmentRejectionDto(
+    Guid Id, Guid LineId, string Sku, string ItemName, string UomCode, Guid? LotId, string? LotNumber, decimal Quantity,
+    ShipmentRejectionReason Reason, string? Notes, RejectionDisposition Disposition, string? ReturnLocationCode, Guid? ReturnAdjustmentId,
+    string? ReturnAdjustmentFolio, decimal Value);
+
 public sealed record CustomerShipmentDto(
     Guid Id, string Folio, Guid CustomerOrderId, string CustomerOrderFolio, string? CustomerReference, Guid CustomerId, string CustomerCode,
     string CustomerName, Guid? DeliveryPointId, string? DeliveryPointName, string? DeliveryPointAddress, Guid FromLocationId,
     string FromLocationCode, string FromLocationName, CustomerShipmentStatus Status, string? Notes, IReadOnlyList<CustomerShipmentLineDto> Lines,
     decimal? TotalCost, string? VehicleDescription, string? DriverName, string? ReceivedByName, DateTimeOffset? DispatchedAt,
-    string? DispatchedByName, DateTimeOffset? CancelledAt, DateTimeOffset CreatedAt, string? CreatedByName, uint Version);
+    string? DispatchedByName, DateTimeOffset? CancelledAt, DateTimeOffset CreatedAt, string? CreatedByName, uint Version,
+    DateTimeOffset? DeliveredAt = null, string? DeliveredByName = null, IReadOnlyList<CustomerShipmentRejectionDto>? Rejections = null);
 
 public sealed class UpdateCustomerShipmentRequestValidator : AbstractValidator<UpdateCustomerShipmentRequest>
 {
@@ -80,8 +115,8 @@ public sealed class DispatchCustomerShipmentRequestValidator : AbstractValidator
 {
     public DispatchCustomerShipmentRequestValidator()
     {
-        RuleFor(x => x.VehicleDescription).NotEmpty().MaximumLength(150).WithName("Vehículo");
-        RuleFor(x => x.DriverName).NotEmpty().MaximumLength(150).WithName("Chofer");
+        RuleFor(x => x.VehicleId).NotEmpty().WithName("Vehículo");
+        RuleFor(x => x.DriverId).NotEmpty().WithName("Chofer");
         RuleFor(x => x.ReceivedByName).MaximumLength(150).WithName("Recibe");
     }
 }
@@ -98,6 +133,12 @@ public interface ICustomerShipmentService
 
     /// <summary>RN-81/RN-82: posts CustomerShipment at the plant (chosen lots or FEFO, expired rejected) and advances the order.</summary>
     Task<CustomerShipmentDto> DispatchAsync(Guid id, DispatchCustomerShipmentRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// RN-114: marks a dispatched shipment delivered. What returns enters the plant with a CustomerReturn adjustment (same lot,
+    /// dispatch cost); what is lost moves nothing. The order gets the rejected quantity back as pending.
+    /// </summary>
+    Task<CustomerShipmentDto> DeliverAsync(Guid id, DeliverCustomerShipmentRequest request, CancellationToken ct = default);
 }
 
 public sealed class CustomerShipmentService(
@@ -107,7 +148,8 @@ public sealed class CustomerShipmentService(
     IClock clock,
     ICurrentUser currentUser,
     IUserDirectory userDirectory,
-    IInventoryPostingService posting) : ICustomerShipmentService
+    IInventoryPostingService posting,
+    IAdjustmentService adjustments) : ICustomerShipmentService
 {
     private static readonly Dictionary<string, Expression<Func<CustomerShipment, object?>>> SortColumns = new()
     {
@@ -123,6 +165,8 @@ public sealed class CustomerShipmentService(
         var shipments = db.CustomerShipments.AsNoTracking().Where(s => allowed.Contains(s.FromLocationId));
         if (query.Tab == CustomerShipmentTab.ToDispatch)
             shipments = shipments.Where(s => s.Status == CustomerShipmentStatus.Draft);
+        if (query.Tab == CustomerShipmentTab.ToDeliver)
+            shipments = shipments.Where(s => s.Status == CustomerShipmentStatus.Dispatched);
         if (query.Status is { } status)
             shipments = shipments.Where(s => s.Status == status);
         if (query.CustomerId is { } customerId)
@@ -233,7 +277,47 @@ public sealed class CustomerShipmentService(
         await db.SaveChangesAsync(ct);
 
         var movements = await posting.PostAsync(requests, ct);
-        shipment.Dispatch(request.VehicleDescription, request.DriverName, request.ReceivedByName, clock.UtcNow, currentUser.UserId, movements);
+        // RN-113: the vehicle and driver come from the catalog; the shipment keeps their text copy.
+        var (vehicle, driver) = await FleetService.ForDispatchAsync(db, request.VehicleId, request.DriverId, ct);
+        shipment.Dispatch(vehicle.Label, driver.Name, request.ReceivedByName, clock.UtcNow, currentUser.UserId, movements);
+        shipment.AssignFleet(vehicle.Id, driver.Id);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return await ToDtoAsync(shipment, ct);
+    }
+
+    public async Task<CustomerShipmentDto> DeliverAsync(Guid id, DeliverCustomerShipmentRequest request, CancellationToken ct = default)
+    {
+        var shipment = await FindAsync(id, ct);
+        db.EnsureVersion(shipment, request.Version);
+        var order = await db.CustomerOrders.Include(o => o.Lines).SingleAsync(o => o.Id == shipment.CustomerOrderId, ct);
+
+        // RN-45: what returns re-enters one of the plant's stock locations, in the caller's stock scope.
+        var picker = await WarehousePicker.LoadAsync(db, scope, shipment.FromLocationId, ct);
+        var inputs = (request.Rejections ?? []).Select(r => new ShipmentRejectionInput(r.LineId, r.LotId, r.Quantity, r.Reason, r.Notes,
+                r.Disposition, r.Disposition == RejectionDisposition.Return ? picker.Resolve(r.ReturnWarehouseId, null) : null))
+            .ToList();
+        await EnsureWholePiecesAsync(shipment, inputs.GroupBy(r => r.LineId).ToDictionary(g => g.Key, g => g.Sum(r => r.Quantity)), ct);
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        db.Entry(shipment).State = EntityState.Modified; // claims the shipment with the client's version
+        await db.SaveChangesAsync(ct);
+
+        shipment.Deliver(request.DeliveredAt, request.ReceivedByName, inputs, clock.UtcNow, currentUser.UserId);
+        order.RegisterRejection(shipment.RejectedByOrderLine());
+
+        // D-08: one CustomerReturn adjustment per location it returns to, same lot and the dispatch cost.
+        var itemOf = shipment.Lines.ToDictionary(l => l.Id, l => l.ItemId);
+        foreach (var group in shipment.Rejections.Where(r => r.Disposition == RejectionDisposition.Return).GroupBy(r => r.ReturnLocationId!.Value))
+        {
+            var adjustment = await adjustments.CreateInTransactionAsync(new CreateAdjustmentRequest(group.Key, AdjustmentReason.CustomerReturn,
+                $"Rechazo en la entrega de la remisión {shipment.Folio}",
+                group.Select(r => new AdjustmentLineRequest(itemOf[r.LineId], r.LotId, null, null, r.Quantity, r.UnitCost,
+                    r.Notes)).ToList()), ct);
+            foreach (var rejection in group)
+                rejection.LinkReturn(adjustment.Id);
+        }
+
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return await ToDtoAsync(shipment, ct);
@@ -251,7 +335,8 @@ public sealed class CustomerShipmentService(
                 throw new BusinessRuleException("whole_quantity_required", $"{sku} se maneja en piezas: la cantidad debe ser entera.");
     }
 
-    private IQueryable<CustomerShipment> Shipments() => db.CustomerShipments.Include(s => s.Lines).ThenInclude(l => l.Lots);
+    private IQueryable<CustomerShipment> Shipments() =>
+        db.CustomerShipments.Include(s => s.Lines).ThenInclude(l => l.Lots).Include(s => s.Rejections);
 
     /// <summary>Shipments are made at the plant: every action requires it in the caller's scope.</summary>
     private async Task<CustomerShipment> FindAsync(Guid id, CancellationToken ct)
@@ -277,17 +362,33 @@ public sealed class CustomerShipmentService(
             .ToDictionaryAsync(r => r.ItemId, r => r.CustomerSku, ct);
         var lotIds = s.Lines.SelectMany(l => l.Lots).Select(l => l.LotId).Distinct().ToList();
         var lots = await db.Lots.AsNoTracking().Where(l => lotIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, ct);
-        var names = await userDirectory.GetNamesAsync([s.CreatedBy, s.DispatchedBy], ct);
+        var names = await userDirectory.GetNamesAsync([s.CreatedBy, s.DispatchedBy, s.DeliveredBy], ct);
         var stockIds = s.Lines.Select(l => l.LocationId).OfType<Guid>().Distinct().ToList();
         var stockCodes = await db.Locations.AsNoTracking().Where(l => stockIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
+
+        var returnIds = s.Rejections.Select(r => r.ReturnLocationId).OfType<Guid>().Distinct().ToList();
+        var returnCodes = await db.Locations.AsNoTracking().Where(l => returnIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
+        var adjustmentIds = s.Rejections.Select(r => r.ReturnAdjustmentId).OfType<Guid>().Distinct().ToList();
+        var adjustmentFolios = await db.InventoryAdjustments.AsNoTracking().Where(a => adjustmentIds.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, a => a.Folio, ct);
+        var rejections = s.Rejections.Select(r =>
+        {
+            var line = s.Lines.Single(l => l.Id == r.LineId);
+            var item = items[line.ItemId];
+            return new CustomerShipmentRejectionDto(r.Id, r.LineId, item.Sku, item.Name, item.Uom, r.LotId,
+                r.LotId is { } lotId ? lots.GetValueOrDefault(lotId)?.LotNumber : null, r.Quantity, r.Reason, r.Notes, r.Disposition,
+                r.ReturnLocationId is { } location ? returnCodes[location] : null, r.ReturnAdjustmentId,
+                r.ReturnAdjustmentId is { } adjustment ? adjustmentFolios[adjustment] : null, r.Value);
+        }).OrderBy(r => r.Sku).ThenBy(r => r.LotNumber).ToList();
 
         var lines = s.Lines.Select(l =>
         {
             var item = items[l.ItemId];
             var orderLine = order.Lines.Single(o => o.Id == l.CustomerOrderLineId);
-            var dispatched = s.Status == CustomerShipmentStatus.Dispatched;
-            // Once dispatched, this shipment is already part of the order's ShippedQty.
-            var previously = dispatched ? orderLine.ShippedQty - l.Quantity : orderLine.ShippedQty;
+            var dispatched = s.IsDispatched;
+            // Once dispatched, this shipment (less what was rejected on delivery, RN-114) is part of the order's ShippedQty.
+            var kept = l.Quantity - s.Rejections.Where(r => r.LineId == l.Id).Sum(r => r.Quantity);
+            var previously = dispatched ? orderLine.ShippedQty - kept : orderLine.ShippedQty;
             return new CustomerShipmentLineDto(l.Id, l.CustomerOrderLineId, l.LocationId is { } stock ? stockCodes[stock] : null, l.ItemId, item.Sku, item.Name, customerSkus.GetValueOrDefault(l.ItemId),
                 item.Uom, item.TracksLots, orderLine.Quantity, previously, dispatched ? l.Quantity : orderLine.RemainingWithTolerance(tolerance),
                 l.Quantity, l.UnitCost, l.UnitCost is { } cost ? InventoryMath.Round(cost * l.Quantity) : null,
@@ -297,7 +398,8 @@ public sealed class CustomerShipmentService(
 
         return new CustomerShipmentDto(s.Id, s.Folio, s.CustomerOrderId, order.Folio, order.CustomerReference, s.CustomerId, customer.Code,
             customer.Name, s.DeliveryPointId, point?.Name, point?.Address, s.FromLocationId, plant.Code, plant.Name, s.Status, s.Notes, lines,
-            s.Status == CustomerShipmentStatus.Dispatched ? lines.Sum(l => l.LineCost ?? 0) : null, s.VehicleDescription, s.DriverName,
-            s.ReceivedByName, s.DispatchedAt, names.Of(s.DispatchedBy), s.CancelledAt, s.CreatedAt, names.Of(s.CreatedBy), s.Version);
+            s.IsDispatched ? lines.Sum(l => l.LineCost ?? 0) : null, s.VehicleDescription, s.DriverName,
+            s.ReceivedByName, s.DispatchedAt, names.Of(s.DispatchedBy), s.CancelledAt, s.CreatedAt, names.Of(s.CreatedBy), s.Version,
+            s.DeliveredAt, names.Of(s.DeliveredBy), rejections);
     }
 }

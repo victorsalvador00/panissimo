@@ -43,8 +43,22 @@ export const ENUM_LABELS: { [K in EnumName]: Record<ApiEnum<K>, string> } = {
     Cancelled: 'Cancelado',
   },
   CustomerOrderTab: { All: 'Todos', ToFulfill: 'Por surtir', Drafts: 'Borradores' },
-  CustomerShipmentTab: { All: 'Todas', ToDispatch: 'Por despachar' },
-  CustomerShipmentStatus: { Draft: 'Borrador', Dispatched: 'Despachada', Cancelled: 'Cancelada' },
+  CustomerShipmentTab: { All: 'Todas', ToDispatch: 'Por despachar', ToDeliver: 'Por entregar' },
+  CustomerShipmentStatus: {
+    Draft: 'Borrador',
+    Dispatched: 'Despachada',
+    Cancelled: 'Cancelada',
+    Delivered: 'Entregada',
+    DeliveredWithDiscrepancies: 'Entregada con diferencias',
+  },
+  ShipmentRejectionReason: {
+    Damaged: 'Dañado',
+    ShortShelfLife: 'Caducidad corta o vencido',
+    Excess: 'De más o no pedido',
+    WrongProduct: 'Producto equivocado',
+    Other: 'Otro',
+  },
+  RejectionDisposition: { Return: 'Regresa a la Planta', Loss: 'Merma (no regresa)' },
   DemandType: {
     BranchOrderLine: 'Pedido de sucursal',
     CustomerOrderLine: 'Pedido de cliente',
@@ -140,6 +154,7 @@ export const ENUM_LABELS: { [K in EnumName]: Record<ApiEnum<K>, string> } = {
     Dispatched: 'Despachado',
     Delivered: 'Entregado',
     Shipped: 'Remisionado',
+    Rejected: 'Rechazado',
   },
   TraceNodeType: {
     Supplier: 'Proveedor',
@@ -151,6 +166,7 @@ export const ENUM_LABELS: { [K in EnumName]: Record<ApiEnum<K>, string> } = {
     Transfer: 'Traspaso',
     CustomerShipment: 'Remisión',
     Customer: 'Cliente',
+    Rejection: 'Rechazo del cliente',
   },
   TraceSourceType: {
     Lot: 'Lote',
@@ -209,6 +225,8 @@ const STATUS_TONES: Record<string, StatusTone> = {
   Posted: 'green',
   Converted: 'green',
   ReceivedWithDiscrepancies: 'orange',
+  Delivered: 'green',
+  DeliveredWithDiscrepancies: 'orange',
   Cancelled: 'red',
   Rejected: 'red',
 };

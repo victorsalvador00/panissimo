@@ -16,6 +16,8 @@ export type TransferListItem = Schemas['TransferListItemDto'];
 export type TransferTab = NonNullable<ApiEnum<'TransferTab'>>;
 export type DiscrepancyReason = NonNullable<ApiEnum<'DiscrepancyReason'>>;
 export type LocationLookup = Schemas['LocationLookupDto'];
+export type Vehicle = Schemas['VehicleDto'];
+export type Driver = Schemas['DriverDto'];
 export type BranchOrder = Schemas['BranchOrderDto'];
 export type BranchOrderLine = Schemas['BranchOrderLineDto'];
 export type BranchOrderListItem = Schemas['BranchOrderListItemDto'];
@@ -163,5 +165,35 @@ export class BranchOrdersApi {
   reject(id: string, version: number, reason: string): Observable<BranchOrder> {
     const body: Schemas['RejectBranchOrderRequest'] = { version, reason };
     return this.http.post<BranchOrder>(`branch-orders/${id}/reject`, body);
+  }
+}
+
+/** RN-113: vehicles and drivers of the fleet; dispatches choose active ones. */
+@Injectable({ providedIn: 'root' })
+export class FleetApi {
+  private readonly http = inject(HttpClient);
+
+  vehicles(query: ListQuery, filters: ParamValues = {}): Observable<Page<Vehicle>> {
+    return this.http.get<Page<Vehicle>>('vehicles', { params: toHttpParams(query, filters) });
+  }
+
+  createVehicle(request: Schemas['CreateVehicleRequest']): Observable<Vehicle> {
+    return this.http.post<Vehicle>('vehicles', request);
+  }
+
+  updateVehicle(id: string, request: Schemas['UpdateVehicleRequest']): Observable<Vehicle> {
+    return this.http.put<Vehicle>(`vehicles/${id}`, request);
+  }
+
+  drivers(query: ListQuery, filters: ParamValues = {}): Observable<Page<Driver>> {
+    return this.http.get<Page<Driver>>('drivers', { params: toHttpParams(query, filters) });
+  }
+
+  createDriver(request: Schemas['CreateDriverRequest']): Observable<Driver> {
+    return this.http.post<Driver>('drivers', request);
+  }
+
+  updateDriver(id: string, request: Schemas['UpdateDriverRequest']): Observable<Driver> {
+    return this.http.put<Driver>(`drivers/${id}`, request);
   }
 }

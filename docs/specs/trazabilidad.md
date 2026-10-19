@@ -123,6 +123,7 @@ Antes de escribir código, confirma en el repositorio y anótalo en el plan:
 - **RN-108 (resumen de retiro):** la respuesta incluye un resumen agregado de los lotes terminados alcanzados: por ubicación (recibido, consumido, merma, existencia actual), por cliente (remisionado) y por origen (proveedores, OC y lotes de materia prima). Con ese resumen se arma la lista de qué recoger y dónde.
 
 - **RN-109 (permiso y alcance):** la consulta requiere el permiso nuevo `inventory.traceability`. Es una función de calidad que cruza ubicaciones: **no se filtra por el alcance de ubicaciones** del usuario (RN-40). Cada consulta queda en `AuditLog` con la entrada, la dirección y el número de nodos.
+- **Rechazo en la entrega (RN-114 de dominio):** una remisión entregada con rechazos lleva al cliente solo lo **aceptado** y una arista `Rejected` a un nodo `Rejection` (`rej:{remisión}`) con lo que **regresó** (subalmacén y ajuste `CustomerReturn`) y lo que fue **merma**. Lo que regresó ya está en la existencia del lote (entrada del ajuste), así que no se dibuja una arista de regreso: la cadena sigue de izquierda a derecha. La bitácora suma el evento "Rechazo de {cliente}". Decidido con el usuario el 2026-10-19.
 
 ## 5. Backend (B-28)
 

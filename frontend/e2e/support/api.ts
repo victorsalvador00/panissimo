@@ -203,6 +203,30 @@ export class AdminApi {
     return created.id;
   }
 
+  /** RN-49: the Planta's active factory, if it has one (recipes then must name it); null on a plant without factory. */
+  async factoryId(): Promise<string | null> {
+    const plant = await this.locationId('PLANTA');
+    if (!plant) return null;
+    const warehouses = await this.get<{ id: string; type: string; isActive: boolean }[]>(`locations/${plant}/warehouses`);
+    return warehouses.find((w) => w.type === 'Factory' && w.isActive)?.id ?? null;
+  }
+
+  /** RN-112: sends and receives (complete) the ingredients vouchers a released order created, so its factory has them. */
+  async sendIngredients(orderId: string): Promise<void> {
+    const order = await this.get<{ vouchers: { id: string; status: string }[] | null }>(`production-orders/${orderId}`);
+    for (const { id } of (order.vouchers ?? []).filter((v) => v.status === 'Draft')) {
+      const draft = await this.get<{ version: number }>(`internal-transfers/${id}`);
+      const sent = await this.post<{ version: number; lines: { id: string; shippedQty: number }[] }>(
+        `internal-transfers/${id}/dispatch`,
+        { version: draft.version, lines: null },
+      );
+      await this.post(`internal-transfers/${id}/receive`, {
+        version: sent.version,
+        lines: sent.lines.map((l) => ({ lineId: l.id, receivedQty: l.shippedQty, discrepancyReason: null, discrepancyNotes: null })),
+      });
+    }
+  }
+
   /** RN-113: the active E2E vehicle and driver dispatches choose (created the first time, reactivated if needed). */
   async ensureFleet(): Promise<{ vehicleId: string; driverId: string }> {
     type Row = { id: string; version: number; isActive: boolean };

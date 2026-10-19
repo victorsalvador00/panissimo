@@ -18,6 +18,7 @@ test('costos de receta y análisis de consumo', async ({ page, baseURL, isMobile
   let recipes = await api.get<{ items: { id: string }[] }>(`recipes?outputItemId=${pan}&includeInactive=true`);
   if (recipes.items.length === 0) {
     await api.post('recipes', {
+      factoryId: await api.factoryId(),
       outputItemId: pan,
       yieldQty: 10,
       notes: 'E2E',

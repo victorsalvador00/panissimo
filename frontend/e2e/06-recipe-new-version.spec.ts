@@ -31,6 +31,7 @@ test('receta: editar una receta usada crea la versión N+1', async ({ page, base
   let recipe = (await api.get<{ items: RecipeRow[] }>(`recipes?outputItemId=${masa}`)).items[0];
   if (!recipe) {
     recipe = await api.post<RecipeRow>('recipes', {
+      factoryId: await api.factoryId(),
       outputItemId: masa,
       yieldQty: 10,
       notes: 'E2E',
@@ -58,7 +59,7 @@ test('receta: editar una receta usada crea la versión N+1', async ({ page, base
   await page.getByRole('link', { name: 'E2E-MASA', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: `Receta de E2E-MASA · v${current}` })).toBeVisible();
-  await expect(page.getByText(`guardar creará la versión ${current + 1}`)).toBeVisible();
+  await expect(page.getByText(`creará la versión ${current + 1}`)).toBeVisible();
   const waste = page.getByLabel('Merma del componente 1');
   await waste.fill(String(current % 10));
   await page.getByRole('button', { name: `Guardar versión ${current + 1}` }).click();

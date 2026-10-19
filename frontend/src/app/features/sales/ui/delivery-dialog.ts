@@ -56,6 +56,19 @@ function localInput(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/**
+ * The input has minute precision: a delivery in the same minute as the dispatch (20:54 for a dispatch at 20:54:02)
+ * takes the millisecond after the dispatch, so it is not "before" it.
+ */
+export function deliveryInstant(local: string, dispatchedAt: string | null | undefined): string {
+  const chosen = new Date(local);
+  const dispatched = dispatchedAt ? new Date(dispatchedAt) : null;
+  // The API keeps microseconds and a Date only milliseconds: the next millisecond is never before the dispatch.
+  if (dispatched && chosen <= dispatched && dispatched.getTime() - chosen.getTime() < 60_000)
+    return new Date(dispatched.getTime() + 1).toISOString();
+  return chosen.toISOString();
+}
+
 /** RN-114: what is rejected needs a reason; "Otro" a note; what returns, its sub-warehouse. */
 export function rejectionValidator(needsWarehouse: boolean, shipped: number) {
   return (group: AbstractControl): ValidationErrors | null => {
@@ -297,7 +310,7 @@ export class DeliveryDialog {
         returnWarehouseId: v.disposition === 'Return' ? v.warehouseId : null,
       }));
     this.ref.close({
-      deliveredAt: new Date(deliveredAt).toISOString(),
+      deliveredAt: deliveryInstant(deliveredAt, this.data.shipment.dispatchedAt),
       receivedByName: receivedByName.trim(),
       rejections: rejections.length > 0 ? rejections : null,
     });

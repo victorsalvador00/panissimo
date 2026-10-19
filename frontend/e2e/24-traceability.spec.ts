@@ -37,6 +37,7 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
   const recipes = await api.get<{ items: { id: string }[] }>(`recipes?outputItemId=${bread}`);
   if (recipes.items.length === 0)
     await api.post('recipes', {
+      factoryId: await api.factoryId(),
       outputItemId: bread,
       yieldQty: 10,
       notes: 'E2E 24',
@@ -95,6 +96,9 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
     notes: 'E2E 24',
   });
   order = await api.post(`production-orders/${order.id}/release`, { version: order.version });
+  // RN-49/RN-112: with a factory the flour reaches it with the vouchers and the close consumes there.
+  const factory = await api.factoryId();
+  if (factory) await api.sendIngredients(order.id);
   const close = (version: number, kind: 'Partial' | 'Final') =>
     api.post<{ order: { version: number } }>(`production-orders/${order.id}/closes`, {
       version,
@@ -105,8 +109,8 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
       shortfallReason: null,
       shortfallNotes: null,
       lines: null,
-      consumptionWarehouseId: rawMaterials,
-      outputWarehouseId: finishedGoods,
+      consumptionWarehouseId: factory ? null : rawMaterials,
+      outputWarehouseId: factory ? null : finishedGoods,
     });
   const first = await close(order.version, 'Partial');
   await close(first.order.version, 'Final');
@@ -131,7 +135,7 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
       version: draft.version,
       ...fleet,
       lines: null,
-      fromWarehouseId: finishedGoods,
+      fromWarehouseId: factory ?? finishedGoods,
     });
     await api.post(`transfers/${sent.id}/receive`, {
       version: sent.version,

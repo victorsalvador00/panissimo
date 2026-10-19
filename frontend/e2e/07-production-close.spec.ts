@@ -33,6 +33,7 @@ test('OP: liberar, cierres parciales y cierre final con faltante', async ({ page
   const recipes = await api.get<{ items: { id: string }[] }>(`recipes?outputItemId=${masa}`);
   if (recipes.items.length === 0) {
     await api.post('recipes', {
+      factoryId: await api.factoryId(),
       outputItemId: masa,
       yieldQty: 10,
       notes: 'E2E',
@@ -41,9 +42,12 @@ test('OP: liberar, cierres parciales y cierre final con faltante', async ({ page
   }
   await api.addStock('PLANTA-MP', 'E2E-HARINA', 20, 18);
   const plant = (await api.locationId('PLANTA'))!;
-  const warehouses = await api.get<{ code: string; name: string }[]>(`locations/${plant}/warehouses`);
+  const warehouses = await api.get<{ id: string; code: string; name: string }[]>(`locations/${plant}/warehouses`);
   const rawMaterials = warehouses.find((w) => w.code === 'PLANTA-MP')!.name;
   const semiFinished = warehouses.find((w) => w.code === 'PLANTA-SEMI')!.name;
+  // RN-49: with a factory, the close consumes from it and leaves the product there.
+  const factory = await api.factoryId();
+  const outputCode = factory ? warehouses.find((w) => w.id === factory)!.code : 'PLANTA-SEMI';
   const order = await api.post<{ id: string; folio: string }>('production-orders', {
     locationId: plant,
     outputItemId: masa,
@@ -60,14 +64,22 @@ test('OP: liberar, cierres parciales y cierre final con faltante', async ({ page
   await page.getByRole('button', { name: 'Liberar' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Liberar' }).click();
   await expect(page.locator('app-status-tag').getByText('Liberada')).toBeVisible();
+  if (factory) {
+    // RN-112: the ingredients reach the factory with their vouchers before producing.
+    const vouchers = await AdminApi.create(baseURL!);
+    await vouchers.sendIngredients(order.id);
+    await vouchers.dispose();
+  }
 
   // Partial close on the tablet: 10 kg consume the theoretical 6 kg.
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.getByRole('link', { name: 'Cierre parcial' }).click();
   await page.getByLabel('Cantidad producida en este cierre').fill('10');
   await expect(page.getByLabel('Consumo real', { exact: true })).toHaveValue('6');
-  await chooseWarehouse(page, 'Consume del subalmacén', rawMaterials);
-  await chooseWarehouse(page, 'El producto entra a', semiFinished);
+  if (!factory) {
+    await chooseWarehouse(page, 'Consume del subalmacén', rawMaterials);
+    await chooseWarehouse(page, 'El producto entra a', semiFinished);
+  }
   await page.getByRole('button', { name: 'Registrar cierre parcial' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Registrar cierre parcial' }).click();
   await expect(page).toHaveURL(new RegExp(`/produccion/ordenes/${order.id}$`));
@@ -104,7 +116,7 @@ test('OP: liberar, cierres parciales y cierre final con faltante', async ({ page
   // Each close entered its own lot.
   await page.goto('/inventario/existencias');
   await page.getByLabel('Buscar por SKU o nombre').fill('E2E-MASA-L');
-  const row = page.getByRole('row').filter({ hasText: 'PLANTA-SEMI' }).filter({ hasText: 'E2E-MASA-L' });
+  const row = page.getByRole('row').filter({ hasText: outputCode }).filter({ hasText: 'E2E-MASA-L' });
   await row.getByRole('button', { name: 'Ver detalle' }).click();
   const lots = page.getByRole('table', { name: 'Lotes de Masa E2E con lotes' });
   for (const sequence of ['01', '02', '03']) await expect(lots).toContainText(`${order.folio}-${sequence}`);

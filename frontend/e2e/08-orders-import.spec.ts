@@ -21,6 +21,7 @@ test('importar OP desde Excel: errores, avisos y órdenes creadas', async ({ pag
   const recipes = await api.get<{ items: unknown[] }>(`recipes?outputItemId=${masa}`);
   if (recipes.items.length === 0) {
     await api.post('recipes', {
+      factoryId: await api.factoryId(),
       outputItemId: masa,
       yieldQty: 10,
       notes: 'E2E',

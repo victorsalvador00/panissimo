@@ -1,5 +1,5 @@
 import { FormControl, FormGroup } from '@angular/forms';
-import { rejectionValidator } from './delivery-dialog';
+import { deliveryInstant, rejectionValidator } from './delivery-dialog';
 
 const row = (value: {
   rejected: number;
@@ -30,5 +30,21 @@ describe('rejectionValidator (RN-114)', () => {
     expect(check({ rejected: 2, reason: 'Damaged' }, false)).toBeNull();
     expect(check({ rejected: 2, reason: 'Damaged', disposition: 'Loss' })).toBeNull();
     expect(check({ rejected: 2, reason: 'Damaged', warehouseId: 'pt' })).toBeNull();
+  });
+});
+
+describe('deliveryInstant', () => {
+  it('takes the millisecond after the dispatch when the chosen minute is the dispatch minute', () => {
+    const base = new Date(2026, 9, 18, 20, 54, 2, 428);
+    const dispatched = base.toISOString().replace('Z', '887Z'); // microseconds, as the API sends them
+    expect(deliveryInstant('2026-10-18T20:54', dispatched)).toBe(
+      new Date(base.getTime() + 1).toISOString(),
+    );
+    expect(deliveryInstant('2026-10-18T20:55', dispatched)).toBe(
+      new Date(2026, 9, 18, 20, 55).toISOString(),
+    );
+    expect(deliveryInstant('2026-10-18T20:52', dispatched)).toBe(
+      new Date(2026, 9, 18, 20, 52).toISOString(),
+    );
   });
 });

@@ -45,20 +45,22 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // Builds the host now: migrations and seed run before the first test.
         _ = Services;
 
-        // RN-113: dispatches choose a vehicle and a driver of the catalog.
+        // RN-113: dispatches choose a vehicle and a driver of the catalog. Fixed ids: every factory (one per test
+        // collection, each with its own database) seeds the same ones.
         await using var scope = CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var vehicle = new Vehicle("PRUEBA-01", "Camioneta de prueba");
         var driver = new Driver("Chofer de prueba", null);
         db.AddRange(vehicle, driver);
+        db.Entry(vehicle).Property(v => v.Id).CurrentValue = VehicleId;
+        db.Entry(driver).Property(d => d.Id).CurrentValue = DriverId;
         await db.SaveChangesAsync();
-        (VehicleId, DriverId) = (vehicle.Id, driver.Id);
     }
 
-    /// <summary>Active vehicle and driver for dispatches (RN-113); one test database per run.</summary>
-    public static Guid VehicleId { get; private set; }
+    /// <summary>Active vehicle and driver for dispatches (RN-113), the same in every test database.</summary>
+    public static readonly Guid VehicleId = Guid.Parse("0199a1b2-0000-7000-8000-00000000f1e1");
 
-    public static Guid DriverId { get; private set; }
+    public static readonly Guid DriverId = Guid.Parse("0199a1b2-0000-7000-8000-00000000f1d1");
 
     public new async Task DisposeAsync()
     {

@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-19 (rechazo de entrega en la trazabilidad).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-19 (integración y E2E en verde con Colima).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-18)
@@ -1023,4 +1023,17 @@
   - La integración de la entrega ahora revisa también el mapa (85 al cliente, 15 rechazadas, 10/5 y el folio del ajuste); no se corrió.
   - Frontend 196 unitarias (`trace-rejection.spec.ts`: carril, tipo de arista, textos y ficha), lint y build en verde.
   - No se revisó en Chrome con datos reales: la base local no tiene remisiones entregadas con rechazo (RM-000001 sigue despachada).
+
+### Corrida de integración y E2E (2026-10-19)
+
+- **Docker:** Colima instalado con Homebrew (`brew install colima docker`, `colima start --cpu 4 --memory 6`). Para Testcontainers:
+  `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock TESTCONTAINERS_HOST_OVERRIDE=127.0.0.1 dotnet test`.
+- **Integración: 172 en verde y 1 omitida (volumen).** La primera corrida dio 20 fallas (`vehicle_not_available`): `ApiFactory.VehicleId/DriverId` eran estáticos y la colección de volumen, con su propia fábrica y BD, los sobrescribía. Ahora se siembran con ids fijos en cada BD.
+- **E2E contra la BD de desarrollo (con FABRICA): 46 en verde y 22 omitidas por diseño.** Ajustes:
+  - **Error real:** "Registrar entrega" mandaba la hora con precisión de minuto. En el mismo minuto del despacho quedaba "antes" que él (el despacho guarda microsegundos y `Date` solo milisegundos). `deliveryInstant` manda el milisegundo siguiente al despacho; prueba en `delivery-dialog.spec.ts`.
+  - **RN-49:** `api.factoryId()`. Las recetas de las E2E 06, 07, 08, 16, 17, 19 y 24 mandan la fábrica de la Planta si tiene una.
+  - **RN-112:** `api.sendIngredients(orderId)` envía y recibe los vales de una OP liberada. Las E2E 07 y 24 lo usan con fábrica, cierran sin elegir subalmacén y la 24 despacha desde la fábrica.
+  - **E2E 06:** el texto del aviso de versión cambió ("… creará la versión N").
+  - **Limpieza de restos de corridas fallidas en la BD de desarrollo:** se canceló OP-000010 ("E2E 24", liberada con reserva) y se dio de baja la harina E2E-TZ sobrante de PLANTA-MP con el ajuste AJ-000013. Si no, FEFO la tomaba antes que la de la corrida.
+- **Otros:** backend 301 unitarias y frontend 197 unitarias, lint y build en verde. Sin commit de estos ajustes todavía.
 

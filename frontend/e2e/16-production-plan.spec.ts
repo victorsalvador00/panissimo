@@ -24,6 +24,7 @@ test('plan: pedido enviado, sugerido y OP ligada', async ({ page, baseURL, isMob
   const recipes = await api.get<{ items: unknown[] }>(`recipes?outputItemId=${pan}`);
   if (recipes.items.length === 0)
     await api.post('recipes', {
+      factoryId: await api.factoryId(),
       outputItemId: pan,
       yieldQty: 10,
       notes: 'E2E',

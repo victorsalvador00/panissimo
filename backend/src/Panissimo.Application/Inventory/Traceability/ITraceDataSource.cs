@@ -16,7 +16,7 @@ public sealed record TraceItem(Guid Id, string Sku, string Name, ItemType Type, 
 public sealed record TraceLocation(Guid Id, string Code, string Name, LocationType Type, Guid? ParentId)
 {
     /// <summary>The plant or branch a sub-warehouse belongs to (stock is shown per plant or branch).</summary>
-    public Guid RootId => Type == LocationType.Warehouse && ParentId is { } parent ? parent : Id;
+    public Guid RootId => Type is LocationType.Warehouse or LocationType.Factory && ParentId is { } parent ? parent : Id;
 }
 
 public sealed record TraceClose(Guid Id, string Folio, Guid ProductionOrderId, int Sequence, ProductionCloseKind Kind, DateOnly BusinessDate,

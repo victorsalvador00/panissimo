@@ -14,6 +14,7 @@ export function transferDestinations(
     (l) =>
       l.id !== origin.id &&
       l.type !== 'Warehouse' &&
+      l.type !== 'Factory' &&
       (special || (origin.type === 'Plant' && l.type === 'Branch')),
   );
 }

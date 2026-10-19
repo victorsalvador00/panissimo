@@ -2122,6 +2122,10 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid?>("FactoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("factory_id");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
@@ -2164,6 +2168,9 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_recipe");
+
+                    b.HasIndex("FactoryId")
+                        .HasDatabaseName("ix_recipe_factory_id");
 
                     b.HasIndex("OutputItemId")
                         .IsUnique()
@@ -4291,6 +4298,12 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Panissimo.Domain.Production.Recipe", b =>
                 {
+                    b.HasOne("Panissimo.Domain.Organization.Location", null)
+                        .WithMany()
+                        .HasForeignKey("FactoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_recipe_location_factory_id");
+
                     b.HasOne("Panissimo.Domain.Catalog.Item", null)
                         .WithMany()
                         .HasForeignKey("OutputItemId")

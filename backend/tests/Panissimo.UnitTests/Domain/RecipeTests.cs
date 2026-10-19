@@ -1,5 +1,6 @@
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
+using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 
 namespace Panissimo.UnitTests.Domain;
@@ -88,5 +89,32 @@ public class RecipeTests
 
         Assert.False(RecipeGraph.CreatesCycle(Bread, [dough], graph));
         Assert.True(RecipeGraph.CreatesCycle(filling, [dough], graph));
+    }
+
+    [Fact]
+    public void Only_the_factory_changing_keeps_the_formula()
+    {
+        var recipe = Create();
+        Assert.True(recipe.HasFormula(120, " ", [new RecipeLineInput(Bag, 10, 0), new RecipeLineInput(Flour, 6, 2)]));
+        Assert.False(recipe.HasFormula(120, null, [new RecipeLineInput(Flour, 6, 2)]));
+        Assert.False(recipe.HasFormula(120, null, [new RecipeLineInput(Flour, 6, 3), new RecipeLineInput(Bag, 10, 0)]));
+        Assert.False(recipe.HasFormula(100, null, [new RecipeLineInput(Flour, 6, 2), new RecipeLineInput(Bag, 10, 0)]));
+    }
+
+    [Fact]
+    public void A_plant_with_a_factory_only_produces_recipes_of_its_factories()
+    {
+        static string Code(Action action) => Assert.Throws<BusinessRuleException>(action).Code;
+        var plant = new Location("PLANTA", "Planta", LocationType.Plant);
+        var other = new Location("PLANTA-2", "Otra planta", LocationType.Plant);
+        var factory = Location.Factory("PLANTA-FAB", "Fábrica", plant);
+
+        RecipeRules.EnsureFactory("PAN", factory, plant.Id, plantHasFactory: true);
+        RecipeRules.EnsureFactory("PAN", null, other.Id, plantHasFactory: false);
+        Assert.Equal("recipe_factory_required", Code(() => RecipeRules.EnsureFactory("PAN", null, plant.Id, plantHasFactory: true)));
+        Assert.Equal("recipe_factory_other_plant", Code(() => RecipeRules.EnsureFactory("PAN", factory, other.Id, plantHasFactory: false)));
+
+        factory.Deactivate();
+        Assert.Equal("recipe_factory_other_plant", Code(() => RecipeRules.EnsureFactory("PAN", factory, plant.Id, plantHasFactory: false)));
     }
 }

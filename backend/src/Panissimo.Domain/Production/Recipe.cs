@@ -1,6 +1,7 @@
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Organization;
 
 namespace Panissimo.Domain.Production;
 
@@ -21,6 +22,25 @@ public static class RecipeRules
     /// <summary>RN-11: theoretical consumption of a line for <paramref name="quantity"/> of output.</summary>
     public static decimal Theoretical(decimal quantity, decimal yieldQty, decimal lineQuantity, decimal wastePct) =>
         InventoryMath.Round(quantity / yieldQty * lineQuantity * (1 + wastePct / 100m));
+
+    /// <summary>
+    /// RN-49: a plant with an active factory produces only recipes linked to one of its factories; a recipe linked
+    /// to a factory is produced only at that factory's plant, while it is active.
+    /// </summary>
+    /// <param name="factory">The recipe's factory, or null when it has none.</param>
+    public static void EnsureFactory(string sku, Location? factory, Guid plantId, bool plantHasFactory)
+    {
+        if (factory is null)
+        {
+            if (plantHasFactory)
+                throw new BusinessRuleException("recipe_factory_required",
+                    $"La planta tiene fábrica y la receta de {sku} no tiene una: asígnale su fábrica en Recetas (RN-49).");
+            return;
+        }
+        if (!factory.IsFactory || !factory.IsActive || factory.ParentLocationId != plantId)
+            throw new BusinessRuleException("recipe_factory_other_plant",
+                $"La receta de {sku} se produce en {factory.Code}, que no es una fábrica activa de esta planta (RN-49).");
+    }
 }
 
 /// <summary>
@@ -52,6 +72,12 @@ public class Recipe : AuditableEntity, IVersioned
 
     public string? Notes { get; private set; }
 
+    /// <summary>
+    /// RN-49: the factory where it is produced; closes consume from it and deliver to it. It is where, not what:
+    /// changing it never creates a version and applies to every version of the item.
+    /// </summary>
+    public Guid? FactoryId { get; private set; }
+
     /// <summary>Set when a production order uses this version; from then on edits create a new version.</summary>
     public bool IsUsed { get; private set; }
 
@@ -79,6 +105,15 @@ public class Recipe : AuditableEntity, IVersioned
     }
 
     public void MarkUsed() => IsUsed = true;
+
+    public void AssignFactory(Guid? factoryId) => FactoryId = factoryId;
+
+    /// <summary>Same yield, notes and lines (order does not matter): an edit that only changes the factory.</summary>
+    public bool HasFormula(decimal yieldQty, string? notes, IReadOnlyList<RecipeLineInput> lines) =>
+        YieldQty == yieldQty
+        && Notes == (string.IsNullOrWhiteSpace(notes) ? null : notes.Trim())
+        && _lines.Count == lines.Count
+        && lines.All(l => _lines.Any(x => x.ComponentItemId == l.ComponentItemId && x.Quantity == l.Quantity && x.WastePct == l.WastePct));
 
     public void Activate()
     {

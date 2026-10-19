@@ -38,6 +38,7 @@ import { StockLots } from '../ui/stock-lots';
 /**
  * /inventario/existencias (frontend §7.3): stock of the active location (and its sub-warehouses, RN-46) with average
  * cost, value and level against min/max; lots on expand; "Solo bajo mínimo"; lots about to expire; link to the kardex.
+ * "Ubicación" narrows the rows to the total or to one sub-warehouse (only when the active location has them).
  */
 @Component({
   selector: 'app-stock-page',
@@ -104,12 +105,23 @@ export class StockPage {
     this.alerts.hasValue() ? this.alerts.value().expiringLots : [],
   );
 
+  /** Sub-warehouses of the active location: the options of the "Ubicación" filter besides its total. */
+  protected readonly warehouses = rxResource({
+    params: () => this.location()?.id,
+    stream: ({ params }) => this.api.warehouses(params),
+    defaultValue: [],
+  });
+
   protected readonly categories = rxResource({
     stream: () => this.categoriesApi.list().pipe(map((page) => page.items)),
     defaultValue: [],
   });
 
   constructor() {
+    effect(() => {
+      this.location();
+      untracked(() => this.setFilter('rowLocationId', null));
+    });
     effect(() => {
       if (this.bajoMinimo() === '1') untracked(() => this.setFilter('belowMin', true));
     });

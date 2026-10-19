@@ -12,9 +12,11 @@ export class LocationContextService {
   private readonly auth = inject(AuthService);
   private readonly chosenId = signal<string | null>(readStored());
 
-  /** Plants and branches the user may work on (sub-warehouses are chosen inside each document). */
+  /** Plants and branches the user may work on (sub-warehouses and factories are chosen inside each document). */
   readonly locations = computed(() =>
-    (this.auth.user()?.locations ?? []).filter((l) => l.isActive && l.type !== 'Warehouse'),
+    (this.auth.user()?.locations ?? []).filter(
+      (l) => l.isActive && l.type !== 'Warehouse' && l.type !== 'Factory',
+    ),
   );
 
   readonly active = computed(() => {

@@ -95,11 +95,119 @@
 }
 
 .nav-section {
-  margin: 14px 20px 4px;
+  margin: 10px 8px 2px;
+  font: inherit;
+}
+
+// Section header: folds its group. The chevron turns and a dot marks a folded section that holds the current page.
+.nav-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px 4px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: var(--pan-nav-section-fg);
   font: var(--mat-sys-label-medium);
+  text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, currentColor 8%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--pan-nav-icon-line, currentColor);
+    outline-offset: -2px;
+  }
+}
+
+.nav-section-label {
+  flex: 1;
+}
+
+.nav-section-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pan-nav-dot-in 0.2s ease-out;
+}
+
+.nav-chevron {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.28s cubic-bezier(0.2, 0, 0, 1);
+
+  [aria-expanded='false'] > & {
+    transform: rotate(-90deg);
+  }
+}
+
+// The group grows and shrinks with its content (0fr → 1fr); its items fade and slide in one after another.
+.nav-group {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.28s cubic-bezier(0.2, 0, 0, 1);
+
+  > ul {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  li {
+    opacity: 0;
+    transform: translateY(-6px);
+    transition:
+      opacity 0.16s ease,
+      transform 0.2s ease;
+  }
+
+  &.open {
+    grid-template-rows: 1fr;
+
+    li {
+      opacity: 1;
+      transform: none;
+      transition:
+        opacity 0.22s ease calc(var(--pan-nav-i, 0) * 25ms + 60ms),
+        transform 0.26s cubic-bezier(0.2, 0, 0, 1) calc(var(--pan-nav-i, 0) * 25ms + 60ms);
+    }
+  }
+}
+
+@keyframes pan-nav-dot-in {
+  from {
+    transform: scale(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-group,
+  .nav-group li,
+  .nav-group.open li,
+  .nav-chevron,
+  .nav-section-toggle {
+    transition: none;
+  }
+
+  .nav-section-dot {
+    animation: none;
+  }
 }
 
 .nav-divider {

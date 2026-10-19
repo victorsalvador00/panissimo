@@ -18,6 +18,8 @@ internal sealed class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
         builder.HasIndex(r => r.OutputItemId).IsUnique().HasFilter("is_active")
             .HasDatabaseName("ux_recipe_one_active_per_item");
         builder.HasOne<Item>().WithMany().HasForeignKey(r => r.OutputItemId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Location>().WithMany().HasForeignKey(r => r.FactoryId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(r => r.FactoryId);
         builder.HasMany(r => r.Lines).WithOne().HasForeignKey(l => l.RecipeId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(r => r.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);
     }

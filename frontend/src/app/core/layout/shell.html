@@ -69,37 +69,56 @@
     [opened]="!isHandset()"
   >
     <nav aria-label="Menú principal">
-      @for (section of navigation(); track section.label; let first = $first) {
+      @for (section of navigation(); track section.label; let first = $first; let s = $index) {
+        @let open = isSectionOpen(section.label);
         @if (showCollapsed()) {
           @if (!first) {
             <mat-divider class="nav-divider" />
           }
         } @else {
-          <h2 class="nav-section">{{ section.label }}</h2>
+          <h2 class="nav-section">
+            <button
+              type="button"
+              class="nav-section-toggle"
+              [attr.aria-expanded]="open"
+              [attr.aria-controls]="'pan-nav-group-' + s"
+              (click)="toggleSection(section.label)"
+            >
+              <span class="nav-section-label">{{ section.label }}</span>
+              @if (!open && section.label === activeSection()) {
+                <span class="nav-section-dot" aria-hidden="true"></span>
+              }
+              <svg class="nav-chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M7 10l5 5 5-5" />
+              </svg>
+            </button>
+          </h2>
         }
-        <ul>
-          @for (item of section.items; track item.route) {
-            <li>
-              <a
-                class="pan-nav-item"
-                [routerLink]="item.route"
-                routerLinkActive="active"
-                ariaCurrentWhenActive="page"
-                [routerLinkActiveOptions]="{ exact: item.route === '/' }"
-                [matTooltip]="item.label"
-                matTooltipPosition="right"
-                [matTooltipDisabled]="!showCollapsed()"
-                [attr.aria-label]="showCollapsed() ? item.label : null"
-                (click)="closeOnPhone(drawer)"
-              >
-                <span class="pan-nav-icon"
-                  ><mat-icon aria-hidden="true">{{ item.icon }}</mat-icon></span
+        <div class="nav-group" [id]="'pan-nav-group-' + s" [class.open]="open" [inert]="!open">
+          <ul>
+            @for (item of section.items; track item.route; let i = $index) {
+              <li [style.--pan-nav-i]="i">
+                <a
+                  class="pan-nav-item"
+                  [routerLink]="item.route"
+                  routerLinkActive="active"
+                  ariaCurrentWhenActive="page"
+                  [routerLinkActiveOptions]="{ exact: item.route === '/' }"
+                  [matTooltip]="item.label"
+                  matTooltipPosition="right"
+                  [matTooltipDisabled]="!showCollapsed()"
+                  [attr.aria-label]="showCollapsed() ? item.label : null"
+                  (click)="closeOnPhone(drawer)"
                 >
-                <span class="pan-nav-label">{{ item.label }}</span>
-              </a>
-            </li>
-          }
-        </ul>
+                  <span class="pan-nav-icon"
+                    ><mat-icon aria-hidden="true">{{ item.icon }}</mat-icon></span
+                  >
+                  <span class="pan-nav-label">{{ item.label }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        </div>
       }
     </nav>
   </mat-sidenav>

@@ -35,9 +35,10 @@ public sealed record LocationDto(
 public sealed record LocationLookupDto(Guid Id, string Code, string Name, LocationType Type);
 
 /// <param name="CanMoveStock">The caller may move inventory in it (RN-40, B-26).</param>
-public sealed record WarehouseDto(Guid Id, string Code, string Name, Guid ParentLocationId, bool IsActive, bool CanMoveStock);
+/// <param name="Type">Warehouse or Factory (RN-48).</param>
+public sealed record WarehouseDto(Guid Id, string Code, string Name, Guid ParentLocationId, bool IsActive, bool CanMoveStock, LocationType Type);
 
-/// <param name="ParentLocationId">Required for <c>Warehouse</c>: its plant or branch (D-01, RN-44).</param>
+/// <param name="ParentLocationId">Required for <c>Warehouse</c> (its plant or branch, D-01, RN-44) and <c>Factory</c> (its plant, RN-48).</param>
 public sealed record CreateLocationRequest(string Code, string Name, LocationType Type, string? Address, Guid? ParentLocationId = null);
 
 public sealed class CreateLocationRequestValidator : AbstractValidator<CreateLocationRequest>
@@ -51,8 +52,10 @@ public sealed class CreateLocationRequestValidator : AbstractValidator<CreateLoc
         RuleFor(x => x.Address).MaximumLength(500).WithName("Dirección");
         RuleFor(x => x.ParentLocationId).NotNull().When(x => x.Type == LocationType.Warehouse)
             .WithMessage("Un subalmacén pertenece a una planta o sucursal: indica su ubicación padre.");
-        RuleFor(x => x.ParentLocationId).Null().When(x => x.Type != LocationType.Warehouse)
-            .WithMessage("Solo un subalmacén tiene ubicación padre.");
+        RuleFor(x => x.ParentLocationId).NotNull().When(x => x.Type == LocationType.Factory)
+            .WithMessage("Una fábrica pertenece a una planta: indica su ubicación padre.");
+        RuleFor(x => x.ParentLocationId).Null().When(x => x.Type is not (LocationType.Warehouse or LocationType.Factory))
+            .WithMessage("Solo un subalmacén o una fábrica tienen ubicación padre.");
     }
 }
 
@@ -122,7 +125,7 @@ public sealed class LocationService(IAppDbContext db, ILocationScope scope, IUse
 
     public async Task<IReadOnlyList<LocationLookupDto>> LookupAsync(CancellationToken ct = default) =>
         await db.Locations.AsNoTracking()
-            .Where(l => l.IsActive && l.Type != LocationType.Warehouse)
+            .Where(l => l.IsActive && l.Type != LocationType.Warehouse && l.Type != LocationType.Factory)
             .OrderBy(l => l.Type == LocationType.Plant ? 0 : 1).ThenBy(l => l.Code)
             .Select(l => new LocationLookupDto(l.Id, l.Code, l.Name, l.Type))
             .ToListAsync(ct);
@@ -135,21 +138,23 @@ public sealed class LocationService(IAppDbContext db, ILocationScope scope, IUse
         return await db.Locations.AsNoTracking()
             .Where(l => l.ParentLocationId == locationId && l.IsActive && visible.Contains(l.Id))
             .OrderBy(l => l.Code)
-            .Select(l => new WarehouseDto(l.Id, l.Code, l.Name, l.ParentLocationId!.Value, l.IsActive, stock.Contains(l.Id)))
+            .Select(l => new WarehouseDto(l.Id, l.Code, l.Name, l.ParentLocationId!.Value, l.IsActive, stock.Contains(l.Id), l.Type))
             .ToListAsync(ct);
     }
 
     public async Task<LocationDto> CreateAsync(CreateLocationRequest request, CancellationToken ct = default)
     {
         Location location;
-        if (request.Type == LocationType.Warehouse)
+        if (request.Type is LocationType.Warehouse or LocationType.Factory)
         {
             var parent = await FindAsync(request.ParentLocationId!.Value, ct);
             // RN-44: the stock of a location with sub-warehouses lives in them; existing stock would be left behind.
             if (await db.StockBalances.AnyAsync(b => b.LocationId == parent.Id && b.Quantity != 0, ct))
                 throw new BusinessRuleException("location_has_stock",
                     $"{parent.Code} ya tiene existencia: no se le pueden agregar subalmacenes (RN-44).");
-            location = Location.Warehouse(request.Code, request.Name, parent, request.Address);
+            location = request.Type == LocationType.Factory
+                ? Location.Factory(request.Code, request.Name, parent, request.Address)
+                : Location.Warehouse(request.Code, request.Name, parent, request.Address);
         }
         else
         {

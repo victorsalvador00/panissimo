@@ -42,6 +42,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 | Planta | `Plant` | `LocationType.Plant` |
 | Sucursal | `Branch` | `LocationType.Branch` |
 | Subalmacén | `Warehouse` | `LocationType.Warehouse` (hija de una planta o sucursal, D-01) |
+| Fábrica | `Factory` | `LocationType.Factory` (piso de producción, hija de una planta, RN-48) |
 | Vale interno | `Transfer` con `Kind = Internal` | Traspaso con recepción entre subalmacenes de la misma ubicación |
 | Artículo | `Item` | Materia prima, insumo, semiterminado o terminado |
 | Materia prima | `RawMaterial` | Harina, azúcar, margarina… |
@@ -116,13 +117,21 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 ### 4.1 Organización
 
 **Location**
-- `Code` (único, ej. `PLANTA`, `SUC-01`, `PLANTA-MP`), `Name`, `Type` (`Plant | Branch | Warehouse`), `ParentLocationId` (solo `Warehouse`: su planta o sucursal), `Address`, `IsActive`.
+- `Code` (único, ej. `PLANTA`, `SUC-01`, `PLANTA-MP`), `Name`, `Type` (`Plant | Branch | Warehouse | Factory`), `ParentLocationId` (solo `Warehouse`: su planta o sucursal; `Factory`: su planta), `Address`, `IsActive`.
 - Derivados: `CanPurchase`, `CanProduce`, `CanSupplyBranches` y `CanSellToCustomers` son verdaderos solo para `Plant`.
 - El nombre es editable; el código, el tipo y la ubicación padre no cambian después del alta.
 - **Subalmacenes (D-01, B-26):** una planta o sucursal puede tener subalmacenes (catálogo editable, baja lógica). Los documentos (OP, OC, pedidos, plan) siguen ligados a la planta o sucursal; la existencia vive en los subalmacenes:
   - **RN-44**: una ubicación con subalmacenes activos no tiene existencia propia: todo movimiento se registra en uno de sus subalmacenes. No se agregan subalmacenes a una ubicación que ya tiene existencia, ni se desactiva un subalmacén con existencia.
   - **RN-45**: los procesos **siempre eligen** el subalmacén: uno en el encabezado del documento que aplica a todas sus líneas y cada línea puede cambiarlo (recepción de compra, cierre de OP —consumo y producto—, despacho y recepción de traspasos, despacho de remisiones). Ajustes, conteos, consumo y devoluciones se hacen sobre un subalmacén.
   - **RN-46**: las consultas por planta o sucursal (plan, sugerido de pedidos, existencia en origen, disponibilidad de OP, alertas, requerimiento de MP) suman sus subalmacenes. Existencias y kardex se consultan por subalmacén o por la ubicación completa.
+  - **RN-48 (fábrica)**: una planta puede tener una o más ubicaciones `Factory` (piso de producción, hijas solo de una planta). Guardan existencia como un subalmacén (RN-44 a RN-47 aplican igual: kardex, conteos, existencias y vales internos). Si la planta tiene una fábrica activa, los cierres de OP **consumen solo de una fábrica** y el producto **entra solo a una fábrica**; la materia prima llega y el producto sale con vales internos. Sin fábrica activa, el cierre elige cualquier subalmacén (RN-45). La OP, el plan, la importación y los costos siguen siendo de la planta. Decidido con el usuario el 2026-10-18.
+  - **RN-49 (receta ligada a fábrica)**: la receta indica la fábrica donde se produce (`FactoryId`); es **dónde**, no **qué**: cambiarla no crea versión (RN-10) y aplica a todas las versiones del artículo, así que las OP abiertas cierran en la fábrica vigente. Reglas:
+    - Si la Planta (`PLANTA`) tiene una fábrica activa, la receta **debe** tener fábrica activa (alta y edición, 400 en `factoryId`).
+    - Crear o editar una OP en una planta con fábrica activa exige que la receta tenga una fábrica activa **de esa planta**; una receta con fábrica solo se produce en la planta de su fábrica (422 `recipe_factory_required` / `recipe_factory_other_plant`; en la importación de OP rechaza el archivo completo).
+    - El cierre consume de la fábrica de la receta y deja ahí el producto, sin elegir otra ubicación (422 `close_factory_fixed` si se manda otra, en el encabezado o en una línea).
+    - La disponibilidad de la OP y de la explosión es la de esa fábrica (RN-12). Los costos siguen siendo los de la Planta (RN-64).
+    - Migración: las recetas existentes toman la fábrica de la Planta cuando hay exactamente una activa.
+    Decidido con el usuario el 2026-10-18 (obligatoria solo cuando la planta tiene fábrica).
   - **RN-47 (vale interno)**: mueve producto entre subalmacenes de la misma ubicación con recepción, como un traspaso: `Draft → Dispatched → Received | ReceivedWithDiscrepancies`; `Cancelled` solo en `Draft`. Enviar exige el subalmacén origen y recibir el destino. El costo viaja con el producto (RN-04).
 
 **ProductionArea**: `Code` (único), `Name`, `SortOrder`, `IsActive`. Semilla (editable): Bizcocho Día, Pan de Sal Día, Pan de Sal Noche, Rondo, Repostería, Panquelería, Pastelería, Congelado, Bocadillos, Masas, Empaque.
@@ -187,7 +196,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 ### 4.4 Producción
 
 **Recipe**
-- Encabezado: `OutputItemId` (`SemiFinished` o `FinishedGood`), `Version`, `IsActive`, `YieldQty` (en unidad base del producto), `Notes`.
+- Encabezado: `OutputItemId` (`SemiFinished` o `FinishedGood`), `Version`, `IsActive`, `YieldQty` (en unidad base del producto), `Notes`, `FactoryId` (fábrica donde se produce, RN-49).
 - Líneas (`RecipeLine`): `ComponentItemId`, `Quantity` (por `YieldQty`, en unidad base del componente), `WastePct` (0–100, 2 decimales).
 - Los componentes pueden ser `RawMaterial`, `Supply` (ej. bolsa y etiqueta del empaquetado) o `SemiFinished`. Un `FinishedGood` no es componente (D-04). Un producto no puede ser su propio componente ni repetir componentes.
 
@@ -310,9 +319,9 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 ### Producción
 
-- **RN-10**: Solo hay una receta activa por artículo. Editar una receta ya usada en una OP crea una **nueva versión** (N+1) y desactiva la anterior; la OP conserva la versión con la que se creó. Editar una receta nunca usada la modifica en su lugar. Activar una versión anterior exige desactivar antes la activa.
+- **RN-10**: Solo hay una receta activa por artículo. Editar una receta ya usada en una OP crea una **nueva versión** (N+1) y desactiva la anterior; la OP conserva la versión con la que se creó. Editar una receta nunca usada la modifica en su lugar. Activar una versión anterior exige desactivar antes la activa. Cambiar **solo la fábrica** (RN-49) nunca crea versión.
 - **RN-11**: Consumo teórico por componente para una cantidad `Q` = `Q / YieldQty × línea.Quantity × (1 + WastePct/100)`. Se usa con `PlannedQty` en la OP y con el `ProducedQty` de cada cierre.
-- **RN-12 (explosión con disponibilidad)**: para una receta y cantidad, se calcula el teórico de cada componente, la existencia utilizable en la ubicación (sin lotes vencidos), el faltante y el costo estimado (costo promedio vigente).
+- **RN-12 (explosión con disponibilidad)**: para una receta y cantidad, se calcula el teórico de cada componente, la existencia utilizable en la ubicación (sin lotes vencidos; si la receta tiene fábrica de esa planta, solo la de la fábrica, RN-49), el faltante y el costo estimado (costo promedio vigente).
 - **RN-13 (merma de producción)**: merma de un cierre = consumo real − teórico calculado sobre el `ProducedQty` de **ese cierre**. La merma de la OP es la suma de sus cierres. Se reporta; no genera movimientos extra.
 - **RN-14**: Solo se produce en la Planta. El producto de una OP es `SemiFinished` o `FinishedGood` con receta activa.
 

@@ -90,6 +90,9 @@ import { RECIPE_OUTPUT_TYPES } from '../ui/recipe-rules';
       <ng-template appCell="yield" header="Rendimiento" end [appCellOf]="rows()" let-recipe>
         {{ recipe.yieldQty | qty: recipe.outputUomCode }}
       </ng-template>
+      <ng-template appCell="factory" header="Fábrica" [appCellOf]="rows()" let-recipe>
+        {{ recipe.factoryCode ?? '—' }}
+      </ng-template>
       <ng-template appCell="lines" header="Componentes" end [appCellOf]="rows()" let-recipe>
         {{ recipe.lineCount }}
       </ng-template>

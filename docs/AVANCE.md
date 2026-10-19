@@ -1,6 +1,6 @@
 # Avance de SGO Paníssimo
 
-> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (un solo SKU por artículo, D-07).
+> Bitácora de trabajo para retomar entre sesiones. Última actualización: 2026-10-18 (receta ligada a fábrica, RN-49).
 > Reglas: `docs/specs/dominio.md`; tareas: `docs/specs/backend.md` §13 y `docs/specs/frontend.md` §11.
 
 ## ▶ Retomar aquí (estado al 2026-10-18)
@@ -8,7 +8,7 @@
 **Dónde quedamos**
 - **Plan completo:** backend B-01..B-28 y frontend F-01..F-26 terminados y en `main`, incluida la ampliación de trazabilidad (B-28 y F-26).
 - Pruebas en verde: backend 282 unitarias y 167 de integración (más la de volumen, que corre con `PAN_PERF_VOLUME=1`) (`cd backend && dotnet test -nologo -v q`; Docker debe estar corriendo por Testcontainers); frontend 187 unitarias, lint y build; E2E: suite completa 45 en verde y 22 omitidas por diseño (escritorio y celular); la E2E 7 falló una vez por el botón de ayuda (corregido abajo) y se volvió a correr en verde con las que usan barra de acciones.
-- Migraciones hasta `RemoveInternalSku` (D-07, un solo SKU).
+- Migraciones hasta `AddRecipeFactory` (RN-49).
 - BD de desarrollo reparada el 2026-10-17: tenía aplicado un borrador viejo de `AddSuppliers`; se borraron sus 2 tablas vacías y su renglón del historial, y la API aplicó las migraciones vigentes.
 
 **Decisiones:** D-01..D-11 en `docs/specs/dominio.md` §8. D-11 (roles de la trazabilidad) decidida con el usuario el 2026-10-18. D-10 sigue abierta (no bloquea). El tema claro va en **verdes** (decisión del usuario, 2026-10-17; frontend §4.1); el oscuro conserva el "neón azul".
@@ -840,3 +840,74 @@
 - **Frontend:** formulario sin el campo (la nota "El código de Paníssimo; la importación de OP lo usa." pasa al SKU), lista sin la columna, guía del CSV, ayuda, tipos regenerados y fixtures E2E (CSV y los dos `.xlsx`, regenerados con `scripts/e2e-fixtures.py`). La etiqueta de auditoría `InternalSku` se conserva para el historial anterior.
 - **Plantilla CSV de artículos** (`items-import-page.ts`): las filas de ejemplo todavía traían el SKU interno en la 2.ª posición y corrían todas las columnas. Ahora usan como SKU el antiguo código (`MP-001`, `PT-010`, `PT-011`) y el empaquetado apunta a `PT-010`. `items-import-page.spec.ts` revisa que cada fila tenga un valor por columna, que solo existan `sku` y `sku_granel` y que el `sku_granel` exista en la plantilla.
 - **Pruebas:** backend 282 unitarias en verde; frontend 190 unitarias, lint y build en verde. **Integración y E2E no se corrieron:** Docker no está instalado en esta máquina (Testcontainers). Correrlas antes de dar por cerrado.
+
+### Existencias: filtro por ubicación (2026-10-18)
+
+- **Pedido del usuario:** filtrar Existencias por ubicación.
+- **Backend:** `GET /stock` acepta `rowLocationId`, que deja solo los renglones de esa ubicación: el total de la planta o sucursal, o uno de sus subalmacenes (RN-46). Si no está entre las ubicaciones de la consulta, se valida el alcance con `EnsureStockAccess` (403 si no hay acceso). Sin migración.
+- **Frontend:** select "Ubicación" en `/inventario/existencias` con "Todas", "Total de <ubicación activa>" y cada subalmacén (`código · nombre`). Solo aparece si la ubicación activa tiene subalmacenes y se limpia al cambiar de ubicación activa. Tipos regenerados.
+- **Pruebas:** `WarehouseTotalsTests` revisa el filtro (solo el total de la planta y solo un subalmacén); no se corrió (sin Docker). Frontend 190 unitarias y lint en verde. Verificado contra la API local: Planta 45 renglones, con el filtro 9 de PLANTA o 9 de PLANTA-MP; una ubicación ajena da 403.
+
+### Menú lateral: secciones plegables (2026-10-18)
+
+- **Pedido del usuario:** cada sección del menú (General, Inventario, Producción…) se pliega y despliega con animación.
+- **`shell.html` / `shell.ts` / `shell.scss`:**
+  - El encabezado de cada sección es un `button` dentro del `h2`, con `aria-expanded` y `aria-controls`, y un chevron SVG que gira (sin ligadura de ícono, para no ensuciar el nombre accesible).
+  - El grupo anima su altura con `grid-template-rows` (0fr → 1fr, 280 ms, `cubic-bezier(0.2, 0, 0, 1)`). Los renglones aparecen escalonados (opacidad y desplazamiento, 25 ms por renglón). Plegado queda `inert`, fuera del orden de tabulación.
+  - Estado por dispositivo en `localStorage` (`pan.sidebar.closed`, con try/catch).
+  - Al navegar a una página de una sección plegada, esta se abre (`sectionOf`, gana la ruta más larga). Si el usuario pliega la sección actual, un punto lo indica.
+  - Con el sidebar contraído a íconos no hay encabezados: todas las secciones quedan abiertas.
+  - `prefers-reduced-motion`: sin transiciones.
+- **Pruebas:** `app.spec.ts` suma plegar y desplegar (`aria-expanded`, `inert`, `localStorage`) y `sectionOf`. Frontend 192 unitarias, lint y build en verde. Revisado en Chrome: plegar General e Inventario, punto en la sección actual, se reabre al volver a Existencias y el modo de íconos muestra todo. La E2E 01 (encabezados por rol) debería seguir en verde porque los encabezados conservan su texto; no se corrió.
+
+### Tipo de ubicación Fábrica, RN-48 (2026-10-18)
+
+- **Decisión del usuario:** la Fábrica es el piso de producción, **hija de la Planta**. La OP sigue siendo de la Planta. Con fábrica activa, los cierres consumen **solo** de la fábrica y dejan el producto **solo** en ella; materia prima y producto se mueven con vales internos. La ubicación existente `FABRICA` ("Fabrica PT") se convirtió a Fábrica.
+- **Backend:**
+  - `LocationType.Factory` (se guarda como texto en `varchar(20)`: sin migración; `has-pending-model-changes` limpio).
+  - `Location.Factory(...)`: solo con padre `Plant` (`factory_parent_invalid`, `factory_parent_required`). `IsWarehouse` ahora cubre subalmacén y fábrica (existencia de su padre, vales internos, desactivar con existencia); `IsFactory` nuevo.
+  - `Location.EnsureProductionFloor` + `WarehousePicker.EnsureProductionFloor`: el cierre rechaza con 422 `close_requires_factory` el consumo o la salida fuera de una fábrica cuando la planta tiene una activa.
+  - Alta de ubicación: `parentLocationId` obligatorio para `Factory`; el lookup de plantas y sucursales excluye fábricas; `WarehouseDto` gana `Type` (al final). Trazabilidad: la fábrica cuenta como parte de su planta.
+- **Frontend:**
+  - Catálogo de ubicaciones: tipo "Fábrica" con el campo "Planta" (solo plantas).
+  - Etiqueta `Factory: 'Fábrica'`. La fábrica no aparece como ubicación activa ni como destino de traspasos.
+  - Cierre: con fábrica, "Consume del subalmacén" y "El producto entra a" solo ofrecen fábricas (se preseleccionan si hay una sola), con una nota sobre los vales internos.
+  - Vales internos, existencias y kardex la incluyen sin cambios, por ser hija de la Planta.
+- **BD local:** `FABRICA` pasó de `Warehouse` a `Factory` con un `UPDATE` directo (no tenía existencia; sin renglón de auditoría). No es migración: en otra BD, convertir a mano o dar de alta la fábrica.
+- **Pruebas:**
+  - Backend: 284 unitarias en verde (`LocationTests`: padre de la fábrica y `EnsureProductionFloor`).
+  - Integración: `WarehouseProcessTests.With_a_factory_a_close_consumes_from_it_and_delivers_to_it` (mueve inventario; no se corrió, sin Docker).
+  - Frontend: 192 unitarias, lint y build en verde.
+  - API local: los subalmacenes de PLANTA listan `FABRICA` como `Factory`; una fábrica sin padre da 400; un cierre desde PLANTA-MP da 422 `close_requires_factory` y desde FABRICA pasa la regla (falla por existencia, como debe). La OP de prueba quedó cancelada.
+
+### Receta ligada a fábrica, RN-49 (2026-10-18)
+
+- **Decisiones del usuario:**
+  - La receta se liga a una fábrica, que define el origen de los componentes y el destino del producto.
+  - Es obligatoria cuando la planta tiene fábrica.
+  - Cambiarla no crea versión.
+  - El cierre no puede elegir otra ubicación.
+- **Backend:**
+  - `Recipe.FactoryId` (FK a `org.location`, restrict), `AssignFactory` y `HasFormula`.
+  - `RecipeRules.EnsureFactory` y `ProductionFloor.EnsureAsync`.
+  - Recetas: `factoryId` opcional al final de `CreateRecipeRequest`/`UpdateRecipeRequest`. Debe ser una fábrica activa y es obligatoria si `PLANTA` tiene una activa.
+    - Si solo cambia la fábrica de una receta usada, se queda en su versión, y la fábrica se copia a todas las versiones del artículo.
+    - `RecipeDto` gana `FactoryId/Code/Name` y la lista, `FactoryCode`.
+  - OP: crear (manual, plan e importación, una revisión por planta y fábrica) y editar el borrador validan RN-49. `ProductionOrderDto` gana `FactoryId/Code/Name`. La disponibilidad de las líneas y de la explosión sale de la fábrica.
+  - Cierre: usa la fábrica de la receta para el consumo y la entrada del producto. Otra ubicación da 422 `close_factory_fixed`.
+  - Migración `AddRecipeFactory`: columna, índice, FK y llenado con la fábrica de PLANTA cuando hay exactamente una activa. Probada en la BD local, hacia abajo y hacia arriba: la receta de PT-020-DONA quedó con FABRICA.
+  - RN-48 se conserva como respaldo; con RN-49, una OP sin fábrica ya no llega al cierre en una planta con fábrica.
+- **Frontend:**
+  - Receta: campo "Fábrica" (obligatorio si la planta tiene fábricas; preseleccionado si hay una sola) y columna en la lista.
+  - Al guardar, la confirmación de nueva versión solo sale si cambió la fórmula; el aviso lo explica.
+  - Nueva OP: "Se produce en FABRICA: la disponibilidad es la de esa fábrica" y el aviso de faltantes nombra la fábrica.
+  - Cierre: con fábrica en la receta, en vez de los dos selectores muestra "Se produce en … la fábrica de la receta".
+- **Pruebas:**
+  - Backend 286 unitarias en verde (`RecipeTests`: `HasFormula` y `EnsureFactory`).
+  - Integración `WarehouseProcessTests.A_recipe_with_a_factory_consumes_from_it_and_delivers_to_it`: receta sin fábrica rechazada en OP, disponibilidad de la fábrica, `close_factory_fixed`, cierre sin elegir que usa la fábrica, cambio de fábrica sin versión y vale interno de salida. Mueve inventario; no se corrió (sin Docker).
+  - Frontend 192 unitarias, lint y build en verde.
+  - Revisado en Chrome: receta con su fábrica, nueva OP con la leyenda y el faltante de la fábrica.
+- **Pendiente:**
+  - La E2E corre contra la BD de desarrollo. Si esa BD tiene fábrica en PLANTA (la local sí, FABRICA), las E2E que crean recetas sin `factoryId` (`e2e/support/api.ts`) fallarán. Hay que mandar la fábrica o correrlas en una BD limpia.
+  - La importación de OP no marca RN-49 por renglón en la vista previa; el error sale al importar.
+

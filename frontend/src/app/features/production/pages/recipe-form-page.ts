@@ -13,7 +13,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
+import { rxResource } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import type { Schemas } from '../../../core/api/api';
@@ -34,6 +36,7 @@ import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { controlError } from '../../../shared/forms/control-error';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { LocationContextService } from '../../../core/context/location-context.service';
+import { StockApi } from '../../inventory/data-access/inventory-api';
 import { Recipe, RecipesApi } from '../data-access/production-api';
 import { RecipeCosts } from '../ui/recipe-costs';
 import { COMPONENT_TYPES, OUTPUT_TYPES, savesNewVersion } from '../ui/recipe-rules';
@@ -70,6 +73,7 @@ type ComponentLine = FormGroup<{
     StatusTag,
     MatTabsModule,
     RecipeCosts,
+    MatSelectModule,
   ],
   templateUrl: './recipe-form-page.html',
   styleUrl: './recipe-form-page.scss',
@@ -108,8 +112,20 @@ export class RecipeFormPage {
     output: new FormControl<ItemOption | null>(null, Validators.required),
     yieldQty: new FormControl<number | null>(null, Validators.required),
     notes: new FormControl('', { nonNullable: true, validators: Validators.maxLength(500) }),
+    factoryId: new FormControl<string | null>(null),
     lines: this.lines,
   });
+
+  /** RN-49: the factories of the plant; with any, the recipe must name the one where it is produced. */
+  private readonly stockApi = inject(StockApi);
+  private readonly warehouses = rxResource({
+    params: () => this.plant()?.id,
+    stream: ({ params }) => this.stockApi.warehouses(params),
+    defaultValue: [],
+  });
+  protected readonly factories = computed(() =>
+    this.warehouses.value().filter((w) => w.type === 'Factory' && w.isActive),
+  );
   protected readonly newLine = () => this.createLine();
 
   constructor() {
@@ -124,6 +140,18 @@ export class RecipeFormPage {
       // The product of an existing recipe does not change: a new product is a new recipe.
       if (this.recipe()) this.form.controls.output.disable({ emitEvent: false });
     });
+    // RN-49: required while the plant has a factory; a single one is chosen for a new recipe.
+    effect(() => {
+      const factories = this.factories();
+      const control = this.form.controls.factoryId;
+      control.setValidators(factories.length > 0 ? Validators.required : null);
+      if (!this.id() && !control.value && factories.length === 1) control.setValue(factories[0].id);
+      control.updateValueAndValidity({ emitEvent: false });
+    });
+  }
+
+  protected hasFactoryOption(id: string): boolean {
+    return this.factories().some((f) => f.id === id);
   }
 
   protected async save(): Promise<void> {
@@ -132,13 +160,16 @@ export class RecipeFormPage {
       return;
     }
     const recipe = this.recipe();
-    const { output, yieldQty, notes } = this.form.getRawValue();
+    const { output, yieldQty, notes, factoryId } = this.form.getRawValue();
     const lines: Schemas['RecipeLineRequest'][] = this.lines.getRawValue().map((l) => ({
       componentItemId: l.item!.id,
       quantity: l.quantity!,
       wastePct: l.wastePct ?? 0,
     }));
-    if (recipe && this.newVersion()) {
+    // RN-49: changing only the factory stays in this version.
+    const { yieldQty: yieldControl, notes: notesControl } = this.form.controls;
+    const formulaChanged = yieldControl.dirty || notesControl.dirty || this.lines.dirty;
+    if (recipe && this.newVersion() && formulaChanged) {
       const confirmed = await this.confirmService.confirm({
         title: `Guardar creará la versión ${recipe.recipeVersion + 1}`,
         message: `La versión ${recipe.recipeVersion} ya se usó en órdenes de producción: se conserva para ellas y queda inactiva; la nueva versión será la activa.`,
@@ -156,12 +187,14 @@ export class RecipeFormPage {
               yieldQty: yieldQty!,
               notes: notes.trim() || null,
               lines,
+              factoryId,
             })
           : this.api.create({
               outputItemId: output!.id,
               yieldQty: yieldQty!,
               notes: notes.trim() || null,
               lines,
+              factoryId,
             }),
       );
       this.notifier.info(
@@ -250,7 +283,12 @@ export class RecipeFormPage {
         wastePct: line.wastePct,
       });
     });
-    this.form.patchValue({ output, yieldQty: recipe.yieldQty, notes: recipe.notes ?? '' });
+    this.form.patchValue({
+      output,
+      yieldQty: recipe.yieldQty,
+      notes: recipe.notes ?? '',
+      factoryId: recipe.factoryId ?? null,
+    });
     this.form.markAsPristine();
     this.recipe.set(recipe);
     this.breadcrumbs.setCurrent(`${recipe.outputSku} v${recipe.recipeVersion}`);

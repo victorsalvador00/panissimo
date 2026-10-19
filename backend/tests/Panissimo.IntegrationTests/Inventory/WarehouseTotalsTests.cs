@@ -53,6 +53,12 @@ public class WarehouseTotalsTests(ApiFactory factory)
         Assert.Equal((15m, 20m, true, 40m), (plantRow.OnHand, plantRow.MinQty!.Value, plantRow.BelowMin, plantRow.StockValue));
         Assert.Equal(2, stock.Items.Count(s => s.LocationId != plant.Id));
 
+        // The location filter keeps only the rows of the plant total or of one warehouse.
+        var onlyPlant = (await admin.GetJsonAsync<PagedResult<StockLevelDto>>($"/api/v1/stock?locationId={plant.Id}&rowLocationId={plant.Id}&itemId={bread.Id}"))!;
+        Assert.Equal(15m, Assert.Single(onlyPlant.Items).OnHand);
+        var onlyA = (await admin.GetJsonAsync<PagedResult<StockLevelDto>>($"/api/v1/stock?locationId={plant.Id}&rowLocationId={a.Id}&itemId={bread.Id}"))!;
+        Assert.Equal((a.Id, 10m), (Assert.Single(onlyA.Items).LocationId, onlyA.Items[0].OnHand));
+
         var alerts = (await admin.GetJsonAsync<AlertsDto>($"/api/v1/alerts?locationId={plant.Id}"))!;
         Assert.Equal(15m, alerts.LowStock.Single(l => l.ItemId == bread.Id).OnHand);
 

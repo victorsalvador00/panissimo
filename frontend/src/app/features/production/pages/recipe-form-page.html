@@ -39,8 +39,9 @@
         } @else if (newVersion() && editable()) {
           <p class="pan-card notice" role="note">
             <mat-icon aria-hidden="true">info</mat-icon>
-            Esta versión ya se usó en órdenes de producción: guardar creará la versión
-            {{ recipe.recipeVersion + 1 }}.
+            Esta versión ya se usó en órdenes de producción: cambiar el rendimiento, las notas o los
+            componentes creará la versión {{ recipe.recipeVersion + 1 }}. Cambiar solo la fábrica no
+            crea versión.
           </p>
         }
       }
@@ -60,6 +61,25 @@
               label="Rendimiento"
               [unit]="form.controls.output.value?.baseUomCode ?? null"
             />
+            @if (factories().length > 0 || form.controls.factoryId.value) {
+              <mat-form-field>
+                <mat-label>Fábrica</mat-label>
+                <mat-select formControlName="factoryId">
+                  @for (factory of factories(); track factory.id) {
+                    <mat-option [value]="factory.id"
+                      >{{ factory.code }} · {{ factory.name }}</mat-option
+                    >
+                  }
+                  @if (recipe()?.factoryId && !hasFactoryOption(recipe()!.factoryId!)) {
+                    <mat-option [value]="recipe()!.factoryId"
+                      >{{ recipe()!.factoryCode }} · {{ recipe()!.factoryName }}</mat-option
+                    >
+                  }
+                </mat-select>
+                <mat-hint>Los cierres consumen de ella y dejan ahí el producto.</mat-hint>
+                <mat-error>{{ controlError(form.controls.factoryId) }}</mat-error>
+              </mat-form-field>
+            }
             <mat-form-field class="wide">
               <mat-label>Notas</mat-label>
               <input matInput formControlName="notes" />

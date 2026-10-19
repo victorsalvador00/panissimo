@@ -170,6 +170,21 @@ public sealed class ProductionCloseService(
             throw new BusinessRuleException("whole_quantity_required", $"{output.Sku} se maneja en piezas: la cantidad producida debe ser entera.");
 
         var recipe = await db.Recipes.AsNoTracking().Include(r => r.Lines).SingleAsync(r => r.Id == order.RecipeId, ct);
+        // RN-49: a recipe with a factory consumes from it and delivers to it; nothing else may be chosen.
+        if (await ProductionFloor.EnsureAsync(db, order.LocationId, recipe.FactoryId, output.Sku, ct) is { } floor)
+        {
+            if (new[] { request.ConsumptionWarehouseId, request.ProducedQty > 0 ? request.OutputWarehouseId : null }
+                    .Concat((request.Lines ?? []).Select(l => l.WarehouseId))
+                    .Any(w => w is { } id && id != floor.Id))
+                throw new BusinessRuleException("close_factory_fixed",
+                    $"La receta de {output.Sku} se produce en {floor.Code}: el cierre consume de ella y deja ahí el producto (RN-49).");
+            request = request with
+            {
+                ConsumptionWarehouseId = floor.Id,
+                OutputWarehouseId = floor.Id,
+                Lines = request.Lines?.Select(l => l with { WarehouseId = null }).ToList(),
+            };
+        }
         // RN-45: each component leaves its chosen sub-warehouse; the product enters the output one.
         var picker = await WarehousePicker.LoadAsync(db, scope, order.LocationId, ct);
         var lineWarehouses = (request.Lines ?? []).ToDictionary(l => l.ComponentItemId, l => l.WarehouseId);
@@ -177,6 +192,10 @@ public sealed class ProductionCloseService(
             .Select(c => c with { LocationId = picker.Resolve(request.ConsumptionWarehouseId, lineWarehouses.GetValueOrDefault(c.ComponentItemId)) })
             .ToList();
         var outputLocationId = request.ProducedQty > 0 ? picker.Resolve(request.OutputWarehouseId, null) : order.LocationId;
+        foreach (var source in consumption.Select(c => c.LocationId!.Value).Distinct())
+            picker.EnsureProductionFloor(source, consumption: true);
+        if (request.ProducedQty > 0)
+            picker.EnsureProductionFloor(outputLocationId, consumption: false);
         var componentIds = consumption.Select(c => c.ComponentItemId).ToList();
         var sources = consumption.Select(c => c.LocationId!.Value).Distinct().ToList();
         var averageCosts = await db.ItemLocationCosts.AsNoTracking()

@@ -14,7 +14,7 @@ namespace Panissimo.Api.Controllers.Inventory;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 public sealed class StockController(IStockQueries stock) : ControllerBase
 {
-    /// <summary>Existencias por ubicación y artículo con mín/máx y valor. Filtros: locationId, itemId, categoryId, type, belowMin, q.</summary>
+    /// <summary>Existencias por ubicación y artículo con mín/máx y valor. Filtros: locationId, rowLocationId (solo los renglones del total o de un subalmacén), itemId, categoryId, type, belowMin, q.</summary>
     [HttpGet("stock")]
     public Task<PagedResult<StockLevelDto>> List([FromQuery] StockQuery query, CancellationToken ct) => stock.ListAsync(query, ct);
 

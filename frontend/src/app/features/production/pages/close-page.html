@@ -54,7 +54,12 @@
               }
             </mat-select>
           </mat-form-field>
-          @if (warehouses().length > 0) {
+          @if (order()?.factoryId) {
+            <p class="factory-hint">
+              Se produce en <strong>{{ order()?.factoryCode }} · {{ order()?.factoryName }}</strong
+              >, la fábrica de la receta: el cierre consume de ella y deja ahí el producto.
+            </p>
+          } @else if (warehouses().length > 0) {
             <mat-form-field>
               <mat-label>Consume del subalmacén</mat-label>
               <mat-select formControlName="consumptionWarehouseId">
@@ -73,6 +78,12 @@
               </mat-select>
               <mat-error>{{ controlError(form.controls.outputWarehouseId) }}</mat-error>
             </mat-form-field>
+            @if (hasFactory()) {
+              <p class="muted factory-hint">
+                La planta tiene fábrica: el cierre consume de ella y deja ahí el producto. Lleva la
+                materia prima y saca el producto con vales internos.
+              </p>
+            }
           }
           <mat-form-field class="wide">
             <mat-label>Notas</mat-label>

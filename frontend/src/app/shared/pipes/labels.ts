@@ -59,7 +59,12 @@ export const ENUM_LABELS: { [K in EnumName]: Record<ApiEnum<K>, string> } = {
     SemiFinished: 'Semiterminado',
     FinishedGood: 'Producto terminado',
   },
-  LocationType: { Plant: 'Planta', Branch: 'Sucursal', Warehouse: 'Subalmacén' },
+  LocationType: {
+    Plant: 'Planta',
+    Branch: 'Sucursal',
+    Warehouse: 'Subalmacén',
+    Factory: 'Fábrica',
+  },
   MovementType: {
     PurchaseReceipt: 'Recepción de compra',
     ProductionConsumption: 'Consumo de producción',

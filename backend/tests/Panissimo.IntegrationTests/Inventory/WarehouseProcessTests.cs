@@ -116,6 +116,63 @@ public class WarehouseProcessTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_recipe_with_a_factory_consumes_from_it_and_delivers_to_it()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var site = await PlantAsync(admin);
+        var floor = await LocationAsync(admin, new CreateLocationRequest($"{site.Plant.Code}-FAB", "Fábrica", LocationType.Factory, null, site.Plant.Id));
+        Assert.Contains(await admin.GetJsonAsync<List<WarehouseDto>>($"/api/v1/locations/{site.Plant.Id}/warehouses") ?? [],
+            w => w.Id == floor.Id && w.Type == LocationType.Factory);
+        var flour = await factory.CreateItemAsync("HAR");
+        var bread = await factory.CreateItemAsync("BOLILLO", ItemType.FinishedGood, "pza");
+        var roll = await factory.CreateItemAsync("TELERA", ItemType.FinishedGood, "pza");
+        await factory.AddStockAsync(site.Mp.Id, flour.Id, 50, 18m);
+        await factory.AddStockAsync(floor.Id, flour.Id, 10, 18m);
+
+        // RN-49: at a plant with a factory, a recipe without one cannot be produced.
+        await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(roll.Id, 100, null, [new RecipeLineRequest(flour.Id, 5, 0)])));
+        var withoutFactory = await admin.PostJsonAsync("/api/v1/production-orders",
+            new CreateProductionOrderRequest(site.Plant.Id, roll.Id, 100, Today, null, null, null));
+        Assert.Contains("recipe_factory_required", await withoutFactory.Content.ReadAsStringAsync());
+
+        var recipe = await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes",
+            new CreateRecipeRequest(bread.Id, 100, null, [new RecipeLineRequest(flour.Id, 5, 0)], floor.Id)));
+        Assert.Equal(floor.Code, recipe.FactoryCode);
+        var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null, null)));
+        Assert.Equal((floor.Id, 10m), (order.FactoryId!.Value, order.Lines.Single().Available!.Value));
+        order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
+
+        // Neither another source nor another destination.
+        var fromRaw = await admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/closes", new CreateProductionCloseRequest(order.Version,
+            ProductionCloseKind.Partial, 100, null, null, null, null, null, site.Mp.Id, floor.Id));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, fromRaw.StatusCode);
+        Assert.Contains("close_factory_fixed", await fromRaw.Content.ReadAsStringAsync());
+        var toFinished = await admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/closes", new CreateProductionCloseRequest(order.Version,
+            ProductionCloseKind.Partial, 100, null, null, null, null, null, null, site.Pt.Id));
+        Assert.Contains("close_factory_fixed", await toFinished.Content.ReadAsStringAsync());
+
+        // Without choosing anything, the close uses the recipe's factory.
+        var result = await OkAsync<ProductionCloseResultDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/closes",
+            new CreateProductionCloseRequest(order.Version, ProductionCloseKind.Partial, 100, null, null, null, null, null)));
+        Assert.Equal(floor.Code, result.Close.OutputLocationCode);
+        Assert.Equal((50m, 5m, 100m), (await factory.StockAsync(site.Mp.Id, flour.Id), await factory.StockAsync(floor.Id, flour.Id),
+            await factory.StockAsync(floor.Id, bread.Id)));
+
+        // Changing only the factory of a used recipe keeps its version (it is where, not what).
+        var second = await LocationAsync(admin, new CreateLocationRequest($"{site.Plant.Code}-FB2", "Fábrica 2", LocationType.Factory, null, site.Plant.Id));
+        recipe = (await admin.GetJsonAsync<RecipeDto>($"/api/v1/recipes/{recipe.Id}"))!;
+        var moved = await OkAsync<RecipeDto>(admin.PutJsonAsync($"/api/v1/recipes/{recipe.Id}",
+            new UpdateRecipeRequest(recipe.Version, 100, null, [new RecipeLineRequest(flour.Id, 5, 0)], second.Id)));
+        Assert.Equal((recipe.Id, 1, second.Code), (moved.Id, moved.RecipeVersion, moved.FactoryCode));
+
+        // The product leaves the factory with an internal voucher.
+        var voucher = await admin.PostJsonAsync("/api/v1/internal-transfers",
+            new CreateInternalTransferRequest(floor.Id, site.Pt.Id, null, [new TransferLineRequest(bread.Id, null, 100)]));
+        Assert.Equal(HttpStatusCode.Created, voucher.StatusCode);
+    }
+
+    [Fact]
     public async Task A_transfer_leaves_a_plant_warehouse_and_enters_a_branch_warehouse()
     {
         var admin = await factory.LoginAsAdminAsync();

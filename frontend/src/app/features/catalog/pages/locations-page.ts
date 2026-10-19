@@ -128,6 +128,7 @@ export class LocationsPage {
     { value: 'Plant', label: 'Planta' },
     { value: 'Branch', label: 'Sucursal' },
     { value: 'Warehouse', label: 'Subalmacén' },
+    { value: 'Factory', label: 'Fábrica' },
   ];
   protected readonly search = new FormControl('', { nonNullable: true });
   protected readonly type = signal<LocationType | null>(null);
@@ -149,12 +150,12 @@ export class LocationsPage {
   protected readonly total = computed(() =>
     this.locations.hasValue() ? this.locations.value().total : 0,
   );
-  /** Plants and branches, as parents of the sub-warehouses. */
+  /** Plants and branches, as parents of the sub-warehouses (and plants, of the factories). */
   private readonly parents = rxResource({
     stream: () =>
       this.api
         .list({ page: 1, pageSize: 100, sort: 'code' }, { includeInactive: true })
-        .pipe(map((page) => page.items.filter((l) => l.type !== 'Warehouse'))),
+        .pipe(map((page) => page.items.filter((l) => l.type === 'Plant' || l.type === 'Branch'))),
     defaultValue: [] as Location[],
   });
 
@@ -200,6 +201,17 @@ export class LocationsPage {
         hint: 'La planta o sucursal donde está el subalmacén.',
         visibleWhen: (value) => value['type'] === 'Warehouse',
       },
+      {
+        key: 'factoryPlantId',
+        label: 'Planta',
+        type: 'select',
+        required: true,
+        options: parents
+          .filter((l) => l.type === 'Plant')
+          .map((l) => ({ value: l.id, label: `${l.code} · ${l.name}` })),
+        hint: 'Con fábrica, los cierres de OP consumen de ella y dejan ahí el producto.',
+        visibleWhen: (value) => value['type'] === 'Factory',
+      },
       { key: 'address', label: 'Dirección', type: 'textarea', maxLength: 300 },
     ];
     const saved = await this.dialogs.open({
@@ -212,7 +224,12 @@ export class LocationsPage {
           name: value['name'] as string,
           type: value['type'] as LocationType,
           address: (value['address'] as string | null) ?? null,
-          parentLocationId: (value['parentLocationId'] as string | null) ?? null,
+          parentLocationId:
+            ((value['type'] === 'Factory'
+              ? value['factoryPlantId']
+              : value['type'] === 'Warehouse'
+                ? value['parentLocationId']
+                : null) as string | null) ?? null,
         }),
     });
     if (saved) this.saved('Ubicación creada.');

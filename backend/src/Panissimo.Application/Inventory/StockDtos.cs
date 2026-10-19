@@ -7,6 +7,9 @@ namespace Panissimo.Application.Inventory;
 public sealed record StockQuery : PageQuery
 {
     public Guid? LocationId { get; init; }
+
+    /// <summary>Only the rows of this location: the plant or branch total, or one of its sub-warehouses (RN-46).</summary>
+    public Guid? RowLocationId { get; init; }
     public Guid? ItemId { get; init; }
     public Guid? CategoryId { get; init; }
     public ItemType? Type { get; init; }

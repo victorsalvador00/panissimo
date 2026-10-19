@@ -121,12 +121,27 @@ export class ClosePage {
   protected readonly order = computed(() =>
     this.resource.hasValue() ? this.resource.value() : null,
   );
-  protected readonly warehouses = stockWarehouses(
+  private readonly stockLocations = stockWarehouses(
     computed(() => {
       const order = this.order();
       return order ? { id: order.locationId } : null;
     }),
   );
+  /** RN-48: a plant with a factory consumes from it and delivers to it. */
+  protected readonly hasFactory = computed(() =>
+    this.stockLocations().some((w) => w.type === 'Factory'),
+  );
+  /**
+   * The sub-warehouses a close may use: the recipe's factory alone (RN-49, chosen for the user), else only the
+   * factories when the plant has one (RN-48), else any (RN-45).
+   */
+  protected readonly warehouses = computed(() => {
+    const factoryId = this.order()?.factoryId;
+    if (factoryId) return this.stockLocations().filter((w) => w.id === factoryId);
+    return this.hasFactory()
+      ? this.stockLocations().filter((w) => w.type === 'Factory')
+      : this.stockLocations();
+  });
 
   protected readonly form = new FormGroup({
     producedQty: new FormControl<number | null>(null, Validators.required),
@@ -236,6 +251,11 @@ export class ClosePage {
       if (!consumption.value && exists(stored.consumption))
         consumption.setValue(stored.consumption!);
       if (!output.value && exists(stored.output)) output.setValue(stored.output!);
+      // A single option (e.g. the factory) is chosen for the user.
+      if (warehouses.length === 1) {
+        if (!consumption.value) consumption.setValue(warehouses[0].id);
+        if (!output.value) output.setValue(warehouses[0].id);
+      }
       consumption.updateValueAndValidity();
       output.updateValueAndValidity();
     });

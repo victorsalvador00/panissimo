@@ -28,4 +28,36 @@ public class LocationTests
         branch.Deactivate();
         Assert.Equal("location_inactive", Code(() => Location.Warehouse("SUC-01-B", "Bodega", branch)));
     }
+
+    [Fact]
+    public void A_factory_hangs_only_from_a_plant_and_holds_stock_like_a_warehouse()
+    {
+        var plant = new Location("PLANTA", "Planta", LocationType.Plant);
+        var factory = Location.Factory("fabrica", "Fábrica", plant);
+        Assert.Equal(("FABRICA", LocationType.Factory, plant.Id, true, true), (factory.Code, factory.Type, factory.ParentLocationId, factory.IsWarehouse, factory.IsFactory));
+        Assert.False(factory.CanProduce);
+
+        var branch = new Location("SUC-01", "Centro", LocationType.Branch);
+        Assert.Equal("factory_parent_invalid", Code(() => Location.Factory("SUC-01-F", "Fábrica", branch)));
+        Assert.Equal("factory_parent_invalid", Code(() => Location.Factory("PLANTA-X", "Fábrica", factory)));
+        Assert.Equal("factory_parent_required", Code(() => new Location("F", "Sin padre", LocationType.Factory)));
+    }
+
+    [Fact]
+    public void With_an_active_factory_a_close_only_consumes_from_and_delivers_to_a_factory()
+    {
+        var plant = new Location("PLANTA", "Planta", LocationType.Plant);
+        var factory = Location.Factory("PLANTA-FAB", "Fábrica", plant);
+        var rawMaterials = Location.Warehouse("PLANTA-MP", "Materias primas", plant);
+        var children = new[] { factory, rawMaterials };
+
+        Location.EnsureProductionFloor(children, factory, consumption: true);
+        Assert.Equal("close_requires_factory", Code(() => Location.EnsureProductionFloor(children, rawMaterials, consumption: true)));
+        Assert.Equal("close_requires_factory", Code(() => Location.EnsureProductionFloor(children, rawMaterials, consumption: false)));
+
+        // Without an active factory any sub-warehouse is valid (RN-45).
+        factory.Deactivate();
+        Location.EnsureProductionFloor(children, rawMaterials, consumption: true);
+        Location.EnsureProductionFloor([rawMaterials], rawMaterials, consumption: false);
+    }
 }

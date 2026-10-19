@@ -46,6 +46,23 @@
       <input matInput type="search" [formControl]="search" />
       <mat-icon matSuffix aria-hidden="true">search</mat-icon>
     </mat-form-field>
+    @if (warehouses.value().length > 0) {
+      <mat-form-field>
+        <mat-label>Ubicación</mat-label>
+        <mat-select
+          [value]="filters()['rowLocationId'] ?? null"
+          (valueChange)="setFilter('rowLocationId', $event)"
+        >
+          <mat-option [value]="null">Todas</mat-option>
+          <mat-option [value]="location.id">Total de {{ location.name }}</mat-option>
+          @for (warehouse of warehouses.value(); track warehouse.id) {
+            <mat-option [value]="warehouse.id"
+              >{{ warehouse.code }} · {{ warehouse.name }}</mat-option
+            >
+          }
+        </mat-select>
+      </mat-form-field>
+    }
     <mat-form-field>
       <mat-label>Tipo</mat-label>
       <mat-select [value]="filters()['type'] ?? null" (valueChange)="setFilter('type', $event)">

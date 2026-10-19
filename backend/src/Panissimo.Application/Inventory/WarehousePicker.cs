@@ -35,6 +35,13 @@ public sealed class WarehousePicker
 
     public bool HasWarehouses => _warehouses.Count > 0;
 
+    /// <summary>RN-48: a close at a plant with a factory consumes from and delivers to a factory.</summary>
+    public void EnsureProductionFloor(Guid stockLocationId, bool consumption)
+    {
+        if (_warehouses.TryGetValue(stockLocationId, out var chosen))
+            Location.EnsureProductionFloor(_warehouses.Values, chosen, consumption);
+    }
+
     /// <summary>Code of a resolved stock location (the location itself or one of its sub-warehouses).</summary>
     public string CodeOf(Guid stockLocationId) =>
         stockLocationId == _location.Id ? _location.Code : _warehouses[stockLocationId].Code;

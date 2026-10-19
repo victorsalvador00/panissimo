@@ -150,3 +150,9 @@ mat-form-field {
     justify-content: space-between;
   }
 }
+
+.factory-hint {
+  flex-basis: 100%;
+  grid-column: 1 / -1;
+  margin: 0 0 8px;
+}

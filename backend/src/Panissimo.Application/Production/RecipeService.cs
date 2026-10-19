@@ -13,10 +13,16 @@ namespace Panissimo.Application.Production;
 
 public sealed record RecipeLineRequest(Guid ComponentItemId, decimal Quantity, decimal WastePct);
 
-public sealed record CreateRecipeRequest(Guid OutputItemId, decimal YieldQty, string? Notes, IReadOnlyList<RecipeLineRequest> Lines);
+/// <param name="FactoryId">RN-49: factory where it is produced; required when the Planta has an active factory.</param>
+public sealed record CreateRecipeRequest(Guid OutputItemId, decimal YieldQty, string? Notes, IReadOnlyList<RecipeLineRequest> Lines,
+    Guid? FactoryId = null);
 
-/// <summary>Edits the active version: in place, or as version N+1 if it was already used (RN-10).</summary>
-public sealed record UpdateRecipeRequest(uint Version, decimal YieldQty, string? Notes, IReadOnlyList<RecipeLineRequest> Lines);
+/// <summary>
+/// Edits the active version: in place, or as version N+1 if it was already used (RN-10). Changing only the factory
+/// never creates a version, and the factory applies to every version of the item (RN-49).
+/// </summary>
+public sealed record UpdateRecipeRequest(uint Version, decimal YieldQty, string? Notes, IReadOnlyList<RecipeLineRequest> Lines,
+    Guid? FactoryId = null);
 
 public sealed record RecipeListQuery : PageQuery
 {
@@ -31,7 +37,7 @@ public sealed record RecipeListQuery : PageQuery
 public sealed record RecipeListItemDto(
     Guid Id, Guid OutputItemId, string OutputSku, string OutputName, ItemType OutputType, int RecipeVersion, bool IsActive, bool IsUsed,
     decimal YieldQty, string OutputUomCode, int LineCount, DateTimeOffset CreatedAt, Guid? CreatedBy, string? CreatedByName,
-    DateTimeOffset? UpdatedAt);
+    DateTimeOffset? UpdatedAt, string? FactoryCode = null);
 
 public sealed record RecipeLineDto(
     Guid Id, Guid ComponentItemId, string Sku, string Name, ItemType Type, string BaseUomCode, decimal Quantity, decimal WastePct, bool HasRecipe);
@@ -41,7 +47,8 @@ public sealed record RecipeVersionDto(Guid Id, int RecipeVersion, bool IsActive,
 public sealed record RecipeDto(
     Guid Id, Guid OutputItemId, string OutputSku, string OutputName, ItemType OutputType, string OutputUomCode, int RecipeVersion,
     bool IsActive, bool IsUsed, decimal YieldQty, string? Notes, IReadOnlyList<RecipeLineDto> Lines, IReadOnlyList<RecipeVersionDto> Versions,
-    DateTimeOffset CreatedAt, Guid? CreatedBy, string? CreatedByName, DateTimeOffset? UpdatedAt, string? UpdatedByName, uint Version);
+    DateTimeOffset CreatedAt, Guid? CreatedBy, string? CreatedByName, DateTimeOffset? UpdatedAt, string? UpdatedByName, uint Version,
+    Guid? FactoryId = null, string? FactoryCode = null, string? FactoryName = null);
 
 /// <param name="Available">Usable stock at the location (expired lots excluded, RN-05); null without location.</param>
 /// <param name="HasRecipe">A semi-finished component with its own active recipe: a shortage is "por producir" (RN-67).</param>
@@ -143,7 +150,8 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
         var rows = from r in db.Recipes.AsNoTracking()
                    join i in db.Items on r.OutputItemId equals i.Id
                    join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
-                   select new { Recipe = r, i.Sku, i.Name, i.Type, Uom = u.Code, LineCount = r.Lines.Count };
+                   select new { Recipe = r, i.Sku, i.Name, i.Type, Uom = u.Code, LineCount = r.Lines.Count,
+                       FactoryCode = db.Locations.Where(l => l.Id == r.FactoryId).Select(l => l.Code).FirstOrDefault() };
         if (!query.IncludeInactive)
             rows = rows.Where(x => x.Recipe.IsActive);
         if (query.OutputItemId is { } itemId)
@@ -167,7 +175,7 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
         var users = await userDirectory.GetNamesAsync(page.Items.Select(x => x.Recipe.CreatedBy), ct);
         return new PagedResult<RecipeListItemDto>(page.Items.Select(x => new RecipeListItemDto(x.Recipe.Id, x.Recipe.OutputItemId,
                 x.Sku, x.Name, x.Type, x.Recipe.VersionNumber, x.Recipe.IsActive, x.Recipe.IsUsed, x.Recipe.YieldQty, x.Uom, x.LineCount,
-                x.Recipe.CreatedAt, x.Recipe.CreatedBy, users.Of(x.Recipe.CreatedBy), x.Recipe.UpdatedAt)).ToList(),
+                x.Recipe.CreatedAt, x.Recipe.CreatedBy, users.Of(x.Recipe.CreatedBy), x.Recipe.UpdatedAt, x.FactoryCode)).ToList(),
             page.Page, page.PageSize, page.Total);
     }
 
@@ -187,9 +195,11 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
 
         var lines = ToInputs(request.Lines);
         await ValidateComponentsAsync(output.Id, lines, null, ct);
+        await ValidateFactoryAsync(request.FactoryId, ct);
 
         var nextVersion = (await db.Recipes.Where(r => r.OutputItemId == output.Id).MaxAsync(r => (int?)r.VersionNumber, ct) ?? 0) + 1;
         var recipe = new Recipe(output.Id, nextVersion, request.YieldQty, request.Notes, lines);
+        recipe.AssignFactory(request.FactoryId);
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync(ct);
         return await ToDtoAsync(recipe, ct);
@@ -201,9 +211,17 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
         db.EnsureVersion(recipe, request.Version);
         var lines = ToInputs(request.Lines);
         await ValidateComponentsAsync(recipe.OutputItemId, lines, recipe.Id, ct);
+        await ValidateFactoryAsync(request.FactoryId, ct);
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        var next = recipe.Revise(request.YieldQty, request.Notes, lines);
+        // RN-49: the factory is where, not what; an edit that only changes it stays in this version.
+        var next = recipe.IsUsed && recipe.IsActive && recipe.HasFormula(request.YieldQty, request.Notes, lines)
+            ? null
+            : recipe.Revise(request.YieldQty, request.Notes, lines);
+        if (recipe.FactoryId != request.FactoryId)
+            foreach (var version in await db.Recipes.Where(r => r.OutputItemId == recipe.OutputItemId).ToListAsync(ct))
+                version.AssignFactory(request.FactoryId);
+        next?.AssignFactory(request.FactoryId);
         if (next is not null)
         {
             // RN-10 unique active index: the old version must be inactive before the new one is inserted.
@@ -261,7 +279,7 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
         {
             scope.EnsureAccess(location);
             var itemIds = components.Keys.ToList();
-            available = await UsableStockAsync(db, location, itemIds, clock.BusinessDate(), ct);
+            available = await UsableStockAsync(db, await StockLocationAsync(db, recipe.FactoryId, location, ct), itemIds, clock.BusinessDate(), ct);
             costs = await InventoryLocations.AverageCostsAsync(db, location, itemIds, ct);
         }
 
@@ -286,6 +304,10 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
     /// Usable stock per item at a location and its sub-warehouses (RN-46): expired lots cannot be used in production
     /// (RN-05, RN-12).
     /// </summary>
+    /// <summary>RN-49: a recipe with a factory of <paramref name="plantId"/> uses the stock of that factory only.</summary>
+    public static async Task<Guid> StockLocationAsync(IAppDbContext db, Guid? factoryId, Guid plantId, CancellationToken ct) =>
+        factoryId is { } id && await db.Locations.AnyAsync(l => l.Id == id && l.ParentLocationId == plantId, ct) ? id : plantId;
+
     public static async Task<Dictionary<Guid, decimal>> UsableStockAsync(
         IAppDbContext db, Guid locationId, IReadOnlyCollection<Guid> itemIds, DateOnly today, CancellationToken ct)
     {
@@ -339,6 +361,22 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
                       }).ToDictionaryAsync(x => x.Id, x => x.Info, ct);
     }
 
+    /// <summary>RN-49: an active factory; required while the Planta has one.</summary>
+    private async Task ValidateFactoryAsync(Guid? factoryId, CancellationToken ct)
+    {
+        if (factoryId is { } id)
+        {
+            if (!await db.Locations.AnyAsync(l => l.Id == id && l.Type == LocationType.Factory && l.IsActive, ct))
+                throw new RequestValidationException(new Dictionary<string, string[]> { ["factoryId"] = ["Elige una fábrica activa."] });
+            return;
+        }
+        var plantHasFactory = await db.Locations.AnyAsync(l => l.Type == LocationType.Factory && l.IsActive
+            && db.Locations.Any(p => p.Id == l.ParentLocationId && p.Code == Location.PlantCode), ct);
+        if (plantHasFactory)
+            throw new RequestValidationException(new Dictionary<string, string[]>
+                { ["factoryId"] = ["La planta tiene fábrica: elige la fábrica donde se produce (RN-49)."] });
+    }
+
     private async Task<Recipe> FindAsync(Guid id, CancellationToken ct) =>
         await db.Recipes.Include(r => r.Lines).SingleOrDefaultAsync(r => r.Id == id, ct) ?? throw new NotFoundException("la receta", id);
 
@@ -361,9 +399,13 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
             .OrderByDescending(v => v.VersionNumber)
             .Select(v => new RecipeVersionDto(v.Id, v.VersionNumber, v.IsActive, v.IsUsed, v.CreatedAt)).ToListAsync(ct);
         var users = await userDirectory.GetNamesAsync([r.CreatedBy, r.UpdatedBy], ct);
+        var factory = r.FactoryId is { } factoryId
+            ? await db.Locations.AsNoTracking().Where(l => l.Id == factoryId).Select(l => new { l.Code, l.Name }).SingleAsync(ct)
+            : null;
 
         return new RecipeDto(r.Id, r.OutputItemId, output.Sku, output.Name, output.Type, output.Uom, r.VersionNumber, r.IsActive, r.IsUsed,
-            r.YieldQty, r.Notes, lines, versions, r.CreatedAt, r.CreatedBy, users.Of(r.CreatedBy), r.UpdatedAt, users.Of(r.UpdatedBy), r.Version);
+            r.YieldQty, r.Notes, lines, versions, r.CreatedAt, r.CreatedBy, users.Of(r.CreatedBy), r.UpdatedAt, users.Of(r.UpdatedBy), r.Version,
+            r.FactoryId, factory?.Code, factory?.Name);
     }
 
     public async Task<RecipeCostsDto> CostsAsync(Guid id, Guid locationId, CancellationToken ct = default)

@@ -11019,11 +11019,12 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Existencias por ubicación y artículo con mín/máx y valor. Filtros: locationId, itemId, categoryId, type, belowMin, q. */
+    /** Existencias por ubicación y artículo con mín/máx y valor. Filtros: locationId, rowLocationId (solo los renglones del total o de un subalmacén), itemId, categoryId, type, belowMin, q. */
     get: {
       parameters: {
         query?: {
           LocationId?: string;
+          RowLocationId?: string;
           ItemId?: string;
           CategoryId?: string;
           Type?: components['schemas']['ItemType'];
@@ -15353,6 +15354,8 @@ export interface components {
       yieldQty: number;
       notes: null | string;
       lines: components['schemas']['RecipeLineRequest'][];
+      /** Format: uuid */
+      factoryId?: null | string;
     };
     /**
      * @example {
@@ -16419,7 +16422,7 @@ export interface components {
       count: number;
     };
     /** @enum {unknown} */
-    LocationType: 'Plant' | 'Branch' | 'Warehouse';
+    LocationType: 'Plant' | 'Branch' | 'Warehouse' | 'Factory';
     /**
      * @example {
      *       "email": "jefe.produccion@panissimo.mx",
@@ -17113,6 +17116,10 @@ export interface components {
       createdByName: null | string;
       /** Format: uint32 */
       version: number;
+      /** Format: uuid */
+      factoryId?: null | string;
+      factoryCode?: null | string;
+      factoryName?: null | string;
     };
     ProductionOrderImportDto: {
       /** Format: uuid */
@@ -17550,6 +17557,10 @@ export interface components {
       updatedByName: null | string;
       /** Format: uint32 */
       version: number;
+      /** Format: uuid */
+      factoryId?: null | string;
+      factoryCode?: null | string;
+      factoryName?: null | string;
     };
     RecipeLineDto: {
       /** Format: uuid */
@@ -17598,6 +17609,7 @@ export interface components {
       createdByName: null | string;
       /** Format: date-time */
       updatedAt: null | string;
+      factoryCode?: null | string;
     };
     RecipeVersionCostDto: {
       /** Format: uuid */
@@ -18751,6 +18763,8 @@ export interface components {
       yieldQty: number;
       notes: null | string;
       lines: components['schemas']['RecipeLineRequest'][];
+      /** Format: uuid */
+      factoryId?: null | string;
     };
     /**
      * @example {
@@ -18964,6 +18978,7 @@ export interface components {
       parentLocationId: string;
       isActive: boolean;
       canMoveStock: boolean;
+      type: components['schemas']['LocationType'];
     };
   };
   responses: never;

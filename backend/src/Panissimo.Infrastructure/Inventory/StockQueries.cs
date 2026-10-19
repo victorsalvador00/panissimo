@@ -79,6 +79,12 @@ public sealed class StockQueries(AppDbContext db, ILocationScope scope, IClock c
             .Union(db.ItemLocationSettings.Where(s => locations.Contains(s.LocationId)).Select(s => new { s.LocationId, s.ItemId }));
         if (query.ItemId is { } itemId)
             keys = keys.Where(k => k.ItemId == itemId);
+        if (query.RowLocationId is { } rowLocationId)
+        {
+            if (!locations.Contains(rowLocationId))
+                scope.EnsureStockAccess(rowLocationId);
+            keys = keys.Where(k => k.LocationId == rowLocationId);
+        }
 
         var rows = from k in keys
                    join i in db.Items on k.ItemId equals i.Id

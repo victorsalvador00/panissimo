@@ -66,7 +66,7 @@ public sealed record ProductionOrderDto(
     DateTimeOffset? ReleasedAt, string? ReleasedByName, DateTimeOffset? CompletedAt, string? CompletedByName,
     ShortfallReason? ShortfallReason, string? ShortfallNotes, DateTimeOffset? CancelledAt,
     IReadOnlyList<ProductionOrderLineDto> Lines, IReadOnlyList<ProductionOrderDemandDto> Demands, DateTimeOffset CreatedAt,
-    string? CreatedByName, uint Version);
+    string? CreatedByName, uint Version, Guid? FactoryId = null, string? FactoryCode = null, string? FactoryName = null);
 
 public sealed class CreateProductionOrderRequestValidator : AbstractValidator<CreateProductionOrderRequest>
 {
@@ -207,10 +207,14 @@ public sealed class ProductionOrderService(
         var numbers = await folios.NextManyAsync(DocType.ProductionOrder, requests.Count, ct);
         var today = clock.BusinessDate();
         var created = new List<ProductionOrder>(requests.Count);
+        var checkedFloors = new HashSet<(Guid, Guid?)>();
         for (var i = 0; i < requests.Count; i++)
         {
             var r = requests[i];
             var plan = BuildPlan(catalogs, r.OutputItemId, r.PlannedQty, r.ScheduledDate, r.ProductionAreaId, r.Shift, r.Notes);
+            // RN-49, checked once per plant and factory (an import brings up to 3,000 rows).
+            if (checkedFloors.Add((r.LocationId, plan.Recipe.FactoryId)))
+                await ProductionFloor.EnsureAsync(db, r.LocationId, plan.Recipe.FactoryId, catalogs.Items[r.OutputItemId].Sku, ct);
             var order = new ProductionOrder(numbers[i], r.LocationId, plan, source, importId, today);
             plan.Recipe.MarkUsed();
             db.ProductionOrders.Add(order);
@@ -226,6 +230,8 @@ public sealed class ProductionOrderService(
         var plan = await BuildPlanAsync(request.OutputItemId, request.PlannedQty, request.ScheduledDate, request.ProductionAreaId,
             request.Shift, request.Notes, ct);
 
+        var sku = await db.Items.Where(i => i.Id == plan.Recipe.OutputItemId).Select(i => i.Sku).SingleAsync(ct);
+        await ProductionFloor.EnsureAsync(db, order.LocationId, plan.Recipe.FactoryId, sku, ct);
         order.UpdateDraft(plan, clock.BusinessDate());
         plan.Recipe.MarkUsed();
         db.Entry(order).State = EntityState.Modified; // line-only edits still bump the version
@@ -329,7 +335,11 @@ public sealed class ProductionOrderService(
                             where i.Id == o.OutputItemId
                             select new { i.Sku, i.Name, i.TracksLots, Uom = u.Code }).SingleAsync(ct);
         var location = await db.Locations.AsNoTracking().Where(l => l.Id == o.LocationId).Select(l => l.Code).SingleAsync(ct);
-        var recipeVersion = await db.Recipes.AsNoTracking().Where(r => r.Id == o.RecipeId).Select(r => r.VersionNumber).SingleAsync(ct);
+        var recipe = await db.Recipes.AsNoTracking().Where(r => r.Id == o.RecipeId).Select(r => new { r.VersionNumber, r.FactoryId }).SingleAsync(ct);
+        var recipeVersion = recipe.VersionNumber;
+        var factory = recipe.FactoryId is { } factoryId
+            ? await db.Locations.AsNoTracking().Where(l => l.Id == factoryId).Select(l => new { l.Code, l.Name }).SingleAsync(ct)
+            : null;
         var areaName = o.ProductionAreaId is { } areaId
             ? await db.ProductionAreas.AsNoTracking().Where(a => a.Id == areaId).Select(a => a.Name).SingleOrDefaultAsync(ct)
             : null;
@@ -344,7 +354,8 @@ public sealed class ProductionOrderService(
                                 select new { i.Id, i.Sku, i.Name, i.Type, Uom = u.Code, HasRecipe = db.Recipes.Any(r => r.OutputItemId == i.Id && r.IsActive) })
             .ToDictionaryAsync(x => x.Id, ct);
         var available = o.IsOpen
-            ? await RecipeService.UsableStockAsync(db, o.LocationId, componentIds, clock.BusinessDate(), ct)
+            ? await RecipeService.UsableStockAsync(db, await RecipeService.StockLocationAsync(db, recipe.FactoryId, o.LocationId, ct),
+                componentIds, clock.BusinessDate(), ct)
             : null;
 
         var lines = o.Lines.Select(l =>
@@ -364,7 +375,7 @@ public sealed class ProductionOrderService(
             o.ScheduledDate,
             o.ProductionAreaId, areaName, o.Shift, o.Source, o.ImportId, importFolio, o.Notes, o.Status, o.TotalCost, o.UnitCost, o.CloseCount,
             o.ReleasedAt, users.Of(o.ReleasedBy), o.CompletedAt, users.Of(o.CompletedBy), o.ShortfallReason, o.ShortfallNotes, o.CancelledAt,
-            lines, demands, o.CreatedAt, users.Of(o.CreatedBy), o.Version);
+            lines, demands, o.CreatedAt, users.Of(o.CreatedBy), o.Version, recipe.FactoryId, factory?.Code, factory?.Name);
     }
 
     private async Task<List<ProductionOrderDemandDto>> DemandsAsync(Guid orderId, CancellationToken ct)

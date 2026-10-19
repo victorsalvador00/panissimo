@@ -41,6 +41,9 @@
           <p class="wide muted">
             Receta v{{ active.recipeVersion }}: rinde
             {{ active.yieldQty | qty: active.outputUomCode }}.
+            @if (active.factoryCode) {
+              Se produce en {{ active.factoryCode }}: la disponibilidad es la de esa fábrica.
+            }
             <a [routerLink]="['/produccion/recetas', active.id]">Ver receta</a>
           </p>
         }
@@ -89,7 +92,13 @@
         @if (e.canProduce === false) {
           <p class="warning">
             <mat-icon aria-hidden="true">warning</mat-icon>
-            Hay faltantes en la planta para producir
+            Hay faltantes en
+            {{
+              recipe.value()?.factoryCode
+                ? 'la fábrica ' + recipe.value()?.factoryCode
+                : 'la planta'
+            }}
+            para producir
             {{ e.quantity | qty: form.controls.output.value?.baseUomCode }}. Puedes guardar la
             orden; el cierre no podrá consumir lo que falte.
           </p>

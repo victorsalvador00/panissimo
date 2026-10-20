@@ -1,4 +1,5 @@
 using System.Net;
+using Panissimo.Application.Catalog;
 using Panissimo.Application.Common;
 using Panissimo.Application.Dashboard;
 using Panissimo.Application.Inventory;
@@ -52,10 +53,10 @@ public class PendingTasksTests(ApiFactory factory)
         var pt = await OkAsync<LocationDto>(admin.PostJsonAsync("/api/v1/locations",
             new CreateLocationRequest($"{code}-PT", "Producto terminado", LocationType.Warehouse, null, plant.Id)));
         var user = await UserAsync(admin, plant.Id, "purchasing.view", "purchasing.po.approve", "purchasing.receive", "production.view",
-            "production.orders.close", "inventory.view", "inventory.internal_transfers");
+            "production.orders.close", "production.orders.manage", "inventory.view", "inventory.internal_transfers");
         Task<PendingTasksDto> TasksAsync() => OkAsync<PendingTasksDto>(user.GetAsync($"/api/v1/my-tasks?locationId={plant.Id}"));
 
-        Assert.Equal(new PendingTasksDto(0, 0, 0, 0, 0, 0), await TasksAsync());
+        Assert.Equal(new PendingTasksDto(0, 0, 0, 0, 0, 0, 0), await TasksAsync());
 
         // A purchase order waits for approval, then for its receipt.
         var flour = await factory.CreateItemAsync("HAR");
@@ -80,6 +81,17 @@ public class PendingTasksTests(ApiFactory factory)
         await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
         Assert.Equal((1, 0), ((await TasksAsync()).ProductionOrdersToProduce, (await TasksAsync()).ProductionOrdersInProgress));
 
+        // The plan asks for a product below its minimum until its OP is generated (the open OP of the roll covers it).
+        var concha = await factory.CreateItemAsync("CON", ItemType.FinishedGood, "pza");
+        await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes",
+            new CreateRecipeRequest(concha.Id, 10, null, [new RecipeLineRequest(flour.Id, 1, 0)])));
+        await OkAsync<IReadOnlyList<ItemLocationSettingDto>>(admin.PutJsonAsync($"/api/v1/items/{concha.Id}/location-settings",
+            new UpdateItemLocationSettingsRequest([new ItemLocationSettingInput(plant.Id, 20, 60)])));
+        Assert.Equal(1, (await TasksAsync()).PlanRowsToSchedule);
+        await OkAsync<GenerateProductionPlanResult>(admin.PostJsonAsync("/api/v1/production-plan/generate",
+            new GenerateProductionPlanRequest(plant.Id, [new GeneratePlanLineRequest(concha.Id, Today, null, 60, null)])));
+        Assert.Equal(0, (await TasksAsync()).PlanRowsToSchedule);
+
         // An internal voucher waits to be sent, then to be received.
         await factory.AddStockAsync(mp.Id, flour.Id, 20, 10m);
         var voucher = await OkAsync<TransferDto>(admin.PostJsonAsync("/api/v1/internal-transfers",
@@ -91,7 +103,7 @@ public class PendingTasksTests(ApiFactory factory)
 
         // Without a permission its count is null; without any of them, no badges at all.
         var buyer = await UserAsync(admin, plant.Id, "purchasing.view", "purchasing.receive");
-        Assert.Equal(new PendingTasksDto(null, 1, null, null, null, null),
+        Assert.Equal(new PendingTasksDto(null, 1, null, null, null, null, null),
             await OkAsync<PendingTasksDto>(buyer.GetAsync($"/api/v1/my-tasks?locationId={plant.Id}")));
         var viewer = await UserAsync(admin, plant.Id, "inventory.view");
         Assert.Equal(HttpStatusCode.Forbidden, (await viewer.GetAsync("/api/v1/my-tasks")).StatusCode);

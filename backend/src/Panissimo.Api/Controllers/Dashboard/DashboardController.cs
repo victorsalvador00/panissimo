@@ -36,12 +36,13 @@ public sealed class PendingTasksController(IPendingTasksService tasks) : Control
     /// <summary>
     /// Cuántos documentos esperan al usuario, contados como la pestaña de su lista: OC por aprobar
     /// (purchasing.po.approve) y por recibir (purchasing.receive); OP por producir y en proceso (production.orders.close);
-    /// vales internos por enviar y en tránsito (inventory.internal_transfers), estos de locationId y sus subalmacenes. Cada
-    /// conteo llega en null sin su permiso. Las órdenes cubren todo el alcance del usuario.
+    /// vales internos por enviar y en tránsito (inventory.internal_transfers), estos de locationId y sus subalmacenes;
+    /// renglones del plan de producción por programar (production.orders.manage). Cada conteo llega en null sin su permiso.
+    /// Las órdenes y el plan cubren todo el alcance del usuario.
     /// </summary>
     [HttpGet]
     [RequirePermission(Permissions.PurchasingPoApprove, Permissions.PurchasingReceive, Permissions.ProductionOrdersClose,
-        Permissions.InventoryInternalTransfers)]
+        Permissions.InventoryInternalTransfers, Permissions.ProductionOrdersManage)]
     [ProducesResponseType<PendingTasksDto>(StatusCodes.Status200OK)]
     public Task<PendingTasksDto> Get([FromQuery] Guid? locationId, CancellationToken ct) => tasks.GetAsync(locationId, ct);
 }

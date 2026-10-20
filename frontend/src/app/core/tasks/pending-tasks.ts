@@ -8,6 +8,7 @@ export const TASK_PERMISSIONS = [
   'purchasing.receive',
   'production.orders.close',
   'inventory.internal_transfers',
+  'production.orders.manage',
 ] as const;
 
 /** A red badge of the menu: how many documents wait and what they are. */
@@ -34,6 +35,7 @@ export function navBadges(tasks: PendingTasks | null): ReadonlyMap<string, NavBa
     [tasks.purchaseOrdersToApprove, 'por aprobar'],
     [tasks.purchaseOrdersToReceive, 'por recibir'],
   ]);
+  add('/produccion/plan', [[tasks.planRowsToSchedule, 'por programar']]);
   add('/produccion/ordenes', [
     [tasks.productionOrdersToProduce, 'por producir'],
     [tasks.productionOrdersInProgress, 'en proceso'],

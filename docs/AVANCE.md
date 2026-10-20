@@ -1106,3 +1106,10 @@
 - **Restos de las áreas (mismo día):** la importación de artículos ya no rechaza columnas desconocidas: las ignora, como avisa la pantalla, y así una plantilla vieja con la columna `area` se importa (`CatalogTests.Csv_of_an_older_template_ignores_the_columns_it_does_not_know`). Fuera `/produccion/areas` de la E2E 23 y las menciones de áreas en `deploy/README.md`, un comentario y una prueba del lector CSV. La etiqueta "Área de producción" de la bitácora se conserva para leer los registros viejos.
 
 
+### RN-118: globo del plan de producción (2026-10-20)
+
+- **Pedido del usuario:** avisar cuando hay un plan de producción nuevo. El plan es una consulta (RN-70) y no se guarda, así que el globo de "Plan" cuenta los **renglones por programar**: cantidad por producir > 0 en el rango por omisión, como abre la pantalla, en todas las plantas del alcance. Se apaga cuando se generan sus OP (que cubren la demanda). Supuesto tomado (cambiable): lo ve quien puede generar OP (`production.orders.manage`).
+- **Backend:** `PendingTasksDto.PlanRowsToSchedule` (reusa `IProductionPlanService`); `GET /my-tasks` acepta también `production.orders.manage`.
+- **Frontend:** globo en `/produccion/plan` con el detalle "N por programar"; `production.orders.manage` entra en `TASK_PERMISSIONS`.
+- **Pruebas:** `PendingTasksTests` (un producto debajo de su mínimo cuenta 1 y vuelve a 0 al generar su OP desde el plan) y `pending-tasks.spec`. Backend 315 unitarias y 177 de integración en verde (+1 omitida); frontend 204 unitarias y `ng lint` en verde. Revisado en Chrome: "Plan" muestra 1 con el renglón de PT-021-BOMBA-EMP.
+

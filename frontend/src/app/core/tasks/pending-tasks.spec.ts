@@ -7,6 +7,7 @@ const none: PendingTasks = {
   productionOrdersInProgress: 0,
   vouchersToSend: 0,
   vouchersToReceive: 0,
+  planRowsToSchedule: 0,
 };
 
 describe('menu badges (RN-118)', () => {
@@ -22,11 +23,13 @@ describe('menu badges (RN-118)', () => {
       purchaseOrdersToReceive: 1,
       productionOrdersToProduce: 3,
       vouchersToReceive: 4,
+      planRowsToSchedule: 5,
     });
     expect(badges.get('/compras/ordenes')).toEqual({
       count: 3,
       detail: '2 por aprobar · 1 por recibir',
     });
+    expect(badges.get('/produccion/plan')).toEqual({ count: 5, detail: '5 por programar' });
     expect(badges.get('/produccion/ordenes')).toEqual({ count: 3, detail: '3 por producir' });
     expect(badges.get('/inventario/vales-internos')).toEqual({ count: 4, detail: '4 por recibir' });
   });

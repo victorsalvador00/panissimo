@@ -21,7 +21,7 @@ public class ProductionOrderImportTests(ApiFactory factory)
 {
     private static DateOnly Today => ApiFactory.Today;
 
-    private static readonly string[] Headers = ["Fecha", "SKU", "Cantidad", "Área", "Turno", "Ubicación", "Notas"];
+    private static readonly string[] Headers = ["Fecha", "SKU", "Cantidad", "Turno", "Ubicación", "Notas"];
 
     /// <summary>An .xlsx with the template columns; a DateOnly value is written as a date cell.</summary>
     private static byte[] Xlsx(IEnumerable<object?[]> rows, string[]? headers = null)
@@ -82,14 +82,14 @@ public class ProductionOrderImportTests(ApiFactory factory)
         var noRecipe = await factory.CreateItemAsync("SINREC", ItemType.FinishedGood, "pza");
         var file = Xlsx(
         [
-            [Today.AddDays(1), bread.Sku, 100, null, "Noche", null, null],               // ok
-            [Today.AddDays(-1), bread.Sku, 100, null, null, null, null],                 // past date
-            [Today, "NO-EXISTE", 10, null, null, null, null],                            // unknown internal SKU
-            [Today, flour.Sku, 10, null, null, null, null],                              // raw material
-            [Today, noRecipe.Sku, 10, null, null, null, null],                           // no recipe
-            [Today, bread.Sku, 2.5m, null, null, null, null],                            // fraction in pieces
-            [Today, dough.Sku, 0, "NO-AREA", "Madrugada", "SUC-01", null],               // qty, area, shift, location
-            ["31/02/2026", bread.Sku, 10, null, null, null, null],                       // invalid text date
+            [Today.AddDays(1), bread.Sku, 100, "Noche", null, null],                     // ok
+            [Today.AddDays(-1), bread.Sku, 100, null, null, null],                       // past date
+            [Today, "NO-EXISTE", 10, null, null, null],                                  // unknown internal SKU
+            [Today, flour.Sku, 10, null, null, null],                                    // raw material
+            [Today, noRecipe.Sku, 10, null, null, null],                                 // no recipe
+            [Today, bread.Sku, 2.5m, null, null, null],                                  // fraction in pieces
+            [Today, dough.Sku, 0, "Madrugada", "SUC-01", null],                          // qty, shift, location
+            ["31/02/2026", bread.Sku, 10, null, null, null],                             // invalid text date
         ]);
 
         var validation = await (await admin.PostAsync("/api/v1/production-order-imports/validate", Form(file))).Content.ReadJsonAsync<ImportPreviewDto>();
@@ -97,13 +97,13 @@ public class ProductionOrderImportTests(ApiFactory factory)
         Assert.Equal(0, validation.OrderCount);
         Assert.DoesNotContain(errors, e => e.Row == 2);
         foreach (var expected in new[] { (3, "fecha"), (4, "sku"), (5, "sku"), (6, "sku"), (7, "cantidad"), (8, "cantidad"),
-                     (8, "area"), (8, "turno"), (8, "ubicacion"), (9, "fecha") })
+                     (8, "turno"), (8, "ubicacion"), (9, "fecha") })
             Assert.Contains(expected, errors);
 
         var create = await admin.PostAsync("/api/v1/production-order-imports", Form(file, confirmWarnings: true));
         Assert.Equal(HttpStatusCode.BadRequest, create.StatusCode);
         using var body = JsonDocument.Parse(await create.Content.ReadAsStringAsync());
-        Assert.True(body.RootElement.GetProperty("rowErrors").GetArrayLength() >= 10);
+        Assert.True(body.RootElement.GetProperty("rowErrors").GetArrayLength() >= 9);
         var orders = await admin.GetJsonAsync<PagedResult<ProductionOrderListItemDto>>($"/api/v1/production-orders?outputItemId={bread.Id}");
         Assert.Empty(orders!.Items);
     }
@@ -116,11 +116,11 @@ public class ProductionOrderImportTests(ApiFactory factory)
         var date = Today.AddDays(1);
         var file = Xlsx(
         [
-            [date, bread.Sku.ToLowerInvariant(), 1200, "Bizcocho Día", "noche", null, "Cadena A"],
-            [date, bread.Sku, 800, "BIZ-DIA", "Noche", "PLANTA", "Cadena B"],
-            [date.ToString("dd/MM/yyyy"), bread.Sku, 500, "BIZ-DIA", "Día", null, null],
-            [date, roll.Sku, 300, null, null, null, null],
-            [null, null, null, null, null, null, null],
+            [date, bread.Sku.ToLowerInvariant(), 1200, "noche", null, "Cadena A"],
+            [date, bread.Sku, 800, "Noche", "PLANTA", "Cadena B"],
+            [date.ToString("dd/MM/yyyy"), bread.Sku, 500, "Día", null, null],
+            [date, roll.Sku, 300, null, null, null],
+            [null, null, null, null, null, null],
         ]);
 
         var preview = await (await admin.PostAsync("/api/v1/production-order-imports/validate", Form(file))).Content.ReadJsonAsync<ImportPreviewDto>();
@@ -149,7 +149,7 @@ public class ProductionOrderImportTests(ApiFactory factory)
         var admin = await factory.LoginAsAdminAsync();
         var (bread, _, _, _) = await ProductsAsync(admin);
         var date = Today.AddDays(2);
-        var file = Xlsx([[date, bread.Sku, 100, null, "Noche", null, null]]);
+        var file = Xlsx([[date, bread.Sku, 100, "Noche", null, null]]);
         Assert.Equal(HttpStatusCode.Created, (await admin.PostAsync("/api/v1/production-order-imports", Form(file))).StatusCode);
 
         var preview = await (await admin.PostAsync("/api/v1/production-order-imports/validate", Form(file))).Content.ReadJsonAsync<ImportPreviewDto>();
@@ -169,10 +169,11 @@ public class ProductionOrderImportTests(ApiFactory factory)
     {
         var admin = await factory.LoginAsAdminAsync();
         var (_, roll, _, _) = await ProductsAsync(admin);
-        var file = Xlsx([[Today.AddDays(3), roll.Sku, 240, null, null, null, null]], ["fecha", "sku", "cantidad", "columna extra"]);
+        // A file of the old template still brings the area column: it is ignored with a warning.
+        var file = Xlsx([[Today.AddDays(3), roll.Sku, 240, "BIZ-DIA"]], ["fecha", "sku", "cantidad", "area"]);
 
         var preview = await (await admin.PostAsync("/api/v1/production-order-imports/validate", Form(file))).Content.ReadJsonAsync<ImportPreviewDto>();
-        Assert.Equal("unknown_column", preview!.Warnings.Single().Code);
+        Assert.Equal(("unknown_column", 1), (preview!.Warnings.Single().Code, preview.OrderCount));
 
         var email = ApiFactory.UniqueEmail("importador");
         var role = await (await admin.PostJsonAsync("/api/v1/roles", new Application.Security.CreateRoleRequest(
@@ -218,7 +219,7 @@ public class ProductionOrderImportTests(ApiFactory factory)
         // 3,000 rows → 30 products × 10 days × 3 shifts = 900 orders (some rows add up).
         var rows = Enumerable.Range(0, 3000).Select(i => new object?[]
         {
-            Today.AddDays(1 + i % 10), products[i / 10 % 30].Sku, 12, null, shifts[i / 300 % 3], null, null,
+            Today.AddDays(1 + i % 10), products[i / 10 % 30].Sku, 12, shifts[i / 300 % 3], null, null,
         }).ToList();
         var file = Xlsx(rows);
 
@@ -250,16 +251,16 @@ public class ProductionOrderImportTests(ApiFactory factory)
         var update = await admin.PutJsonAsync($"/api/v1/items/{bread.Id}", new UpdateItemRequest(dto.Version, sku.ToLowerInvariant(), dto.Name,
             dto.Type, dto.CategoryId, dto.BaseUomId, dto.PurchaseUomId, dto.PurchaseUomId is null ? null : dto.PurchaseToBaseFactor,
             dto.TracksLots, dto.ShelfLifeDays, dto.StorageCondition, dto.TaxRate, dto.Presentation, dto.BulkItemId, dto.UnitsPerPackage,
-            dto.ProductionAreaId, dto.ProductionMultiple, dto.UnitWeightGrams, true));
+            dto.ProductionMultiple, dto.UnitWeightGrams, true));
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         Assert.Equal(sku, (await update.Content.ReadJsonAsync<ItemDto>())!.Sku);
 
         // A SKU that no longer exists is rejected in the file.
-        var stale = await admin.PostAsync("/api/v1/production-order-imports/validate", Form(Xlsx([[Today.AddDays(1), dto.Sku, 60, null, null, null, null]])));
+        var stale = await admin.PostAsync("/api/v1/production-order-imports/validate", Form(Xlsx([[Today.AddDays(1), dto.Sku, 60, null, null, null]])));
         var preview = (await stale.Content.ReadJsonAsync<ImportPreviewDto>())!;
         Assert.Contains(preview.Errors, e => e.Column == "sku");
 
-        var file = Xlsx([[Today.AddDays(1), sku, 120, null, "Día", null, null], [Today.AddDays(1), roll.Sku, 60, null, "Día", null, null]]);
+        var file = Xlsx([[Today.AddDays(1), sku, 120, "Día", null, null], [Today.AddDays(1), roll.Sku, 60, "Día", null, null]]);
         var response = await admin.PostAsync("/api/v1/production-order-imports", Form(file));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var result = (await response.Content.ReadJsonAsync<ImportResultDto>())!;

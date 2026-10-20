@@ -38,7 +38,7 @@ public sealed class SeedOptions
 
 /// <summary>
 /// Idempotent base data (backend §4). Only inserts what is missing and never overwrites data users may have
-/// edited (location and area names, role permissions, setting values).
+/// edited (location names, role permissions, setting values).
 /// </summary>
 public sealed class DatabaseSeeder(
     AppDbContext db,
@@ -60,26 +60,10 @@ public sealed class DatabaseSeeder(
         ("paq", "Paquete", UomKind.Unit),
     ];
 
-    public static readonly IReadOnlyList<(string Code, string Name)> ProductionAreas =
-    [
-        ("BIZ-DIA", "Bizcocho Día"),
-        ("SAL-DIA", "Pan de Sal Día"),
-        ("SAL-NOC", "Pan de Sal Noche"),
-        ("RONDO", "Rondo"),
-        ("REPOST", "Repostería"),
-        ("PANQ", "Panquelería"),
-        ("PAST", "Pastelería"),
-        ("CONG", "Congelado"),
-        ("BOCAD", "Bocadillos"),
-        ("MASAS", "Masas"),
-        ("EMPAQ", "Empaque"),
-    ];
-
     public async Task SeedAsync(CancellationToken ct = default)
     {
         await SeedLocationsAsync(ct);
         await SeedUnitsOfMeasureAsync(ct);
-        await SeedProductionAreasAsync(ct);
         await SeedSettingsAsync(ct);
         await db.SaveChangesAsync(ct);
         if (options.Value.PlantWarehouses && string.IsNullOrWhiteSpace(options.Value.SampleDataFile))
@@ -178,13 +162,6 @@ public sealed class DatabaseSeeder(
         var existing = await db.UnitsOfMeasure.Select(u => u.Code).ToListAsync(ct);
         foreach (var (code, name, kind) in UnitsOfMeasure.Where(u => !existing.Contains(u.Code)))
             db.UnitsOfMeasure.Add(new UnitOfMeasure(code, name, kind));
-    }
-
-    private async Task SeedProductionAreasAsync(CancellationToken ct)
-    {
-        var existing = await db.ProductionAreas.Select(a => a.Code).ToListAsync(ct);
-        foreach (var (area, index) in ProductionAreas.Select((a, i) => (a, i)).Where(x => !existing.Contains(x.a.Code)))
-            db.ProductionAreas.Add(new ProductionArea(area.Code, area.Name, (index + 1) * 10));
     }
 
     private async Task SeedSettingsAsync(CancellationToken ct)

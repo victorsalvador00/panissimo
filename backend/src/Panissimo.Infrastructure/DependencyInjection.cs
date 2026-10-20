@@ -100,7 +100,6 @@ public static class DependencyInjection
         services.AddSingleton<ICsvReader, CsvFileReader>();
         services.AddScoped<IUnitOfMeasureService, UnitOfMeasureService>();
         services.AddScoped<IItemCategoryService, ItemCategoryService>();
-        services.AddScoped<IProductionAreaService, ProductionAreaService>();
         services.AddScoped<IFleetService, FleetService>();
         services.AddScoped<IItemService, ItemService>();
         services.AddScoped<IItemImportService, ItemImportService>();

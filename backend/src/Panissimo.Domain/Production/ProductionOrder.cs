@@ -31,7 +31,7 @@ public enum ShortfallReason
 
 /// <summary>Editable data of a production order (RN-60: only while in draft).</summary>
 /// <param name="Sources">RN-111: sub-warehouse each component comes from (component → location); missing = none yet.</param>
-public sealed record ProductionOrderPlan(Recipe Recipe, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes,
+public sealed record ProductionOrderPlan(Recipe Recipe, decimal PlannedQty, DateOnly ScheduledDate, Shift? Shift, string? Notes,
     IReadOnlyDictionary<Guid, Guid>? Sources = null);
 
 /// <summary>
@@ -63,7 +63,6 @@ public class ProductionOrder : AuditableEntity, IVersioned
     public Guid OutputItemId { get; private set; }
     public decimal PlannedQty { get; private set; }
     public DateOnly ScheduledDate { get; private set; }
-    public Guid? ProductionAreaId { get; private set; }
     public Shift? Shift { get; private set; }
     public ProductionOrderSource Source { get; private set; }
     public Guid? ImportId { get; private set; }
@@ -221,7 +220,6 @@ public class ProductionOrder : AuditableEntity, IVersioned
         OutputItemId = plan.Recipe.OutputItemId;
         PlannedQty = plan.PlannedQty;
         ScheduledDate = plan.ScheduledDate;
-        ProductionAreaId = plan.ProductionAreaId;
         Shift = plan.Shift;
         Notes = string.IsNullOrWhiteSpace(plan.Notes) ? null : plan.Notes.Trim();
 

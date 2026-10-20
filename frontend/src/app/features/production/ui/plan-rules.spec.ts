@@ -1,15 +1,16 @@
 import type { PlanRow } from '../data-access/production-api';
 import { groupPlan, offMultiple, planKey } from './plan-rules';
 
-function row(sku: string, date: string, areaName: string | null): PlanRow {
+function row(sku: string, date: string, factoryName: string | null): PlanRow {
   return {
     itemId: sku,
     sku,
     name: sku,
     type: 'FinishedGood',
     presentation: 'Bulk',
-    areaId: areaName,
-    areaName,
+    factoryId: factoryName,
+    factoryCode: factoryName,
+    factoryName,
     uomCode: 'pza',
     productionMultiple: 1,
     hasActiveRecipe: true,
@@ -27,16 +28,16 @@ function row(sku: string, date: string, areaName: string | null): PlanRow {
 }
 
 describe('plan rules (frontend §7.4.1)', () => {
-  it('groups by date, then by area (without area last), SKU inside', () => {
+  it('groups by date, then by factory (without factory last), SKU inside', () => {
     const groups = groupPlan([
-      row('B', '2026-10-19', 'Bolillo'),
+      row('B', '2026-10-19', 'Fábrica 2'),
       row('A', '2026-10-18', null),
-      row('C', '2026-10-18', 'Bizcocho'),
-      row('A2', '2026-10-18', 'Bizcocho'),
+      row('C', '2026-10-18', 'Fábrica 1'),
+      row('A2', '2026-10-18', 'Fábrica 1'),
     ]);
     expect(groups.map((g) => g.date)).toEqual(['2026-10-18', '2026-10-19']);
-    expect(groups[0].areas.map((a) => a.areaName)).toEqual(['Bizcocho', 'Sin área']);
-    expect(groups[0].areas[0].rows.map((r) => r.sku)).toEqual(['A2', 'C']);
+    expect(groups[0].factories.map((f) => f.factoryName)).toEqual(['Fábrica 1', 'Sin fábrica']);
+    expect(groups[0].factories[0].rows.map((r) => r.sku)).toEqual(['A2', 'C']);
   });
 
   it('a row is a product on a date', () => {

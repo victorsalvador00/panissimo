@@ -107,7 +107,6 @@
             "purchaseUom": "pza",
             "presentation": "Bulk",
             "shelfLifeDays": 2,
-            "productionArea": "Repostería",
             "unitWeightGrams": 110.00,
             "storageCondition": "Refrigerated",
             "purchaseToBaseFactor": 1.0000
@@ -124,7 +123,6 @@
             "purchaseUom": "pza",
             "presentation": "Packaged",
             "shelfLifeDays": 2,
-            "productionArea": "Repostería",
             "storageCondition": "Refrigerated",
             "purchaseToBaseFactor": 1.0000
         }

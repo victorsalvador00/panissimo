@@ -428,8 +428,8 @@ function orderDetail(group: TraceGroupBox, { nodes }: Ctx): DetailModel {
       items: [
         { label: 'Receta', value: `${o.recipeName} · v${o.recipeVersion}` },
         {
-          label: 'Área y turno',
-          value: [o.areaName, enumLabel('Shift', o.shift)].filter(Boolean).join(' · ') || '—',
+          label: 'Fábrica y turno',
+          value: [o.factoryName, enumLabel('Shift', o.shift)].filter(Boolean).join(' · ') || '—',
         },
         { label: 'Fecha', value: shortDate(o.scheduledDate) },
         { label: 'Origen', value: enumLabel('ProductionOrderSource', o.source) },

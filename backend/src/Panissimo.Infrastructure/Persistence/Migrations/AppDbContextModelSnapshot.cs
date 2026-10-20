@@ -222,10 +222,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("presentation");
 
-                    b.Property<Guid?>("ProductionAreaId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("production_area_id");
-
                     b.Property<decimal>("ProductionMultiple")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)")
@@ -308,9 +304,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Name")
                         .HasDatabaseName("ix_item_name");
-
-                    b.HasIndex("ProductionAreaId")
-                        .HasDatabaseName("ix_item_production_area_id");
 
                     b.HasIndex("PurchaseUomId")
                         .HasDatabaseName("ix_item_purchase_uom_id");
@@ -1750,64 +1743,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                     b.ToTable("location", "org");
                 });
 
-            modelBuilder.Entity("Panissimo.Domain.Organization.ProductionArea", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("code");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_active");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer")
-                        .HasColumnName("sort_order");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id")
-                        .HasName("pk_production_area");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("ix_production_area_code");
-
-                    b.ToTable("production_area", "production");
-                });
-
             modelBuilder.Entity("Panissimo.Domain.Production.ProductionClose", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2072,10 +2007,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("produced_qty");
 
-                    b.Property<Guid?>("ProductionAreaId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("production_area_id");
-
                     b.Property<Guid>("RecipeId")
                         .HasColumnType("uuid")
                         .HasColumnName("recipe_id");
@@ -2152,9 +2083,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ImportId")
                         .HasDatabaseName("ix_production_order_import_id");
-
-                    b.HasIndex("ProductionAreaId")
-                        .HasDatabaseName("ix_production_order_production_area_id");
 
                     b.HasIndex("RecipeId")
                         .HasDatabaseName("ix_production_order_recipe_id");
@@ -4149,12 +4077,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_item_item_category_category_id");
 
-                    b.HasOne("Panissimo.Domain.Organization.ProductionArea", null)
-                        .WithMany()
-                        .HasForeignKey("ProductionAreaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_item_production_areas_production_area_id");
-
                     b.HasOne("Panissimo.Domain.Catalog.UnitOfMeasure", null)
                         .WithMany()
                         .HasForeignKey("PurchaseUomId")
@@ -4608,12 +4530,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_production_order_item_output_item_id");
-
-                    b.HasOne("Panissimo.Domain.Organization.ProductionArea", null)
-                        .WithMany()
-                        .HasForeignKey("ProductionAreaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_production_order_production_area_production_area_id");
 
                     b.HasOne("Panissimo.Domain.Production.Recipe", null)
                         .WithMany()

@@ -13,7 +13,7 @@ import { QuickAction, dashboardCards, quickActions } from '../ui/dashboard-cards
 
 /**
  * / (frontend §7.9): the dashboard of the active location. Cards by permission and location type, each opening its list
- * filtered by URL; production of today per area (planned vs produced) and orders in process; with `locations.all`, items
+ * filtered by URL; production of today per factory (planned vs produced) and orders in process; with `locations.all`, items
  * under minimum per location (touching a bar switches location and opens the stock). On a phone, up to four quick actions.
  */
 @Component({
@@ -47,12 +47,12 @@ export class DashboardPage {
     quickActions(this.location()?.type ?? null, (p) => this.auth.can(p)),
   );
 
-  /** Production of today: one bar pair per area and unit (kg and pieces are never added). */
+  /** Production of today: one bar pair per factory and unit (kg and pieces are never added). */
   protected readonly productionToday = computed(() => {
     const rows = this.location()?.type === 'Plant' ? (this.data()?.productionToday ?? null) : null;
     if (!rows) return null;
     return {
-      categories: rows.map((r) => `${r.areaName} (${r.baseUomCode})`),
+      categories: rows.map((r) => `${r.factoryName} (${r.baseUomCode})`),
       units: rows.map((r) => r.baseUomCode),
       series: [
         { label: 'Planeado', values: rows.map((r) => r.planned), color: '--pan-chart-planned' },

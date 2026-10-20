@@ -48,7 +48,6 @@ test('OP: liberar, cierres parciales y cierre final con faltante', async ({
     outputItemId: donut,
     plannedQty: 20,
     scheduledDate: today(),
-    productionAreaId: null,
     shift: 'Day',
     notes: 'E2E 7',
   });

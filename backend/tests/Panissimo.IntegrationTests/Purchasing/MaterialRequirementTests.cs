@@ -40,8 +40,8 @@ public class MaterialRequirementTests(ApiFactory factory)
         await admin.PutJsonAsync($"/api/v1/items/{flour.Id}/location-settings", new UpdateItemLocationSettingsRequest([new ItemLocationSettingInput(plant, 20, 100)]));
 
         // A draft order in the horizon and one after it.
-        await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders", new CreateProductionOrderRequest(plant, bread.Id, 300, Today.AddDays(1), null, null, null)));
-        await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders", new CreateProductionOrderRequest(plant, bread.Id, 100, Today.AddDays(10), null, null, null)));
+        await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders", new CreateProductionOrderRequest(plant, bread.Id, 300, Today.AddDays(1), null, null)));
+        await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders", new CreateProductionOrderRequest(plant, bread.Id, 100, Today.AddDays(10), null, null)));
 
         // A preferred supplier and a draft purchase order of 1 bulto (44 kg) in transit.
         var supplier = await OkAsync<SupplierDto>(admin.PostJsonAsync("/api/v1/suppliers",

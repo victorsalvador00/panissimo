@@ -87,13 +87,13 @@
   @if (productionToday(); as production) {
     <section class="pan-card chart" aria-labelledby="production-today">
       <div class="chart-head">
-        <h2 id="production-today">Producción de hoy por área</h2>
+        <h2 id="production-today">Producción de hoy por fábrica</h2>
         <a matButton routerLink="/produccion/resumen">Resumen de producción</a>
       </div>
       @if (production.categories.length > 0) {
         <app-bar-chart
-          label="Producción de hoy por área: planeado y producido"
-          categoryLabel="Área"
+          label="Producción de hoy por fábrica: planeado y producido"
+          categoryLabel="Fábrica"
           [categories]="production.categories"
           [series]="production.series"
           [units]="production.units"

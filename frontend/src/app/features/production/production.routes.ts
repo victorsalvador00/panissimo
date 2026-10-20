@@ -124,11 +124,4 @@ export const PRODUCTION_ROUTES: Routes = [
       },
     ],
   },
-  {
-    path: 'areas',
-    title: 'Áreas de producción · SGO Paníssimo',
-    canActivate: [permissionGuard],
-    data: { permission: 'production.view', breadcrumb: 'Áreas' },
-    loadComponent: () => import('./pages/areas-page').then((m) => m.AreasPage),
-  },
 ];

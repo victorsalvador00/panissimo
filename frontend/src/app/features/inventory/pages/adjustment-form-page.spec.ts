@@ -18,7 +18,6 @@ const flour = {
   baseUomCode: 'kg',
   tracksLots: true,
   shelfLifeDays: 180,
-  productionAreaId: null,
 };
 
 interface Line {

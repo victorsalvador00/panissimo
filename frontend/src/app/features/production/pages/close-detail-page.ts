@@ -61,13 +61,13 @@ import { CloseConsumption } from '../ui/close-consumption';
           }
           <dt>Entró a</dt>
           <dd>{{ c.outputLocationCode }}</dd>
-          <dt>Día y turno</dt>
+          <dt>Día, turno y fábrica</dt>
           <dd>
             {{ c.businessDate | date: 'dd/MM/yyyy' }}
             @if (c.shift) {
               · {{ c.shift | statusLabel: 'Shift' }}
             }
-            · {{ c.productionAreaName ?? 'sin área' }}
+            · {{ c.factoryName ?? 'sin fábrica' }}
           </dd>
           <dt>Costo</dt>
           <dd>{{ c.totalCost | mxn }} · {{ c.unitCost | mxn }} por {{ c.baseUomCode }}</dd>

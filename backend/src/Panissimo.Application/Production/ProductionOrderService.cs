@@ -13,15 +13,14 @@ using Panissimo.Domain.Production;
 
 namespace Panissimo.Application.Production;
 
-/// <param name="ProductionAreaId">Null = the item's default area.</param>
 /// <param name="Sources">RN-111: origin per component; a component not listed takes the default of its type.</param>
 public sealed record CreateProductionOrderRequest(
-    Guid LocationId, Guid OutputItemId, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes,
+    Guid LocationId, Guid OutputItemId, decimal PlannedQty, DateOnly ScheduledDate, Shift? Shift, string? Notes,
     IReadOnlyList<ComponentSourceRequest>? Sources = null);
 
 /// <summary>Draft only (RN-60). Changing the product takes its active recipe.</summary>
 public sealed record UpdateProductionOrderRequest(
-    uint Version, Guid OutputItemId, decimal PlannedQty, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, string? Notes,
+    uint Version, Guid OutputItemId, decimal PlannedQty, DateOnly ScheduledDate, Shift? Shift, string? Notes,
     IReadOnlyList<ComponentSourceRequest>? Sources = null);
 
 /// <summary>Tabs of the production orders screen (frontend §7.4).</summary>
@@ -40,7 +39,8 @@ public sealed record ProductionOrderListQuery : PageQuery
     public Guid? LocationId { get; init; }
     public DateOnly? From { get; init; }
     public DateOnly? To { get; init; }
-    public Guid? AreaId { get; init; }
+    /// <summary>RN-49: the factory of the order's recipe.</summary>
+    public Guid? FactoryId { get; init; }
     public Shift? Shift { get; init; }
     public ProductionOrderSource? Source { get; init; }
     public Guid? ImportId { get; init; }
@@ -50,7 +50,7 @@ public sealed record ProductionOrderListQuery : PageQuery
 public sealed record ProductionOrderListItemDto(
     Guid Id, string Folio, Guid LocationId, string LocationCode, Guid OutputItemId, string Sku, string ItemName, string BaseUomCode,
     int RecipeVersion, decimal PlannedQty, decimal ProducedQty, decimal ProgressPct, int CloseCount, DateOnly ScheduledDate,
-    Guid? ProductionAreaId, string? ProductionAreaName, Shift? Shift, ProductionOrderSource Source, Guid? ImportId,
+    Guid? FactoryId, string? FactoryCode, string? FactoryName, Shift? Shift, ProductionOrderSource Source, Guid? ImportId,
     ProductionOrderStatus Status, DateTimeOffset CreatedAt);
 
 /// <param name="Available">Usable stock at the plant while the order is open (RN-12); null once finished.</param>
@@ -68,7 +68,7 @@ public sealed record ProductionOrderDemandDto(DemandType DemandType, Guid Demand
 public sealed record ProductionOrderDto(
     Guid Id, string Folio, Guid LocationId, string LocationCode, Guid RecipeId, int RecipeVersion, Guid OutputItemId, string Sku,
     string ItemName, string BaseUomCode, bool TracksLots, decimal PlannedQty, decimal ProducedQty, decimal PendingQty, decimal ProgressPct,
-    decimal MaxAllowedQty, bool ExceedsTolerance, DateOnly ScheduledDate, Guid? ProductionAreaId, string? ProductionAreaName, Shift? Shift,
+    decimal MaxAllowedQty, bool ExceedsTolerance, DateOnly ScheduledDate, Shift? Shift,
     ProductionOrderSource Source, Guid? ImportId, string? ImportFolio, string? Notes, ProductionOrderStatus Status,
     decimal TotalCost, decimal UnitCost, int CloseCount,
     DateTimeOffset? ReleasedAt, string? ReleasedByName, DateTimeOffset? CompletedAt, string? CompletedByName,
@@ -107,12 +107,12 @@ public interface IProductionOrderService
 
     /// <summary>
     /// Builds a draft order (manual, plan or import) inside the caller's transaction; the caller saves and commits.
-    /// Validates the plant, scope, product, active recipe, area and RN-03b; marks the recipe as used (RN-10).
+    /// Validates the plant, scope, product, active recipe and RN-03b; marks the recipe as used (RN-10).
     /// </summary>
     Task<ProductionOrder> CreateInTransactionAsync(CreateProductionOrderRequest request, ProductionOrderSource source, Guid? importId,
         CancellationToken ct = default);
 
-    /// <summary>Same as <see cref="CreateInTransactionAsync"/> for many orders, loading products, recipes and areas once (import, plan).</summary>
+    /// <summary>Same as <see cref="CreateInTransactionAsync"/> for many orders, loading products and recipes once (import, plan).</summary>
     Task<IReadOnlyList<ProductionOrder>> CreateManyInTransactionAsync(IReadOnlyList<CreateProductionOrderRequest> requests,
         ProductionOrderSource source, Guid? importId, CancellationToken ct = default);
 
@@ -166,8 +166,8 @@ public sealed class ProductionOrderService(
             orders = orders.Where(o => o.ScheduledDate >= from);
         if (query.To is { } to)
             orders = orders.Where(o => o.ScheduledDate <= to);
-        if (query.AreaId is { } areaId)
-            orders = orders.Where(o => o.ProductionAreaId == areaId);
+        if (query.FactoryId is { } factoryId)
+            orders = orders.Where(o => db.Recipes.Any(r => r.Id == o.RecipeId && r.FactoryId == factoryId));
         if (query.Shift is { } shift)
             orders = orders.Where(o => o.Shift == shift);
         if (query.Source is { } source)
@@ -188,16 +188,22 @@ public sealed class ProductionOrderService(
                            where itemIds.Contains(i.Id)
                            select new { i.Id, i.Sku, i.Name, Uom = u.Code }).ToDictionaryAsync(x => x.Id, ct);
         var recipeIds = page.Items.Select(o => o.RecipeId).Distinct().ToList();
-        var versions = await db.Recipes.AsNoTracking().Where(r => recipeIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, r => r.VersionNumber, ct);
-        var areaIds = page.Items.Select(o => o.ProductionAreaId).OfType<Guid>().Distinct().ToList();
-        var areas = await db.ProductionAreas.AsNoTracking().Where(a => areaIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Name, ct);
-        var locationIds = page.Items.Select(o => o.LocationId).Distinct().ToList();
-        var codes = await db.Locations.AsNoTracking().Where(l => locationIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.Code, ct);
+        var recipes = await db.Recipes.AsNoTracking().Where(r => recipeIds.Contains(r.Id))
+            .ToDictionaryAsync(r => r.Id, r => new { r.VersionNumber, r.FactoryId }, ct);
+        var locationIds = page.Items.Select(o => o.LocationId)
+            .Concat(recipes.Values.Select(r => r.FactoryId).OfType<Guid>()).Distinct().ToList();
+        var locations = await db.Locations.AsNoTracking().Where(l => locationIds.Contains(l.Id))
+            .ToDictionaryAsync(l => l.Id, l => new { l.Code, l.Name }, ct);
 
-        return new PagedResult<ProductionOrderListItemDto>(page.Items.Select(o => new ProductionOrderListItemDto(o.Id, o.Folio, o.LocationId,
-                codes[o.LocationId], o.OutputItemId, items[o.OutputItemId].Sku, items[o.OutputItemId].Name, items[o.OutputItemId].Uom,
-                versions[o.RecipeId], o.PlannedQty, o.ProducedQty, ProgressPct(o), o.CloseCount, o.ScheduledDate, o.ProductionAreaId,
-                o.ProductionAreaId is { } a ? areas.GetValueOrDefault(a) : null, o.Shift, o.Source, o.ImportId, o.Status, o.CreatedAt)).ToList(),
+        return new PagedResult<ProductionOrderListItemDto>(page.Items.Select(o =>
+            {
+                var recipe = recipes[o.RecipeId];
+                var factory = recipe.FactoryId is { } f ? locations[f] : null;
+                return new ProductionOrderListItemDto(o.Id, o.Folio, o.LocationId, locations[o.LocationId].Code, o.OutputItemId,
+                    items[o.OutputItemId].Sku, items[o.OutputItemId].Name, items[o.OutputItemId].Uom, recipe.VersionNumber, o.PlannedQty,
+                    o.ProducedQty, ProgressPct(o), o.CloseCount, o.ScheduledDate, recipe.FactoryId, factory?.Code, factory?.Name, o.Shift,
+                    o.Source, o.ImportId, o.Status, o.CreatedAt);
+            }).ToList(),
             page.Page, page.PageSize, page.Total);
     }
 
@@ -232,7 +238,7 @@ public sealed class ProductionOrderService(
         for (var i = 0; i < requests.Count; i++)
         {
             var r = requests[i];
-            var plan = BuildPlan(catalogs, r.OutputItemId, r.PlannedQty, r.ScheduledDate, r.ProductionAreaId, r.Shift, r.Notes);
+            var plan = BuildPlan(catalogs, r.OutputItemId, r.PlannedQty, r.ScheduledDate, r.Shift, r.Notes);
             plan = plan with { Sources = sources.Resolve(r.LocationId, plan.Recipe, r.Sources) };
             // RN-49, checked once per plant and factory (an import brings up to 3,000 rows).
             if (checkedFloors.Add((r.LocationId, plan.Recipe.FactoryId)))
@@ -249,8 +255,7 @@ public sealed class ProductionOrderService(
     {
         var order = await FindAsync(id, ct);
         db.EnsureVersion(order, request.Version);
-        var plan = await BuildPlanAsync(request.OutputItemId, request.PlannedQty, request.ScheduledDate, request.ProductionAreaId,
-            request.Shift, request.Notes, ct);
+        var plan = await BuildPlanAsync(request.OutputItemId, request.PlannedQty, request.ScheduledDate, request.Shift, request.Notes, ct);
 
         var sku = await db.Items.Where(i => i.Id == plan.Recipe.OutputItemId).Select(i => i.Sku).SingleAsync(ct);
         var sources = await ComponentSources.LoadAsync(db, [order.LocationId], plan.Recipe.Lines.Select(l => l.ComponentItemId), ct);
@@ -402,10 +407,10 @@ public sealed class ProductionOrderService(
             throw new BusinessRuleException("location_inactive", $"La ubicación {location.Code} está inactiva.");
     }
 
-    private sealed record PlanItem(string Sku, ItemType Type, bool IsActive, Guid? ProductionAreaId, string Uom);
+    private sealed record PlanItem(string Sku, ItemType Type, bool IsActive, string Uom);
 
     private sealed record PlanCatalogs(
-        IReadOnlyDictionary<Guid, PlanItem> Items, IReadOnlyDictionary<Guid, Recipe> ActiveRecipes, IReadOnlySet<Guid> ActiveAreas);
+        IReadOnlyDictionary<Guid, PlanItem> Items, IReadOnlyDictionary<Guid, Recipe> ActiveRecipes);
 
     private async Task<PlanCatalogs> LoadPlanCatalogsAsync(IEnumerable<Guid> outputItemIds, CancellationToken ct)
     {
@@ -413,21 +418,20 @@ public sealed class ProductionOrderService(
         var items = await (from i in db.Items
                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                            where ids.Contains(i.Id)
-                           select new { i.Id, Item = new PlanItem(i.Sku, i.Type, i.IsActive, i.ProductionAreaId, u.Code) })
+                           select new { i.Id, Item = new PlanItem(i.Sku, i.Type, i.IsActive, u.Code) })
             .ToDictionaryAsync(x => x.Id, x => x.Item, ct);
         var recipes = await db.Recipes.Include(r => r.Lines).Where(r => ids.Contains(r.OutputItemId) && r.IsActive)
             .ToDictionaryAsync(r => r.OutputItemId, ct);
-        var areas = (await db.ProductionAreas.Where(a => a.IsActive).Select(a => a.Id).ToListAsync(ct)).ToHashSet();
-        return new PlanCatalogs(items, recipes, areas);
+        return new PlanCatalogs(items, recipes);
     }
 
-    private async Task<ProductionOrderPlan> BuildPlanAsync(Guid outputItemId, decimal plannedQty, DateOnly scheduledDate, Guid? areaId,
-        Shift? shift, string? notes, CancellationToken ct) =>
-        BuildPlan(await LoadPlanCatalogsAsync([outputItemId], ct), outputItemId, plannedQty, scheduledDate, areaId, shift, notes);
+    private async Task<ProductionOrderPlan> BuildPlanAsync(Guid outputItemId, decimal plannedQty, DateOnly scheduledDate, Shift? shift,
+        string? notes, CancellationToken ct) =>
+        BuildPlan(await LoadPlanCatalogsAsync([outputItemId], ct), outputItemId, plannedQty, scheduledDate, shift, notes);
 
-    /// <summary>Product active and produced (RN-14), RN-03b, active recipe (RN-10) and an active area (default: the item's).</summary>
+    /// <summary>Product active and produced (RN-14), RN-03b and active recipe (RN-10).</summary>
     private static ProductionOrderPlan BuildPlan(PlanCatalogs catalogs, Guid outputItemId, decimal plannedQty, DateOnly scheduledDate,
-        Guid? areaId, Shift? shift, string? notes)
+        Shift? shift, string? notes)
     {
         var item = catalogs.Items.GetValueOrDefault(outputItemId)
                    ?? throw new RequestValidationException(new Dictionary<string, string[]> { ["outputItemId"] = ["El artículo no existe."] });
@@ -441,11 +445,7 @@ public sealed class ProductionOrderService(
         var recipe = catalogs.ActiveRecipes.GetValueOrDefault(outputItemId)
                      ?? throw new BusinessRuleException("recipe_not_active", $"{item.Sku} no tiene receta activa: créala antes de programar la orden.");
 
-        var area = areaId ?? item.ProductionAreaId;
-        if (area is { } id && !catalogs.ActiveAreas.Contains(id))
-            throw new RequestValidationException(new Dictionary<string, string[]> { ["productionAreaId"] = ["El área de producción no existe o está inactiva."] });
-
-        return new ProductionOrderPlan(recipe, plannedQty, scheduledDate, area, shift, notes);
+        return new ProductionOrderPlan(recipe, plannedQty, scheduledDate, shift, notes);
     }
 
     private static decimal ProgressPct(ProductionOrder o) => decimal.Round(o.ProducedQty / o.PlannedQty * 100, 1);
@@ -471,9 +471,6 @@ public sealed class ProductionOrderService(
         var recipeVersion = recipe.VersionNumber;
         var factory = recipe.FactoryId is { } factoryId
             ? await db.Locations.AsNoTracking().Where(l => l.Id == factoryId).Select(l => new { l.Code, l.Name }).SingleAsync(ct)
-            : null;
-        var areaName = o.ProductionAreaId is { } areaId
-            ? await db.ProductionAreas.AsNoTracking().Where(a => a.Id == areaId).Select(a => a.Name).SingleOrDefaultAsync(ct)
             : null;
         var importFolio = o.ImportId is { } importId
             ? await db.ProductionOrderImports.AsNoTracking().Where(i => i.Id == importId).Select(i => i.Folio).SingleOrDefaultAsync(ct)
@@ -519,7 +516,7 @@ public sealed class ProductionOrderService(
         return new ProductionOrderDto(o.Id, o.Folio, o.LocationId, location, o.RecipeId, recipeVersion, o.OutputItemId, output.Sku, output.Name,
             output.Uom, output.TracksLots, o.PlannedQty, o.ProducedQty, o.PendingQty, ProgressPct(o), o.MaxAllowedQty(tolerance), o.ExceedsTolerance(tolerance),
             o.ScheduledDate,
-            o.ProductionAreaId, areaName, o.Shift, o.Source, o.ImportId, importFolio, o.Notes, o.Status, o.TotalCost, o.UnitCost, o.CloseCount,
+            o.Shift, o.Source, o.ImportId, importFolio, o.Notes, o.Status, o.TotalCost, o.UnitCost, o.CloseCount,
             o.ReleasedAt, users.Of(o.ReleasedBy), o.CompletedAt, users.Of(o.CompletedBy), o.ShortfallReason, o.ShortfallNotes, o.CancelledAt,
             lines, demands, o.CreatedAt, users.Of(o.CreatedBy), o.Version, recipe.FactoryId, factory?.Code, factory?.Name, vouchers);
     }

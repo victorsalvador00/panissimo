@@ -36,16 +36,6 @@ public class ItemRulesTests
     }
 
     [Theory]
-    [InlineData(ItemType.RawMaterial, true)]
-    [InlineData(ItemType.Supply, true)]
-    [InlineData(ItemType.SemiFinished, false)]
-    public void Only_produced_items_have_a_production_area(ItemType type, bool error)
-    {
-        var definition = Definition(type) with { ProductionAreaId = Guid.NewGuid() };
-        Assert.Equal(error, Fields(definition).Contains("productionAreaId"));
-    }
-
-    [Theory]
     [InlineData(0, true)]
     [InlineData(-1, true)]
     [InlineData(0.12345, true)]

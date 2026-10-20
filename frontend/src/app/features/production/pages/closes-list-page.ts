@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
-import { debounceTime, map } from 'rxjs';
+import { debounceTime } from 'rxjs';
 import type { ApiEnum } from '../../../core/api/api';
 import { CellDef, DataTable } from '../../../shared/components/data-table/data-table';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
@@ -16,12 +16,12 @@ import { ListQuery } from '../../../shared/data-access/list-query';
 import { toIsoDate } from '../../../shared/forms/dates';
 import { ENUM_LABELS } from '../../../shared/pipes/labels';
 import { MxnPipe, QtyPipe, StatusLabelPipe } from '../../../shared/pipes/pipes';
-import { AreasApi } from '../../catalog/data-access/catalog-api';
+import { plantFactories } from '../data-access/plant-factories';
 import { ProductionClosesApi } from '../data-access/production-api';
 
 type Kind = ApiEnum<'ProductionCloseKind'>;
 
-/** /produccion/cierres (frontend §7.4): every close with date, order, product, area, shift, kind, produced, cost and waste. */
+/** /produccion/cierres (frontend §7.4): every close with date, order, product, factory, shift, kind, produced, cost and waste. */
 @Component({
   selector: 'app-closes-list-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -62,15 +62,17 @@ type Kind = ApiEnum<'ProductionCloseKind'>;
         <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
         <mat-datepicker #toPicker />
       </mat-form-field>
-      <mat-form-field>
-        <mat-label>Área</mat-label>
-        <mat-select formControlName="areaId">
-          <mat-option [value]="null">Todas</mat-option>
-          @for (area of areas.value(); track area.id) {
-            <mat-option [value]="area.id">{{ area.name }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      @if (factories().length > 0) {
+        <mat-form-field>
+          <mat-label>Fábrica</mat-label>
+          <mat-select formControlName="factoryId">
+            <mat-option [value]="null">Todas</mat-option>
+            @for (factory of factories(); track factory.id) {
+              <mat-option [value]="factory.id">{{ factory.name }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
       <mat-form-field>
         <mat-label>Tipo</mat-label>
         <mat-select formControlName="kind">
@@ -105,8 +107,8 @@ type Kind = ApiEnum<'ProductionCloseKind'>;
       <ng-template appCell="product" header="Producto" [appCellOf]="rows()" let-close>
         <strong>{{ close.sku }}</strong> {{ close.itemName }}
       </ng-template>
-      <ng-template appCell="area" header="Área y turno" [appCellOf]="rows()" let-close>
-        {{ close.productionAreaName ?? '—' }}
+      <ng-template appCell="factory" header="Fábrica y turno" [appCellOf]="rows()" let-close>
+        {{ close.factoryName ?? '—' }}
         @if (close.shift) {
           · {{ close.shift | statusLabel: 'Shift' }}
         }
@@ -129,7 +131,6 @@ type Kind = ApiEnum<'ProductionCloseKind'>;
 })
 export class ClosesListPage {
   private readonly api = inject(ProductionClosesApi);
-  private readonly areasApi = inject(AreasApi);
   protected readonly kinds = Object.entries(ENUM_LABELS.ProductionCloseKind).map(
     ([value, label]) => ({ value: value as Kind, label }),
   );
@@ -138,7 +139,7 @@ export class ClosesListPage {
     q: new FormControl('', { nonNullable: true }),
     from: new FormControl<Date | null>(null),
     to: new FormControl<Date | null>(null),
-    areaId: new FormControl<string | null>(null),
+    factoryId: new FormControl<string | null>(null),
     kind: new FormControl<Kind | null>(null),
   });
   private readonly applied = signal(this.filters.getRawValue());
@@ -150,7 +151,7 @@ export class ClosesListPage {
       const f = params.filters;
       return this.api.list(
         { ...params.query, q: f.q.trim() || undefined },
-        { from: toIsoDate(f.from), to: toIsoDate(f.to), areaId: f.areaId, kind: f.kind },
+        { from: toIsoDate(f.from), to: toIsoDate(f.to), factoryId: f.factoryId, kind: f.kind },
       );
     },
   });
@@ -160,10 +161,7 @@ export class ClosesListPage {
   protected readonly total = computed(() =>
     this.closes.hasValue() ? this.closes.value().total : 0,
   );
-  protected readonly areas = rxResource({
-    stream: () => this.areasApi.list().pipe(map((page) => page.items.filter((a) => a.isActive))),
-    defaultValue: [],
-  });
+  protected readonly factories = plantFactories();
 
   constructor() {
     this.filters.valueChanges.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => {

@@ -28,7 +28,6 @@ const bulk: Schemas['ItemDto'] = {
   bulkItemSku: null,
   bulkItemName: null,
   unitsPerPackage: null,
-  productionAreaId: 'area-1',
   productionMultiple: 12,
   unitWeightGrams: 70,
   isActive: true,
@@ -63,7 +62,6 @@ async function setup(inputs: Record<string, string> = {}) {
   const backend = TestBed.inject(HttpTestingController);
   backend.expectOne((r) => r.url === '/api/v1/item-categories').flush(page([]));
   backend.expectOne((r) => r.url === '/api/v1/units-of-measure').flush(page([]));
-  backend.expectOne((r) => r.url === '/api/v1/production-areas').flush(page([]));
   // The form is protected: the tests reach it to drive the rules without clicking every select.
   const form = (fixture.componentInstance as unknown as { form: FormShape }).form;
   return { fixture, backend, form };
@@ -82,14 +80,12 @@ describe('ItemFormPage', () => {
     form.controls['type'].setValue('FinishedGood');
     form.controls['presentation'].setValue('Packaged');
     form.controls['unitsPerPackage'].setValue(6);
-    form.controls['productionAreaId'].setValue('area-1');
 
     form.controls['presentation'].setValue('Bulk');
     expect(form.controls['unitsPerPackage'].value).toBeNull();
 
     form.controls['type'].setValue('RawMaterial');
     expect(form.controls['presentation'].value).toBeNull();
-    expect(form.controls['productionAreaId'].value).toBeNull();
   });
 
   it('a packaged version starts with the data of its bulk item', async () => {
@@ -102,7 +98,6 @@ describe('ItemFormPage', () => {
     expect(value['presentation']).toBe('Packaged');
     expect((value['bulkItemId'] as { sku: string }).sku).toBe('CONCHA-G');
     expect(value['categoryId']).toBe('cat-1');
-    expect(value['productionAreaId']).toBe('area-1');
     expect(value['sku']).toBe('');
     expect((fixture.nativeElement as HTMLElement).querySelector('h1')?.textContent).toContain(
       'Nueva versión empaquetada',

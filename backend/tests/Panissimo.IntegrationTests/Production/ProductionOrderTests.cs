@@ -16,42 +16,40 @@ public class ProductionOrderTests(ApiFactory factory)
 {
     private static DateOnly Today => ApiFactory.Today;
 
-    /// <summary>A finished good in pieces with its default area and an active recipe.</summary>
-    private async Task<(Item Bread, Item Flour, Guid AreaId, RecipeDto Recipe)> ProductAsync(HttpClient admin)
+    /// <summary>A finished good in pieces with a production multiple and an active recipe.</summary>
+    private async Task<(Item Bread, Item Flour, RecipeDto Recipe)> ProductAsync(HttpClient admin)
     {
         var bread = await factory.CreateItemAsync("BOMBA", ItemType.FinishedGood, "pza", tracksLots: true, shelfLifeDays: 3);
         var flour = await factory.CreateItemAsync("HAR");
-        Guid areaId;
         await using (var scope = factory.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            areaId = await db.ProductionAreas.Where(a => a.Code == "BIZ-DIA").Select(a => a.Id).SingleAsync();
             var item = await db.Items.SingleAsync(i => i.Id == bread.Id);
             var uom = await db.UnitsOfMeasure.SingleAsync(u => u.Code == "pza");
             item.Update(new ItemDefinition(item.Sku, item.Name, item.Type, item.CategoryId, uom.Id, null, null, true, 3,
-                StorageCondition.Ambient, 0, ItemPresentation.Bulk, ProductionAreaId: areaId, ProductionMultiple: 12));
+                StorageCondition.Ambient, 0, ItemPresentation.Bulk, ProductionMultiple: 12));
             await db.SaveChangesAsync();
         }
         var recipe = await (await admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bread.Id, 120, null,
             [new RecipeLineRequest(flour.Id, 6, 2)]))).Content.ReadJsonAsync<RecipeDto>();
-        return (bread, flour, areaId, recipe!);
+        return (bread, flour, recipe!);
     }
 
     private static CreateProductionOrderRequest Request(Guid plant, Guid itemId, decimal qty = 240, DateOnly? date = null) =>
-        new(plant, itemId, qty, date ?? Today, null, Shift.Night, null);
+        new(plant, itemId, qty, date ?? Today, Shift.Night, null);
 
     [Fact]
-    public async Task Order_takes_the_active_recipe_and_default_area_and_keeps_its_version_when_the_recipe_changes()
+    public async Task Order_takes_the_active_recipe_and_keeps_its_version_when_the_recipe_changes()
     {
         var admin = await factory.LoginAsAdminAsync();
         var plant = await factory.LocationIdAsync("PLANTA");
-        var (bread, flour, areaId, recipe) = await ProductAsync(admin);
+        var (bread, flour, recipe) = await ProductAsync(admin);
 
         var created = await admin.PostJsonAsync("/api/v1/production-orders", Request(plant, bread.Id));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var order = (await created.Content.ReadJsonAsync<ProductionOrderDto>())!;
         Assert.StartsWith("OP-", order.Folio);
-        Assert.Equal((ProductionOrderStatus.Draft, ProductionOrderSource.Manual, areaId, 1), (order.Status, order.Source, order.ProductionAreaId!.Value, order.RecipeVersion));
+        Assert.Equal((ProductionOrderStatus.Draft, ProductionOrderSource.Manual, 1), (order.Status, order.Source, order.RecipeVersion));
         Assert.Equal(12.24m, order.Lines.Single().TheoreticalQty);
         Assert.Equal(264m, order.MaxAllowedQty); // 240 × 1.10
 
@@ -83,7 +81,7 @@ public class ProductionOrderTests(ApiFactory factory)
         var admin = await factory.LoginAsAdminAsync();
         var plant = await factory.LocationIdAsync("PLANTA");
         var branch = await factory.LocationIdAsync("SUC-01");
-        var (bread, _, _, _) = await ProductAsync(admin);
+        var (bread, _, _) = await ProductAsync(admin);
 
         Assert.Contains("production_plant_only", await (await admin.PostJsonAsync("/api/v1/production-orders", Request(branch, bread.Id))).Content.ReadAsStringAsync());
         Assert.Contains("whole_quantity_required", await (await admin.PostJsonAsync("/api/v1/production-orders", Request(plant, bread.Id, 12.5m))).Content.ReadAsStringAsync());
@@ -96,11 +94,11 @@ public class ProductionOrderTests(ApiFactory factory)
     {
         var admin = await factory.LoginAsAdminAsync();
         var plant = await factory.LocationIdAsync("PLANTA");
-        var (bread, _, _, _) = await ProductAsync(admin);
+        var (bread, _, _) = await ProductAsync(admin);
         var order = (await (await admin.PostJsonAsync("/api/v1/production-orders", Request(plant, bread.Id))).Content.ReadJsonAsync<ProductionOrderDto>())!;
 
         order = (await (await admin.PutJsonAsync($"/api/v1/production-orders/{order.Id}", new UpdateProductionOrderRequest(order.Version,
-            bread.Id, 360, Today.AddDays(1), null, Shift.Day, "Más piezas"))).Content.ReadJsonAsync<ProductionOrderDto>())!;
+            bread.Id, 360, Today.AddDays(1), Shift.Day, "Más piezas"))).Content.ReadJsonAsync<ProductionOrderDto>())!;
         Assert.Equal((360m, Shift.Day, 18.36m), (order.PlannedQty, order.Shift!.Value, order.Lines.Single().TheoreticalQty));
 
         var drafts = await admin.GetJsonAsync<PagedResult<ProductionOrderListItemDto>>($"/api/v1/production-orders?tab=Drafts&q={order.Folio}");
@@ -113,7 +111,7 @@ public class ProductionOrderTests(ApiFactory factory)
         Assert.Equal((0m, 0), (toProduce!.Items.Single().ProgressPct, toProduce.Items.Single().CloseCount));
 
         var edit = await admin.PutJsonAsync($"/api/v1/production-orders/{order.Id}", new UpdateProductionOrderRequest(order.Version,
-            bread.Id, 1, Today, null, null, null));
+            bread.Id, 1, Today, null, null));
         Assert.Contains("production_order_not_draft", await edit.Content.ReadAsStringAsync());
 
         var cancelled = await (await admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/cancel", new VersionRequest(order.Version)))

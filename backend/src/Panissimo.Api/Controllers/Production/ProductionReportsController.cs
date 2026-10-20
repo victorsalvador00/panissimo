@@ -14,7 +14,7 @@ namespace Panissimo.Api.Controllers.Production;
 public sealed class ProductionReportsController(IProductionSummaryService summary) : ControllerBase
 {
     /// <summary>
-    /// Resumen de producción (RN-53) por área, producto o día en un rango (máx. 366 días): planeado (OP del rango no
+    /// Resumen de producción (RN-53) por fábrica, producto o día en un rango (máx. 366 días): planeado (OP del rango no
     /// canceladas), producido (cierres del rango), % de cumplimiento, costo producido y merma en pesos (RN-13). Un renglón
     /// por unidad: nunca suma kg con piezas.
     /// </summary>

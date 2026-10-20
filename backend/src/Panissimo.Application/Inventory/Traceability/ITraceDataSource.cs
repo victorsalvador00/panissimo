@@ -32,7 +32,7 @@ public sealed record TraceCloseLot(Guid CloseId, Guid LineId, Guid LotId, decima
 public sealed record TraceCloseDetails(IReadOnlyList<TraceClose> Closes, IReadOnlyList<TraceCloseLine> Lines, IReadOnlyList<TraceCloseLot> Lots);
 
 public sealed record TraceOrder(Guid Id, string Folio, Guid OutputItemId, decimal PlannedQty, decimal ProducedQty, ProductionOrderStatus Status,
-    DateOnly ScheduledDate, Shift? Shift, string? AreaName, int RecipeVersion, ProductionOrderSource Source, decimal TotalCost,
+    DateOnly ScheduledDate, Shift? Shift, string? FactoryName, int RecipeVersion, ProductionOrderSource Source, decimal TotalCost,
     decimal UnitCost, ShortfallReason? ShortfallReason, DateTimeOffset CreatedAt, Guid? CreatedBy, DateTimeOffset? ReleasedAt,
     Guid? ReleasedBy, DateTimeOffset? CompletedAt, Guid? CompletedBy, DateTimeOffset? CancelledAt);
 

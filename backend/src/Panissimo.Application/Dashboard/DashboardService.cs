@@ -27,8 +27,8 @@ public sealed record LowStockBlock(int Count, IReadOnlyList<LowStockAlertDto> It
 /// <param name="ExpiredCount">Lots already expired, included in <paramref name="Count"/>.</param>
 public sealed record ExpiringLotsBlock(int Count, int ExpiredCount, int ExpiryAlertDays, IReadOnlyList<ExpiringLotAlertDto> Items);
 
-/// <summary>Today's orders of an area in one unit (quantities of different units are never added).</summary>
-public sealed record ProductionTodayRowDto(Guid? AreaId, string AreaName, string BaseUomCode, int Orders, decimal Planned, decimal Produced);
+/// <summary>Today's orders of a factory (RN-49) in one unit (quantities of different units are never added).</summary>
+public sealed record ProductionTodayRowDto(Guid? FactoryId, string FactoryName, string BaseUomCode, int Orders, decimal Planned, decimal Produced);
 
 public sealed record ProductionInProgressDto(Guid Id, string Folio, string OutputSku, string OutputName, string BaseUomCode,
     DateOnly ScheduledDate, decimal PlannedQty, decimal ProducedQty);
@@ -171,15 +171,16 @@ public sealed class DashboardService(IAppDbContext db, ILocationScope scope, Use
         var rows = await (from o in db.ProductionOrders.AsNoTracking()
                           join i in db.Items on o.OutputItemId equals i.Id
                           join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
-                          join a in db.ProductionAreas on o.ProductionAreaId equals a.Id into areas
-                          from a in areas.DefaultIfEmpty()
+                          join r in db.Recipes on o.RecipeId equals r.Id
+                          join f in db.Locations on r.FactoryId equals f.Id into factories
+                          from f in factories.DefaultIfEmpty()
                           where locations.Contains(o.LocationId) && o.ScheduledDate == today && o.Status != ProductionOrderStatus.Cancelled
-                          group o by new { o.ProductionAreaId, AreaName = a == null ? null : a.Name, SortOrder = a == null ? int.MaxValue : a.SortOrder, Uom = u.Code }
+                          group o by new { r.FactoryId, FactoryName = f == null ? null : f.Name, Uom = u.Code }
                           into g
                           select new { g.Key, Orders = g.Count(), Planned = g.Sum(o => o.PlannedQty), Produced = g.Sum(o => o.ProducedQty) })
             .ToListAsync(ct);
-        return [.. rows.OrderBy(r => r.Key.SortOrder).ThenBy(r => r.Key.AreaName).ThenBy(r => r.Key.Uom)
-            .Select(r => new ProductionTodayRowDto(r.Key.ProductionAreaId, r.Key.AreaName ?? "Sin área", r.Key.Uom, r.Orders, r.Planned, r.Produced))];
+        return [.. rows.OrderBy(r => r.Key.FactoryName is null).ThenBy(r => r.Key.FactoryName).ThenBy(r => r.Key.Uom)
+            .Select(r => new ProductionTodayRowDto(r.Key.FactoryId, r.Key.FactoryName ?? "Sin fábrica", r.Key.Uom, r.Orders, r.Planned, r.Produced))];
     }
 
     private async Task<ProductionInProgressBlock> ProductionInProgressAsync(List<Guid> locations, CancellationToken ct)

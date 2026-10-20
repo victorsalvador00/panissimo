@@ -37,7 +37,7 @@ import { Stamp } from '../../../shared/components/stamp/stamp';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { controlError } from '../../../shared/forms/control-error';
 import { FormErrors } from '../../../shared/forms/form-errors';
-import { AreasApi, CategoriesApi, Item, ItemsApi, UnitsApi } from '../data-access/catalog-api';
+import { CategoriesApi, Item, ItemsApi, UnitsApi } from '../data-access/catalog-api';
 import { ItemLocationSettings } from '../ui/item-location-settings';
 import {
   ITEM_TYPE_OPTIONS,
@@ -61,7 +61,7 @@ function skuFormat(control: AbstractControl<string>): ValidationErrors | null {
 
 /**
  * /catalogos/articulos/nuevo and /:id (frontend §7.2, dominio §4.2): general data with the fields that apply to the
- * type (presentation only for finished goods; bulk link and pieces only for packaged; area only for produced items);
+ * type (presentation only for finished goods; bulk link and pieces only for packaged; production multiple only for produced items);
  * tabs for min/max per location, packaged versions of a bulk item and history. `?granel=<id>` starts a packaged
  * version of that bulk item with its data. The photo tab arrives in F-23.
  */
@@ -105,7 +105,6 @@ export class ItemFormPage {
   private readonly auth = inject(AuthService);
   private readonly categoriesApi = inject(CategoriesApi);
   private readonly unitsApi = inject(UnitsApi);
-  private readonly areasApi = inject(AreasApi);
 
   protected readonly typeOptions = ITEM_TYPE_OPTIONS;
   protected readonly presentationOptions = PRESENTATION_OPTIONS;
@@ -125,10 +124,6 @@ export class ItemFormPage {
   });
   protected readonly units = rxResource({
     stream: () => this.unitsApi.list().pipe(map((page) => page.items)),
-    defaultValue: [],
-  });
-  protected readonly areas = rxResource({
-    stream: () => this.areasApi.list().pipe(map((page) => page.items)),
     defaultValue: [],
   });
   private readonly loaded = rxResource({
@@ -160,7 +155,6 @@ export class ItemFormPage {
     presentation: new FormControl<Presentation | null>(null),
     bulkItemId: new FormControl<ItemOption | null>(null),
     unitsPerPackage: new FormControl<number | null>(null),
-    productionAreaId: new FormControl<string | null>(null),
     productionMultiple: new FormControl<number | null>(null),
     unitWeightGrams: new FormControl<number | null>(null),
     isActive: new FormControl(true, { nonNullable: true }),
@@ -200,7 +194,6 @@ export class ItemFormPage {
     // Fields that do not apply to the new type or presentation are cleared, so the backend gets a valid item.
     this.form.controls.type.valueChanges.pipe(takeUntilDestroyed()).subscribe((type) => {
       if (type !== 'FinishedGood') this.form.controls.presentation.setValue(null);
-      if (!isProduced(type)) this.form.controls.productionAreaId.setValue(null);
     });
     this.form.controls.presentation.valueChanges
       .pipe(takeUntilDestroyed())
@@ -243,7 +236,6 @@ export class ItemFormPage {
       presentation: v.type === 'FinishedGood' ? v.presentation : null,
       bulkItemId: v.presentation === 'Packaged' ? (v.bulkItemId?.id ?? null) : null,
       unitsPerPackage: v.presentation === 'Packaged' ? v.unitsPerPackage : null,
-      productionAreaId: isProduced(v.type) ? v.productionAreaId : null,
       productionMultiple: v.productionMultiple,
       unitWeightGrams: v.unitWeightGrams,
     };
@@ -301,7 +293,6 @@ export class ItemFormPage {
       presentation: item.presentation,
       bulkItemId: item.bulkItemId ? bulkOption(item) : null,
       unitsPerPackage: item.unitsPerPackage,
-      productionAreaId: item.productionAreaId,
       productionMultiple: item.productionMultiple,
       unitWeightGrams: item.unitWeightGrams,
       isActive: item.isActive,
@@ -319,7 +310,6 @@ export class ItemFormPage {
       shelfLifeDays: bulk.shelfLifeDays,
       storageCondition: bulk.storageCondition,
       taxRate: bulk.taxRate,
-      productionAreaId: bulk.productionAreaId,
     });
     this.form.patchValue({
       presentation: 'Packaged',
@@ -332,7 +322,6 @@ export class ItemFormPage {
         baseUomCode: bulk.baseUomCode,
         tracksLots: bulk.tracksLots,
         shelfLifeDays: bulk.shelfLifeDays,
-        productionAreaId: bulk.productionAreaId,
         photoRevision: bulk.photoRevision,
       },
     });
@@ -357,7 +346,6 @@ function bulkOption(item: Item): ItemOption {
     baseUomCode: item.baseUomCode,
     tracksLots: item.tracksLots,
     shelfLifeDays: item.shelfLifeDays,
-    productionAreaId: item.productionAreaId,
     // The item does not bring the photo of its bulk version.
     photoRevision: null,
   };

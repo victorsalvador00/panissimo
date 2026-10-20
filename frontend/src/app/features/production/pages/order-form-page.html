@@ -60,16 +60,6 @@
           <mat-error>{{ controlError(form.controls.scheduledDate) }}</mat-error>
         </mat-form-field>
         <mat-form-field>
-          <mat-label>Área</mat-label>
-          <mat-select formControlName="productionAreaId">
-            <mat-option [value]="null">Sin área</mat-option>
-            @for (area of areas.value(); track area.id) {
-              <mat-option [value]="area.id">{{ area.name }}</mat-option>
-            }
-          </mat-select>
-          <mat-hint>Por omisión, la del producto.</mat-hint>
-        </mat-form-field>
-        <mat-form-field>
           <mat-label>Turno</mat-label>
           <mat-select formControlName="shift">
             <mat-option [value]="null">Sin turno</mat-option>

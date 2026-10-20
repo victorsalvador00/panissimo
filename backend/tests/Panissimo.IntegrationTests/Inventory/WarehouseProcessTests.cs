@@ -98,7 +98,7 @@ public class WarehouseProcessTests(ApiFactory factory)
         await factory.AddStockAsync(site.Semi.Id, dough.Id, 20, 30m);
 
         var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null, null)));
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null)));
         order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
 
         var noOutput = await admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/closes", new CreateProductionCloseRequest(order.Version,
@@ -133,14 +133,14 @@ public class WarehouseProcessTests(ApiFactory factory)
         // RN-49: at a plant with a factory, a recipe without one cannot be produced.
         await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(roll.Id, 100, null, [new RecipeLineRequest(flour.Id, 5, 0)])));
         var withoutFactory = await admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(site.Plant.Id, roll.Id, 100, Today, null, null, null));
+            new CreateProductionOrderRequest(site.Plant.Id, roll.Id, 100, Today, null, null));
         Assert.Contains("recipe_factory_required", await withoutFactory.Content.ReadAsStringAsync());
 
         var recipe = await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes",
             new CreateRecipeRequest(bread.Id, 100, null, [new RecipeLineRequest(flour.Id, 5, 0)], floor.Id)));
         Assert.Equal(floor.Code, recipe.FactoryCode);
         var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null, null, [new ComponentSourceRequest(flour.Id, site.Mp.Id)])));
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null, [new ComponentSourceRequest(flour.Id, site.Mp.Id)])));
         // A draft shows what is free at the origin of each line (RN-110).
         Assert.Equal((floor.Id, 50m), (order.FactoryId!.Value, order.Lines.Single().Available!.Value));
         order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
@@ -200,7 +200,7 @@ public class WarehouseProcessTests(ApiFactory factory)
             $"/api/v1/production-orders/component-sources?locationId={site.Plant.Id}&recipeId={recipe.Id}"))!;
         Assert.Contains(sources, s => s.ComponentItemId == flour.Id && s.LocationId == site.Mp.Id && s.IsDefault && s.Free == 50);
         var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null, null,
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null,
                 [new ComponentSourceRequest(dough.Id, site.Semi.Id)])));
         Assert.Equal([(flour.Id, site.Mp.Code), (dough.Id, site.Semi.Code)],
             order.Lines.OrderBy(l => l.ComponentItemId == dough.Id).Select(l => (l.ComponentItemId, l.SourceLocationCode!)));
@@ -220,7 +220,7 @@ public class WarehouseProcessTests(ApiFactory factory)
         Assert.Contains("stock_reserved", await refused.Content.ReadAsStringAsync());
         // …and another order asking for 45 kg cannot be released.
         var second = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 900, Today, null, null, null, [new ComponentSourceRequest(dough.Id, site.Semi.Id)])));
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 900, Today, null, null, [new ComponentSourceRequest(dough.Id, site.Semi.Id)])));
         var short_ = await admin.PostJsonAsync($"/api/v1/production-orders/{second.Id}/release", new VersionRequest(second.Version));
         Assert.Contains("release_insufficient_stock", await short_.Content.ReadAsStringAsync());
 

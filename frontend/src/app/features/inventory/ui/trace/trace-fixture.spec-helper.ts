@@ -226,7 +226,7 @@ export function referenceGraph(): TraceGraph {
         status: 'Completed',
         scheduledDate: '2026-10-21',
         shift: 'Night',
-        areaName: 'Panadería',
+        factoryName: 'Fábrica PT',
         recipeName: 'Michas',
         recipeVersion: 2,
         source: 'Manual',

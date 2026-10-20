@@ -257,7 +257,6 @@ export class RecipeFormPage {
       baseUomCode: recipe.outputUomCode,
       tracksLots: false,
       shelfLifeDays: null,
-      productionAreaId: null,
       photoRevision: null,
     };
     // Reuses the line controls already on screen (re-creating them all re-renders the editor).
@@ -276,7 +275,6 @@ export class RecipeFormPage {
           baseUomCode: line.baseUomCode,
           tracksLots: false,
           shelfLifeDays: null,
-          productionAreaId: null,
           photoRevision: null,
         },
         quantity: line.quantity,

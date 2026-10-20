@@ -16,12 +16,12 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ListQuery } from '../../../shared/data-access/list-query';
 import { StatusLabelPipe } from '../../../shared/pipes/pipes';
-import { AreasApi, CategoriesApi, ItemFilters, ItemsApi } from '../data-access/catalog-api';
+import { CategoriesApi, ItemFilters, ItemsApi } from '../data-access/catalog-api';
 import { ITEM_TYPE_OPTIONS, PRESENTATION_OPTIONS } from '../ui/item-options';
 
 /**
  * /catalogos/articulos (frontend §7.2): search by SKU, internal SKU or name, and filters by type, presentation,
- * category, area and active. The photo column arrives with app-item-photo (F-23).
+ * category and active. The photo column arrives with app-item-photo (F-23).
  */
 @Component({
   selector: 'app-items-list-page',
@@ -48,7 +48,6 @@ import { ITEM_TYPE_OPTIONS, PRESENTATION_OPTIONS } from '../ui/item-options';
 export class ItemsListPage {
   private readonly api = inject(ItemsApi);
   private readonly categoriesApi = inject(CategoriesApi);
-  private readonly areasApi = inject(AreasApi);
   protected readonly canManage = inject(AuthService).can('catalog.manage');
 
   protected readonly typeOptions = ITEM_TYPE_OPTIONS;
@@ -66,10 +65,6 @@ export class ItemsListPage {
 
   protected readonly categories = rxResource({
     stream: () => this.categoriesApi.list().pipe(map((page) => page.items)),
-    defaultValue: [],
-  });
-  protected readonly areas = rxResource({
-    stream: () => this.areasApi.list().pipe(map((page) => page.items)),
     defaultValue: [],
   });
 

@@ -1,32 +1,37 @@
 import type { PlanRow } from '../data-access/production-api';
 
-export interface PlanAreaGroup {
-  areaName: string;
+export interface PlanFactoryGroup {
+  factoryName: string;
   rows: PlanRow[];
 }
 
 export interface PlanDateGroup {
   date: string;
-  areas: PlanAreaGroup[];
+  factories: PlanFactoryGroup[];
 }
 
-/** frontend §7.4.1: the plan grouped by date and then by area (rows without area last), SKU inside each area. */
+const NO_FACTORY = 'Sin fábrica';
+
+/**
+ * frontend §7.4.1: the plan grouped by date and then by the factory of the active recipe (RN-49; rows without one
+ * last), SKU inside each factory.
+ */
 export function groupPlan(rows: readonly PlanRow[]): PlanDateGroup[] {
   const byDate = new Map<string, PlanRow[]>();
   for (const row of rows) byDate.set(row.date, [...(byDate.get(row.date) ?? []), row]);
   return [...byDate.keys()].sort().map((date) => {
-    const byArea = new Map<string, PlanRow[]>();
+    const byFactory = new Map<string, PlanRow[]>();
     for (const row of byDate.get(date)!) {
-      const area = row.areaName ?? 'Sin área';
-      byArea.set(area, [...(byArea.get(area) ?? []), row]);
+      const factory = row.factoryName ?? NO_FACTORY;
+      byFactory.set(factory, [...(byFactory.get(factory) ?? []), row]);
     }
-    const areas = [...byArea.entries()]
-      .sort(([a], [b]) => (a === 'Sin área' ? 1 : b === 'Sin área' ? -1 : a.localeCompare(b)))
-      .map(([areaName, areaRows]) => ({
-        areaName,
-        rows: areaRows.sort((x, y) => x.sku.localeCompare(y.sku)),
+    const factories = [...byFactory.entries()]
+      .sort(([a], [b]) => (a === NO_FACTORY ? 1 : b === NO_FACTORY ? -1 : a.localeCompare(b)))
+      .map(([factoryName, factoryRows]) => ({
+        factoryName,
+        rows: factoryRows.sort((x, y) => x.sku.localeCompare(y.sku)),
       }));
-    return { date, areas };
+    return { date, factories };
   });
 }
 

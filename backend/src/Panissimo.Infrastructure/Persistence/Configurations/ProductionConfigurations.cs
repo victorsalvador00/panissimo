@@ -58,7 +58,6 @@ internal sealed class ProductionOrderConfiguration : IEntityTypeConfiguration<Pr
         builder.HasOne<Location>().WithMany().HasForeignKey(o => o.LocationId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Recipe>().WithMany().HasForeignKey(o => o.RecipeId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Item>().WithMany().HasForeignKey(o => o.OutputItemId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne<ProductionArea>().WithMany().HasForeignKey(o => o.ProductionAreaId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<ProductionOrderImport>().WithMany().HasForeignKey(o => o.ImportId).OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(o => o.Lines).WithOne().HasForeignKey(l => l.ProductionOrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(o => o.Lines).UsePropertyAccessMode(PropertyAccessMode.Field);

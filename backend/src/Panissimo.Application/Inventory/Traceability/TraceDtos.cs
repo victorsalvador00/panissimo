@@ -219,7 +219,7 @@ public sealed record TraceDemandDto(DemandType Type, string Folio, string PartyN
 /// <summary>A production order and the closes of it the graph reached.</summary>
 public sealed record TraceGroupDto(
     string Id, Guid ProductionOrderId, string Folio, Guid ItemId, string Sku, string ItemName, decimal PlannedQty, decimal ProducedQty,
-    string BaseUom, ProductionOrderStatus Status, DateOnly ScheduledDate, Shift? Shift, string? AreaName, string RecipeName,
+    string BaseUom, ProductionOrderStatus Status, DateOnly ScheduledDate, Shift? Shift, string? FactoryName, string RecipeName,
     int RecipeVersion, ProductionOrderSource Source, decimal? TotalCost, decimal? UnitCost, ShortfallReason? ShortfallReason,
     IReadOnlyList<TraceStatusDto> StatusHistory, IReadOnlyList<TraceDemandDto> Demands, IReadOnlyList<string> NodeIds);
 

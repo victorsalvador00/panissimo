@@ -36,9 +36,10 @@ public interface IExcelOrderReader
 
 public sealed record ImportWarningDto(string Code, int? Row, string Message);
 
+/// <param name="FactoryName">RN-49: the factory of the product's active recipe.</param>
 public sealed record ImportOrderPreviewDto(
     IReadOnlyList<int> Rows, DateOnly ScheduledDate, Guid LocationId, string LocationCode, Guid ItemId, string Sku, string Name,
-    Guid? ProductionAreaId, string? AreaName, Shift? Shift, decimal Quantity, string Uom, int RecipeVersion, string? Notes);
+    string? FactoryName, Shift? Shift, decimal Quantity, string Uom, int RecipeVersion, string? Notes);
 
 /// <summary>Result of validating a file (RN-90..RN-93). With errors nothing can be imported.</summary>
 public sealed record ImportPreviewDto(
@@ -51,7 +52,7 @@ public sealed record ProductionOrderImportListItemDto(
     Guid Id, string Folio, string FileName, int RowCount, int OrderCount, bool ReleasedOnImport, DateTimeOffset CreatedAt, string? CreatedByName);
 
 public sealed record ImportedOrderDto(Guid Id, string Folio, string Sku, string ItemName, DateOnly ScheduledDate, decimal PlannedQty,
-    string? AreaName, Shift? Shift, ProductionOrderStatus Status);
+    string? FactoryName, Shift? Shift, ProductionOrderStatus Status);
 
 public sealed record ProductionOrderImportDto(
     Guid Id, string Folio, string FileName, string FileSha256, int RowCount, int OrderCount, bool ReleasedOnImport, DateTimeOffset CreatedAt,
@@ -93,13 +94,12 @@ public sealed class ProductionOrderImportService(
         /// <summary>D-07: products are identified by their SKU.</summary>
         public const string Sku = "sku";
         public const string Quantity = "cantidad";
-        public const string Area = "area";
         public const string Shift = "turno";
         public const string Location = "ubicacion";
         public const string Notes = "notas";
 
         public static readonly IReadOnlyList<string> Required = [Date, Sku, Quantity];
-        public static readonly IReadOnlyList<string> All = [.. Required, Area, Shift, Location, Notes];
+        public static readonly IReadOnlyList<string> All = [.. Required, Shift, Location, Notes];
     }
 
     private static readonly Dictionary<string, Shift> Shifts = new()
@@ -111,7 +111,7 @@ public sealed class ProductionOrderImportService(
 
     private static readonly string[] DateFormats = ["dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd"];
 
-    private sealed record ParsedRow(int Row, DateOnly Date, Guid LocationId, Guid ItemId, Guid? AreaId, Shift? Shift, decimal Quantity, string? Notes);
+    private sealed record ParsedRow(int Row, DateOnly Date, Guid LocationId, Guid ItemId, Shift? Shift, decimal Quantity, string? Notes);
 
     private sealed record Validation(ImportPreviewDto Preview, IReadOnlyList<CreateProductionOrderRequest> Requests);
 
@@ -170,10 +170,11 @@ public sealed class ProductionOrderImportService(
         var imported = await (from o in db.ProductionOrders.AsNoTracking()
                               where o.ImportId == id && allowed.Contains(o.LocationId)
                               join i in db.Items on o.OutputItemId equals i.Id
-                              join a in db.ProductionAreas on o.ProductionAreaId equals a.Id into areas
-                              from a in areas.DefaultIfEmpty()
+                              join r in db.Recipes on o.RecipeId equals r.Id
+                              join f in db.Locations on r.FactoryId equals f.Id into factories
+                              from f in factories.DefaultIfEmpty()
                               orderby o.ScheduledDate, o.Folio
-                              select new ImportedOrderDto(o.Id, o.Folio, i.Sku, i.Name, o.ScheduledDate, o.PlannedQty, a == null ? null : a.Name,
+                              select new ImportedOrderDto(o.Id, o.Folio, i.Sku, i.Name, o.ScheduledDate, o.PlannedQty, f == null ? null : f.Name,
                                   o.Shift, o.Status)).ToListAsync(ct);
         var users = await userDirectory.GetNamesAsync([import.CreatedBy], ct);
         return new ProductionOrderImportDto(import.Id, import.Folio, import.FileName, import.FileSha256, import.RowCount, import.OrderCount,
@@ -219,45 +220,45 @@ public sealed class ProductionOrderImportService(
         if (errors.Count > 0)
             return new Validation(new ImportPreviewDto(sha, sheet.Rows.Count, 0, errors, warnings, []), []);
 
-        // RN-92: same (date, sku, area, shift, location) → one order.
-        var groups = parsed.GroupBy(p => (p.Date, p.ItemId, p.AreaId, p.Shift, p.LocationId))
+        // RN-92: same (date, sku, shift, location) → one order.
+        var groups = parsed.GroupBy(p => (p.Date, p.ItemId, p.Shift, p.LocationId))
             .OrderBy(g => g.Key.Date).ThenBy(g => catalogs.Items[g.Key.ItemId].Sku).ToList();
 
-        // RN-93: same file as a previous import; an open order of the same product, date, area and shift.
+        // RN-93: same file as a previous import; an open order of the same product, date and shift.
         var previous = await db.ProductionOrderImports.AsNoTracking().Where(i => i.FileSha256 == sha)
             .OrderByDescending(i => i.CreatedAt).FirstOrDefaultAsync(ct);
         if (previous is not null)
             warnings.Add(new ImportWarningDto("duplicate_file", null,
                 $"Este archivo ya se importó el {BusinessCalendar.ToBusinessDate(previous.CreatedAt):dd/MM/yyyy} ({previous.Folio})."));
-        warnings.AddRange(await ExistingOrderWarningsAsync(groups.Select(g => (g.Key.Date, g.Key.ItemId, g.Key.AreaId, g.Key.Shift, Row: g.Min(r => r.Row))), catalogs, ct));
+        warnings.AddRange(await ExistingOrderWarningsAsync(groups.Select(g => (g.Key.Date, g.Key.ItemId, g.Key.Shift, Row: g.Min(r => r.Row))), catalogs, ct));
 
         var previews = groups.Select(g =>
         {
             var item = catalogs.Items[g.Key.ItemId];
             var notes = string.Join(" / ", g.Select(r => r.Notes).OfType<string>().Distinct());
             return new ImportOrderPreviewDto(g.Select(r => r.Row).ToList(), g.Key.Date, g.Key.LocationId, catalogs.LocationCodes[g.Key.LocationId],
-                item.Id, item.Sku, item.Name, g.Key.AreaId, g.Key.AreaId is { } a ? catalogs.AreaNames[a] : null, g.Key.Shift, g.Sum(r => r.Quantity),
-                item.Uom, catalogs.RecipeVersions[item.Id], notes.Length == 0 ? null : notes[..Math.Min(notes.Length, MaxNotesLength)]);
+                item.Id, item.Sku, item.Name, catalogs.Recipes[item.Id].FactoryName, g.Key.Shift, g.Sum(r => r.Quantity),
+                item.Uom, catalogs.Recipes[item.Id].Version, notes.Length == 0 ? null : notes[..Math.Min(notes.Length, MaxNotesLength)]);
         }).ToList();
         var requests = previews.Select(p => new CreateProductionOrderRequest(p.LocationId, p.ItemId, p.Quantity, p.ScheduledDate,
-            p.ProductionAreaId, p.Shift, p.Notes)).ToList();
+            p.Shift, p.Notes)).ToList();
 
         return new Validation(new ImportPreviewDto(sha, sheet.Rows.Count, previews.Count, [], warnings, previews), requests);
     }
 
     private async Task<IEnumerable<ImportWarningDto>> ExistingOrderWarningsAsync(
-        IEnumerable<(DateOnly Date, Guid ItemId, Guid? AreaId, Shift? Shift, int Row)> groups, Catalogs catalogs, CancellationToken ct)
+        IEnumerable<(DateOnly Date, Guid ItemId, Shift? Shift, int Row)> groups, Catalogs catalogs, CancellationToken ct)
     {
         var list = groups.ToList();
         var itemIds = list.Select(g => g.ItemId).Distinct().ToList();
         var dates = list.Select(g => g.Date).Distinct().ToList();
         var existing = await db.ProductionOrders.AsNoTracking()
             .Where(o => itemIds.Contains(o.OutputItemId) && dates.Contains(o.ScheduledDate) && o.Status != ProductionOrderStatus.Cancelled)
-            .Select(o => new { o.Folio, o.OutputItemId, o.ScheduledDate, o.ProductionAreaId, o.Shift })
+            .Select(o => new { o.Folio, o.OutputItemId, o.ScheduledDate, o.Shift })
             .ToListAsync(ct);
 
         return list.SelectMany(g => existing
-            .Where(o => o.OutputItemId == g.ItemId && o.ScheduledDate == g.Date && o.ProductionAreaId == g.AreaId && o.Shift == g.Shift)
+            .Where(o => o.OutputItemId == g.ItemId && o.ScheduledDate == g.Date && o.Shift == g.Shift)
             .Select(o => new ImportWarningDto("existing_order", g.Row,
                 $"Ya existe la OP {o.Folio} de {catalogs.Items[g.ItemId].Sku} para el {g.Date:dd/MM/yyyy}" +
                 (g.Shift is { } s ? $", turno {ShiftLabel(s)}." : "."))));
@@ -270,44 +271,40 @@ public sealed class ProductionOrderImportService(
         _ => "Noche",
     };
 
-    private sealed record ImportItem(Guid Id, string Sku, string Name, ItemType Type, bool IsActive, Guid? AreaId, string Uom);
+    private sealed record ImportItem(Guid Id, string Sku, string Name, ItemType Type, bool IsActive, string Uom);
+
+    private sealed record ImportRecipe(int Version, string? FactoryName);
 
     private sealed record Catalogs(
         IReadOnlyDictionary<string, ImportItem> ItemsBySku,
         IReadOnlyDictionary<Guid, ImportItem> Items,
-        IReadOnlyDictionary<Guid, int> RecipeVersions,
-        IReadOnlyDictionary<string, ProductionArea> AreasByKey,
-        IReadOnlyDictionary<Guid, string> AreaNames,
+        IReadOnlyDictionary<Guid, ImportRecipe> Recipes,
         IReadOnlyDictionary<string, Location> LocationsByCode,
         IReadOnlyDictionary<Guid, string> LocationCodes,
         Location? DefaultPlant);
 
-    /// <summary>Products, areas and plants resolved in a few queries for the whole file.</summary>
+    /// <summary>Products, recipes and plants resolved in a few queries for the whole file.</summary>
     private async Task<Catalogs> LoadCatalogsAsync(ExcelSheet sheet, CancellationToken ct)
     {
         var codes = sheet.Rows.Select(r => r.Get(Columns.Sku)?.Text).OfType<string>().Select(ItemRules.NormalizeSku).Distinct().ToList();
         var items = await (from i in db.Items.AsNoTracking()
                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                            where codes.Contains(i.Sku)
-                           select new ImportItem(i.Id, i.Sku, i.Name, i.Type, i.IsActive, i.ProductionAreaId, u.Code)).ToListAsync(ct);
+                           select new ImportItem(i.Id, i.Sku, i.Name, i.Type, i.IsActive, u.Code)).ToListAsync(ct);
         var itemIds = items.Select(i => i.Id).ToList();
-        var recipes = await db.Recipes.AsNoTracking().Where(r => itemIds.Contains(r.OutputItemId) && r.IsActive)
-            .ToDictionaryAsync(r => r.OutputItemId, r => r.VersionNumber, ct);
-
-        var areas = await db.ProductionAreas.AsNoTracking().ToListAsync(ct);
-        var areasByKey = new Dictionary<string, ProductionArea>();
-        foreach (var area in areas.OrderBy(a => a.IsActive))
-        {
-            areasByKey[CsvText.Normalize(area.Code)] = area;
-            areasByKey[CsvText.Normalize(area.Name)] = area;
-        }
+        var recipes = await (from r in db.Recipes.AsNoTracking()
+                             where itemIds.Contains(r.OutputItemId) && r.IsActive
+                             join f in db.Locations on r.FactoryId equals f.Id into factories
+                             from f in factories.DefaultIfEmpty()
+                             select new { r.OutputItemId, Recipe = new ImportRecipe(r.VersionNumber, f == null ? null : f.Name) })
+            .ToDictionaryAsync(r => r.OutputItemId, r => r.Recipe, ct);
 
         var allowed = scope.AllowedLocationIds;
         var plants = await db.Locations.AsNoTracking().Where(l => l.Type == LocationType.Plant).ToListAsync(ct);
         var defaultPlant = plants.Where(p => p.IsActive && allowed.Contains(p.Id)).OrderBy(p => p.Code != Location.PlantCode).FirstOrDefault();
 
-        return new Catalogs(items.ToDictionary(i => i.Sku), items.ToDictionary(i => i.Id), recipes, areasByKey,
-            areas.ToDictionary(a => a.Id, a => a.Name), plants.ToDictionary(p => p.Code), plants.ToDictionary(p => p.Id, p => p.Code), defaultPlant);
+        return new Catalogs(items.ToDictionary(i => i.Sku), items.ToDictionary(i => i.Id), recipes,
+            plants.ToDictionary(p => p.Code), plants.ToDictionary(p => p.Id, p => p.Code), defaultPlant);
     }
 
     private ParsedRow? ParseRow(ExcelRow row, Catalogs catalogs, DateOnly today, List<ImportError> errors)
@@ -337,7 +334,7 @@ public sealed class ProductionOrderImportService(
                 Error(Columns.Sku, $"El SKU '{codeCell.Text}' no existe o su artículo no está activo.");
             else if (!RecipeRules.CanBeProduced(item.Type))
                 Error(Columns.Sku, $"{item.Sku} no se produce: solo semiterminados y productos terminados.");
-            else if (!catalogs.RecipeVersions.ContainsKey(item.Id))
+            else if (!catalogs.Recipes.ContainsKey(item.Id))
                 Error(Columns.Sku, $"{item.Sku} no tiene receta activa.");
             if (errors.Any(e => e.Row == row.Row && e.Column == Columns.Sku))
                 item = null;
@@ -355,15 +352,6 @@ public sealed class ProductionOrderImportService(
                 Error(Columns.Quantity, "La cantidad admite máximo 4 decimales.");
             else if (item?.Uom == UnitOfMeasure.PieceCode && !InventoryMath.IsWhole(quantity.Value))
                 Error(Columns.Quantity, $"{item.Sku} se maneja en piezas: la cantidad debe ser entera.");
-        }
-
-        Guid? areaId = item?.AreaId;
-        if (row.Get(Columns.Area) is { } areaCell)
-        {
-            if (!catalogs.AreasByKey.TryGetValue(CsvText.Normalize(areaCell.Text), out var area) || !area.IsActive)
-                Error(Columns.Area, $"El área '{areaCell.Text}' no existe o no está activa.");
-            else
-                areaId = area.Id;
         }
 
         Shift? shift = null;
@@ -396,6 +384,6 @@ public sealed class ProductionOrderImportService(
 
         return errors.Any(e => e.Row == row.Row)
             ? null
-            : new ParsedRow(row.Row, date!.Value, locationId!.Value, item!.Id, areaId, shift, quantity!.Value, notes);
+            : new ParsedRow(row.Row, date!.Value, locationId!.Value, item!.Id, shift, quantity!.Value, notes);
     }
 }

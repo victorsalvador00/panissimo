@@ -69,7 +69,7 @@ public class WarehouseTotalsTests(ApiFactory factory)
 
         // An open order sees the flour of both warehouses.
         var order = (await (await admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(plant.Id, bread.Id, 200, Today, null, null, null))).Content.ReadJsonAsync<ProductionOrderDto>())!;
+            new CreateProductionOrderRequest(plant.Id, bread.Id, 200, Today, null, null))).Content.ReadJsonAsync<ProductionOrderDto>())!;
         Assert.Equal(50m, order.Lines.Single().Available);
 
         // A count is taken per warehouse.
@@ -95,7 +95,7 @@ public class WarehouseTotalsTests(ApiFactory factory)
         Assert.Equal((19m, 114m), (explosion.Lines.Single().AverageCost!.Value, explosion.EstimatedTotalCost!.Value));
 
         var order = (await (await admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(plant.Id, dough.Id, 10, Today, null, null, null))).Content.ReadJsonAsync<ProductionOrderDto>())!;
+            new CreateProductionOrderRequest(plant.Id, dough.Id, 10, Today, null, null))).Content.ReadJsonAsync<ProductionOrderDto>())!;
         var preview = (await admin.GetJsonAsync<ClosePreviewDto>($"/api/v1/production-orders/{order.Id}/close-preview?qty=10"))!;
         Assert.Equal((19m, 114m), (preview.Lines.Single().AverageCost, preview.EstimatedTotalCost));
     }

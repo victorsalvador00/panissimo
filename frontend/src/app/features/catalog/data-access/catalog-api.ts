@@ -7,13 +7,12 @@ import { ListQuery, Page, ParamValues, toHttpParams } from '../../../shared/data
 export type Location = Schemas['LocationDto'];
 export type Category = Schemas['ItemCategoryDto'];
 export type Unit = Schemas['UnitOfMeasureDto'];
-export type Area = Schemas['ProductionAreaDto'];
 export type ItemListItem = Schemas['ItemListItemDto'];
 export type Item = Schemas['ItemDto'];
 export type ItemLocationSetting = Schemas['ItemLocationSettingDto'];
 export type ItemImportResult = Schemas['ItemImportResult'];
 
-/** Every row of a small catalog (categories, units, areas): they are a few dozen at most. */
+/** Every row of a small catalog (categories, units): they are a few dozen at most. */
 const all: ListQuery = { page: 1, pageSize: 100 };
 
 /** Plants, branches and sub-warehouses (`/locations`). */
@@ -72,29 +71,10 @@ export class UnitsApi {
   }
 }
 
-/** Production areas (`/production-areas`). */
-@Injectable({ providedIn: 'root' })
-export class AreasApi {
-  private readonly http = inject(HttpClient);
-
-  list(query: ListQuery = all, filters: ParamValues = {}): Observable<Page<Area>> {
-    return this.http.get<Page<Area>>('production-areas', { params: toHttpParams(query, filters) });
-  }
-
-  create(request: Schemas['CreateProductionAreaRequest']): Observable<Area> {
-    return this.http.post<Area>('production-areas', request);
-  }
-
-  update(id: string, request: Schemas['UpdateProductionAreaRequest']): Observable<Area> {
-    return this.http.put<Area>(`production-areas/${id}`, request);
-  }
-}
-
 export interface ItemFilters extends ParamValues {
   type?: string | null;
   presentation?: string | null;
   categoryId?: string | null;
-  areaId?: string | null;
   bulkItemId?: string | null;
   includeInactive?: boolean | null;
 }

@@ -66,7 +66,7 @@ public partial class VolumeTests(ApiFactory factory, ITestOutputHelper output)
             new("Plan de producción (7 días)", $"/api/v1/production-plan?locationId={plant}&from={today:yyyy-MM-dd}&to={today.AddDays(6):yyyy-MM-dd}", 1000),
             new("Existencias de la planta", $"/api/v1/stock?locationId={plant}", 300),
             new("Lista de cierres", $"/api/v1/production-closes?locationId={plant}", 300),
-            new("Resumen de producción del año por área", $"/api/v1/reports/production-summary?locationId={plant}&from={today.AddDays(-365):yyyy-MM-dd}&to={today:yyyy-MM-dd}&groupBy=Area", 1000),
+            new("Resumen de producción del año por fábrica", $"/api/v1/reports/production-summary?locationId={plant}&from={today.AddDays(-365):yyyy-MM-dd}&to={today:yyyy-MM-dd}&groupBy=Factory", 1000),
             new("Tablero de la planta", $"/api/v1/dashboard?locationId={plant}", 1000),
         ];
 

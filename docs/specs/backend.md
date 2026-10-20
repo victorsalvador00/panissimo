@@ -41,7 +41,7 @@ backend/
 ├── src/
 │   ├── Panissimo.Domain/          # Entidades, enums, reglas puras, excepciones de dominio
 │   │   ├── Common/                # Entity, AuditableEntity, BusinessRuleException, DocType
-│   │   ├── Organization/          # Location, ProductionArea
+│   │   ├── Organization/          # Location, Shift
 │   │   ├── Catalog/
 │   │   ├── Inventory/
 │   │   ├── Production/
@@ -162,23 +162,23 @@ Igual que el despacho de traspasos: bloquear remisión y pedido (`FOR UPDATE` + 
 
 ## 6. Plan de producción (RN-70, RN-71)
 
-`ProductionPlanQueries.GetAsync(locationId, from, to, areaId?, q?)`:
+`ProductionPlanQueries.GetAsync(locationId, from, to, factoryId?, q?)`:
 
 1. **Candidatos:** `FinishedGood` y `SemiFinished` activos con demanda en el rango, mínimo configurado en la ubicación u OP abiertas.
 2. **Demanda por (producto, día):** pedidos de sucursal (`Submitted`: solicitado; `Approved`: aprobado − despachado) y de cliente (`Confirmed`, `PartiallyShipped`: cantidad − remisionado) por `RequiredDate`; para `SemiFinished`, RN-11 sobre lo pendiente de OP abiertas que lo usan, por su `ScheduledDate`; reposición a stock en el primer día.
 3. **Oferta:** existencia utilizable y pendiente de OP `Draft`/`Released`/`InProgress` (las de fecha anterior al rango cuentan en el primer día).
 4. **Neto acumulado:** recorrer los días con `disponible = existencia`; cada día suma la oferta de OP de ese día y resta la demanda; si `disponible < 0`, `sugerido = ceilMultiple(−disponible, ProductionMultiple)` y `disponible += sugerido`.
-5. Respuesta por renglón `(itemId, date)`: SKU, nombre, tipo, presentación, área, unidad, demanda desglosada (`branchOrders`, `customerOrders`, `stockReplenishment`, `parentOrders`), existencia, OP pendientes, `suggestedQty` y `demandLines: [{ type, lineId, folio, partyName, requiredDate, quantity }]`.
-6. Filtros `q` (SKU o nombre) y `areaId`. Orden: fecha, área, SKU.
+5. Respuesta por renglón `(itemId, date)`: SKU, nombre, tipo, presentación, fábrica de la receta activa (RN-49), unidad, demanda desglosada (`branchOrders`, `customerOrders`, `stockReplenishment`, `parentOrders`), existencia, OP pendientes, `suggestedQty` y `demandLines: [{ type, lineId, folio, partyName, requiredDate, quantity }]`.
+6. Filtros `q` (SKU o nombre) y `factoryId`. Orden: fecha, fábrica (sin fábrica al final), SKU.
 
 Las fuentes de demanda se implementan como `IDemandSource` (pedidos de sucursal, pedidos de cliente, OP padre), para agregarlas por fases. **Rendimiento:** 300 productos, 7 días, 500 líneas de pedido y 300 OP abiertas en < 1 s, con consultas agregadas (no una por producto) y cálculo en memoria.
 
-`ProductionPlanService.GenerateAsync` (RN-71): renglones elegidos con cantidad → valida receta activa, RN-03b y alcance → una OP `Draft` por `(producto, fecha, área, turno)` con `Source = Plan` → reparte la cantidad entre las líneas de pedido del renglón por `RequiredDate` en `ProductionOrderDemand`. Todo o nada.
+`ProductionPlanService.GenerateAsync` (RN-71): renglones elegidos con cantidad → valida receta activa, RN-03b y alcance → una OP `Draft` por `(producto, fecha, turno)` con `Source = Plan` → reparte la cantidad entre las líneas de pedido del renglón por `RequiredDate` en `ProductionOrderDemand`. Todo o nada.
 
 ## 7. Importación de OP desde Excel (RN-90..RN-95)
 
 - **Lectura:** `IExcelOrderReader` (implementación `ClosedXmlOrderReader`) abre el archivo en memoria (máx. 5 MB), toma la hoja `OP` o la primera, normaliza encabezados (minúsculas, sin acentos ni espacios) y devuelve filas crudas con su número de fila. Fechas: celda de fecha o texto `dd/mm/aaaa`. Usa el valor en caché de las fórmulas.
-- **Validación:** `ProductionOrderImportService.ValidateAsync(stream, fileName)` resuelve SKU, áreas y ubicaciones en lote, aplica RN-90 y RN-03b, agrupa (RN-92) y calcula avisos (RN-93):
+- **Validación:** `ProductionOrderImportService.ValidateAsync(stream, fileName)` resuelve SKU, recetas y ubicaciones en lote, aplica RN-90 y RN-03b, agrupa (RN-92) y calcula avisos (RN-93):
 
   ```json
   {
@@ -187,7 +187,7 @@ Las fuentes de demanda se implementan como `IDemandSource` (pedidos de sucursal,
     "warnings": [{ "code": "duplicate_file", "message": "Este archivo ya se importó el 14/10/2026 (IMP-000003)." },
                  { "code": "existing_order", "row": 30, "message": "Ya existe la OP OP-000812 de BOMBAS para el 17/10/2026, turno Noche." }],
     "orders": [{ "rows": [5, 9], "scheduledDate": "2026-10-17", "itemId": "…", "sku": "…", "name": "…",
-                 "areaName": "Bizcocho Día", "shift": "Night", "quantity": 3200, "uom": "pza", "recipeVersion": 3 }]
+                 "factoryName": "Fábrica PT", "shift": "Night", "quantity": 3200, "uom": "pza", "recipeVersion": 3 }]
   }
   ```
 
@@ -237,12 +237,11 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 |---|---|---|
 | GET / POST / PUT | `/locations`, `/locations/{id}` | [locations.view] / [locations.manage] |
 | GET | `/locations/lookup` — ubicaciones activas (id, código, nombre, tipo) | [locations.view] o [logistics.view] o [sales.view] o [security.users.manage] |
-| GET / POST / PUT | `/production-areas`, `/production-areas/{id}` | [production.view] o [catalog.view] / [production.areas.manage] |
 | GET / POST / PUT | `/units-of-measure` | [catalog.view] / [catalog.manage] |
 | GET / POST / PUT | `/item-categories` | [catalog.view] o [inventory.view] / [catalog.manage] |
-| GET / POST / PUT | `/items`, `/items/{id}` — filtros `type`, `presentation`, `categoryId`, `areaId`, `includeInactive` | [catalog.view] / [catalog.manage] |
+| GET / POST / PUT | `/items`, `/items/{id}` — filtros `type`, `presentation`, `categoryId`, `includeInactive` | [catalog.view] / [catalog.manage] |
 | GET / PUT | `/items/{id}/location-settings` | [catalog.view] / [catalog.manage] |
-| GET | `/items/lookup?q&type&presentation&areaId&id&limit` (≤ 50) | [catalog.view] o [inventory.view] o [logistics.view] o [production.view] o [purchasing.view] o [sales.view] |
+| GET | `/items/lookup?q&type&presentation&id&limit` (≤ 50) | [catalog.view] o [inventory.view] o [logistics.view] o [production.view] o [purchasing.view] o [sales.view] |
 | GET | `/items/{id}/photo?size=thumbnail\|full` — con `ETag` (304) | los de `/items/lookup` |
 | PUT / DELETE | `/items/{id}/photo` — multipart `image` y `thumbnail` | [catalog.manage] |
 | POST | `/imports/items` (CSV) — errores por fila; con errores no importa nada | [catalog.manage] |
@@ -273,21 +272,21 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 | POST | `/recipes/{id}/activate`, `/deactivate` | [production.recipes.manage] |
 | GET | `/recipes/{id}/explode?qty&locationId` (RN-12) | [production.view] |
 | GET | `/recipes/{id}/costs?locationId` (RN-51) | [production.view] |
-| GET / POST / PUT | `/production-orders`, `/production-orders/{id}` — filtros `status`, `from`, `to`, `areaId`, `shift`, `source`, `importId`; la lista trae `producedQty`, `progressPct`, `closeCount` | [production.view] / [production.orders.manage] |
+| GET / POST / PUT | `/production-orders`, `/production-orders/{id}` — filtros `status`, `from`, `to`, `factoryId` (fábrica de la receta), `shift`, `source`, `importId`; la lista trae `producedQty`, `progressPct`, `closeCount` | [production.view] / [production.orders.manage] |
 | POST | `/production-orders/{id}/release`, `/cancel` | [production.orders.manage] |
 | GET | `/production-orders/{id}/close-preview?qty` — teórico por componente, existencia y costo estimado | [production.view] |
 | GET | `/production-orders/{id}/closes` | [production.view] |
 | POST | `/production-orders/{id}/closes` — `{ version, kind: "Partial"\|"Final", producedQty, shift?, notes?, shortfallReason?, shortfallNotes?, lines: [{ componentItemId, actualQty, lots?: [{ lotId, qty }] }] }` → `201` con el cierre y la OP | [production.orders.close] |
-| GET | `/production-closes?locationId&from&to&areaId&itemId`, `/production-closes/{id}` | [production.view] |
+| GET | `/production-closes?locationId&from&to&factoryId&itemId`, `/production-closes/{id}` | [production.view] |
 | GET | `/production-orders/{id}/demands` | [production.view] |
-| GET | `/production-plan?locationId&from&to&areaId&q` (RN-70) | [production.view] |
-| POST | `/production-plan/generate` — `{ locationId, lines: [{ itemId, date, areaId?, shift?, quantity, demandLineIds? }] }` | [production.orders.manage] |
+| GET | `/production-plan?locationId&from&to&factoryId&q` (RN-70) | [production.view] |
+| POST | `/production-plan/generate` — `{ locationId, lines: [{ itemId, date, shift?, quantity, demandLineIds? }] }` | [production.orders.manage] |
 | GET | `/production-order-imports/template` | [production.orders.import] |
 | POST | `/production-order-imports/validate` — multipart `file` | [production.orders.import] |
 | POST | `/production-order-imports` — multipart `file`, `confirmWarnings`, `releaseOnImport` | [production.orders.import]; liberar exige [production.orders.manage] |
 | GET | `/production-order-imports`, `/production-order-imports/{id}` | [production.view] |
 | GET | `/material-requirements?locationId&to` (RN-50) | [purchasing.view] o [production.view] |
-| GET | `/reports/production-summary?locationId&from&to&groupBy=area\|item\|day` (RN-53) | [production.view] |
+| GET | `/reports/production-summary?locationId&from&to&groupBy=factory\|item\|day` (RN-53) | [production.view] |
 
 **Logística**
 
@@ -345,7 +344,7 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 | GET / PUT | `/settings` — lista tipada (clave, etiqueta, tipo, límites, decimales, valor, `version`); PUT parcial con `version` por parámetro | [settings.manage] |
 | GET | `/dashboard?locationId` — bloques según permisos (null sin permiso) | autenticado |
 
-**Bloques del tablero:** `lowStock`, `expiringLots` ([inventory.view]); `transfersToReceive` / `transfersToDispatch` ([logistics.view]); `branchOrdersToApprove` ([logistics.orders.approve]); `branchOrdersInProgress` ([logistics.orders.create]); `purchaseOrdersToApprove` ([purchasing.po.approve]); `productionToday` (OP del día por área: planeado vs producido) y `productionInProgress` ([production.view]); `recipesWithCostIncreases` ([production.view]); `customerOrdersDue` ([sales.view]); `customerShipmentsToDispatch` ([sales.shipments.dispatch]); `lowStockByLocation` (solo con [locations.all]). Sin `locationId` suma las ubicaciones del alcance.
+**Bloques del tablero:** `lowStock`, `expiringLots` ([inventory.view]); `transfersToReceive` / `transfersToDispatch` ([logistics.view]); `branchOrdersToApprove` ([logistics.orders.approve]); `branchOrdersInProgress` ([logistics.orders.create]); `purchaseOrdersToApprove` ([purchasing.po.approve]); `productionToday` (OP del día por fábrica de la receta: planeado vs producido) y `productionInProgress` ([production.view]); `recipesWithCostIncreases` ([production.view]); `customerOrdersDue` ([sales.view]); `customerShipmentsToDispatch` ([sales.shipments.dispatch]); `lowStockByLocation` (solo con [locations.all]). Sin `locationId` suma las ubicaciones del alcance.
 
 ## 9. Seguridad
 
@@ -429,10 +428,10 @@ Cada tarea deja el código compilando, con pruebas en verde y la migración crea
 | ID | Tarea | Decisiones | Criterio de aceptación |
 |---|---|---|---|
 | B-01 | Solución y proyectos, referencias, `Program.cs`, Serilog, ProblemDetails, opciones JSON compartidas, health checks, OpenAPI + Scalar, Dockerfile y compose de desarrollo; `CLAUDE.md` (estructura, comandos, convenciones, reglas estrictas, flujo por tarea y definición de terminado) y `docs/AVANCE.md` (bitácora por tarea) | — | `docker compose -f deploy/docker-compose.dev.yml up` levanta la API y `/health/ready` responde 200 |
-| B-02 | `AppDbContext`, convenciones, interceptores de timestamps y auditoría, `IFolioGenerator`, `ITransactionLocks`, `IUserDirectory`, `AppSetting`, semilla base (unidades, `PLANTA` + CSV de sucursales, áreas, permisos, roles, admin, parámetros). Migración `InitialCreate` | D-01 | La migración se aplica en una BD limpia; la semilla es idempotente |
+| B-02 | `AppDbContext`, convenciones, interceptores de timestamps y auditoría, `IFolioGenerator`, `ITransactionLocks`, `IUserDirectory`, `AppSetting`, semilla base (unidades, `PLANTA` + CSV de sucursales, permisos, roles, admin, parámetros). Migración `InitialCreate` | D-01 | La migración se aplica en una BD limpia; la semilla es idempotente |
 | B-03 | Identity, login, refresh rotativo con ventana de gracia, logout, `/me`, cambio de contraseña, `[RequirePermission]` dinámico, `ILocationScope`, rate limit | — | Integración: login, refresh, reutilización, 401, 403 por permiso y por ubicación |
 | B-04 | Usuarios, roles (matriz de permisos y anti-escalamiento), permisos, bitácora, ubicaciones (`/locations`, `/locations/lookup`) y `/settings` | D-10 | El admin crea un usuario con rol y ubicaciones; ese usuario solo ve lo permitido |
-| B-05 | Catálogos: unidades, categorías, áreas de producción, artículos con todos sus campos (tipo, presentación, `BulkItemId`, área, múltiplo, gramaje), mín/máx por ubicación, `/items/lookup` e importación CSV de artículos (`sku,nombre,tipo,categoria,unidad_base,unidad_compra,factor_compra,maneja_lotes,vida_util_dias,almacenamiento,iva,presentacion,sku_granel,piezas_por_paquete,area,multiplo_op,gramaje_g`; SKU existente se actualiza; categoría o área inexistente = error) | D-05 | CSV con errores devuelve errores por fila sin importar nada; un empaquetado se liga a su granel |
+| B-05 | Catálogos: unidades, categorías, artículos con todos sus campos (tipo, presentación, `BulkItemId`, múltiplo, gramaje), mín/máx por ubicación, `/items/lookup` e importación CSV de artículos (`sku,nombre,tipo,categoria,unidad_base,unidad_compra,factor_compra,maneja_lotes,vida_util_dias,almacenamiento,iva,presentacion,sku_granel,piezas_por_paquete,multiplo_op,gramaje_g`; SKU existente se actualiza; categoría inexistente = error) | D-05 | CSV con errores devuelve errores por fila sin importar nada; un empaquetado se liga a su granel |
 | B-06 | Motor de inventario: `InventoryPostingService`, `LotAllocator`, `LotRegistry`, costo promedio | — | Unitarias de RN-02, RN-04 y RN-05; integración de concurrencia de lotes |
 | B-07 | Existencias (con lotes), kardex con saldo corrido, alertas, ajustes por motivo, existencias iniciales por CSV (`ubicacion,sku,cantidad,costo_unitario,lote,caducidad`) | — | Ajuste negativo sin existencia → 409 `insufficient_stock` |
 | B-08 | Conteo físico (snapshot, autoguardado con `version`, agregar líneas, cierre) y consumo de sucursal | — | El cierre genera ajustes por diferencia contra el snapshot |
@@ -443,7 +442,7 @@ Cada tarea deja el código compilando, con pruebas en verde y la migración crea
 | ID | Tarea | Decisiones | Criterio de aceptación |
 |---|---|---|---|
 | B-10 | Recetas versionadas (componentes `RawMaterial`, `Supply`, `SemiFinished`), activar/desactivar y explosión con disponibilidad | — | Editar una receta usada crea la versión N+1 |
-| B-11 | Órdenes de producción: alta, edición, liberar, cancelar, área, turno, origen; listado con avance | — | Máquina de estados completa en unitarias; OP con receta inactiva → 422 |
+| B-11 | Órdenes de producción: alta, edición, liberar, cancelar, turno, origen; listado con avance | — | Máquina de estados completa en unitarias; OP con receta inactiva → 422 |
 | B-12 | **Cierres parciales y final** (§5.1): `close-preview`, `/closes`, `/production-closes`, lotes por cierre, costos y merma | D-02, D-03 | Integración: 2 parciales + final con kardex, lotes, costos y merma; faltantes sin movimientos parciales; cierres concurrentes 201/409 |
 | B-13 | **Importación de OP desde Excel** (§7): plantilla, validar, importar, historial | D-07 | Integración con `.xlsx` de prueba; 3,000 filas en < 10 s |
 
@@ -474,7 +473,7 @@ Cada tarea deja el código compilando, con pruebas en verde y la migración crea
 
 | ID | Tarea | Decisiones | Criterio de aceptación |
 |---|---|---|---|
-| B-22 | Tablero (todos los bloques de §8.2) y resumen de producción (RN-53) | — | Cada bloque respeta permisos; el resumen por área cuadra con la suma de los cierres |
+| B-22 | Tablero (todos los bloques de §8.2) y resumen de producción (RN-53) | — | Cada bloque respeta permisos; el resumen por fábrica cuadra con la suma de los cierres |
 | B-23 | Costo de receta por versión y alzas de insumos (RN-51); análisis de consumo (RN-52) | — | Integración con historial de 8 semanas y dos versiones de receta |
 | B-24 | Fotos de artículos (`ItemPhoto`): GET/PUT/DELETE, `photoRevision` en los DTO de artículo | — | Carga, reemplazo, borrado, 304 con `ETag`, tipo y tamaño inválidos, permisos |
 | B-25 | Endurecimiento y despliegue: índices, `EXPLAIN` de kardex, existencias, lista de OP y plan con ~27,000 OP y ~80,000 cierres de prueba; bundle de migraciones; compose de producción y demo; `deploy/README.md`; revisión de licencias | — | Kardex y lista de OP < 300 ms, plan < 1 s; resultados en `docs/rendimiento.md` |

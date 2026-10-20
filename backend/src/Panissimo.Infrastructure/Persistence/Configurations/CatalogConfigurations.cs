@@ -32,13 +32,11 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.HasIndex(i => i.Name);
         builder.HasIndex(i => i.CategoryId);
         builder.HasIndex(i => new { i.Type, i.Presentation });
-        builder.HasIndex(i => i.ProductionAreaId);
         builder.HasIndex(i => i.BulkItemId);
 
         builder.HasOne<ItemCategory>().WithMany().HasForeignKey(i => i.CategoryId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<UnitOfMeasure>().WithMany().HasForeignKey(i => i.BaseUomId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<UnitOfMeasure>().WithMany().HasForeignKey(i => i.PurchaseUomId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne<ProductionArea>().WithMany().HasForeignKey(i => i.ProductionAreaId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Item>().WithMany().HasForeignKey(i => i.BulkItemId).OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -38,7 +38,7 @@ const DEMAND_DOCS = {
 } as const;
 
 /**
- * /produccion/ordenes/:id (frontend §7.4.2): header with product, recipe, area, shift, date, origin and progress;
+ * /produccion/ordenes/:id (frontend §7.4.2): header with product, recipe, factory (RN-49), shift, date, origin and progress;
  * actions by state and permission (RN-60); tabs Componentes, Cierres (timeline), Pedidos and Historial.
  */
 @Component({

@@ -28,7 +28,6 @@ test('requerimiento: faltante de harina y requisición sugerida', async ({
     outputItemId: donut,
     plannedQty: 10000000,
     scheduledDate: inDays(1),
-    productionAreaId: null,
     shift: null,
     notes: 'E2E requerimiento',
   });

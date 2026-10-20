@@ -111,7 +111,7 @@ public class TraceabilityTests(ApiFactory factory)
         await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bread.Id, 1800, null,
             [new RecipeLineRequest(flour.Id, 90.1m, 0), new RecipeLineRequest(sugar.Id, 2.66m, 0), new RecipeLineRequest(water.Id, 45.05m, 0)])));
         var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(plant, bread.Id, 3500, Today, null, Shift.Night, null)));
+            new CreateProductionOrderRequest(plant, bread.Id, 3500, Today, Shift.Night, null)));
         order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
         var c1 = await OkAsync<ProductionCloseResultDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/closes",
             new CreateProductionCloseRequest(order.Version, ProductionCloseKind.Partial, 1800, null, null, null, null, null)));
@@ -135,7 +135,7 @@ public class TraceabilityTests(ApiFactory factory)
         foreach (var (item, qty) in new[] { (dough, 10m), (packaged, 10m) })
         {
             var op = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-                new CreateProductionOrderRequest(plant, item.Id, qty, Today, null, null, null)));
+                new CreateProductionOrderRequest(plant, item.Id, qty, Today, null, null)));
             op = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{op.Id}/release", new VersionRequest(op.Version)));
             await OkAsync<ProductionCloseResultDto>(admin.PostJsonAsync($"/api/v1/production-orders/{op.Id}/closes",
                 new CreateProductionCloseRequest(op.Version, ProductionCloseKind.Final, qty, null, null, null, null, null)));
@@ -298,7 +298,7 @@ public class TraceabilityTests(ApiFactory factory)
         var flour = await factory.CreateItemAsync("HAR");
         await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bread.Id, 10, null, [new RecipeLineRequest(flour.Id, 1, 0)])));
         var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(plant, bread.Id, 10, Today.AddDays(1), null, null, null)));
+            new CreateProductionOrderRequest(plant, bread.Id, 10, Today.AddDays(1), null, null)));
 
         var graph = await GraphAsync(admin, TraceSourceType.ProductionOrder, order.Id);
 

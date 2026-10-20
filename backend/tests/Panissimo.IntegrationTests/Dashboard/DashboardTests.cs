@@ -4,9 +4,11 @@ using Panissimo.Application.Common;
 using Panissimo.Application.Dashboard;
 using Panissimo.Application.Inventory;
 using Panissimo.Application.Logistics;
+using Panissimo.Application.Organization;
 using Panissimo.Application.Production;
 using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
 using Panissimo.Infrastructure.Persistence;
 using Panissimo.IntegrationTests.Infrastructure;
@@ -39,28 +41,35 @@ public class DashboardTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// B-22: an area with two orders today (one cancelled), a released one closed twice (the second with waste). The
-    /// summary by area and by item matches the sum of the closes; the dashboard shows today's area and the order in process.
+    /// B-22: a factory (RN-49) with two orders today (one cancelled), a released one closed twice (the second with waste). The
+    /// summary by factory and by item matches the sum of the closes; the dashboard shows today's factory and the order in process.
+    /// Its own plant, so the factory does not reach the recipes of other tests (RN-49).
     /// </summary>
     [Fact]
-    public async Task Production_summary_by_area_matches_the_sum_of_the_closes()
+    public async Task Production_summary_by_factory_matches_the_sum_of_the_closes()
     {
         var admin = await factory.LoginAsAdminAsync();
-        var plant = await factory.LocationIdAsync("PLANTA");
-        var suffix = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
-        var area = await OkAsync<ProductionAreaDto>(admin.PostJsonAsync("/api/v1/production-areas",
-            new CreateProductionAreaRequest($"A-{suffix}", $"Área {suffix}", 1)));
+        var suffix = Guid.NewGuid().ToString("N")[..5].ToUpperInvariant();
+        var plant = (await OkAsync<LocationDto>(admin.PostJsonAsync("/api/v1/locations",
+            new CreateLocationRequest($"PLT{suffix}", "Planta de prueba", LocationType.Plant, null)))).Id;
+        var floor = await OkAsync<LocationDto>(admin.PostJsonAsync("/api/v1/locations",
+            new CreateLocationRequest($"PLT{suffix}-FAB", $"Fábrica {suffix}", LocationType.Factory, null, plant)));
+        var mp = await OkAsync<LocationDto>(admin.PostJsonAsync("/api/v1/locations",
+            new CreateLocationRequest($"PLT{suffix}-MP", "Materias primas", LocationType.Warehouse, null, plant)));
         var bread = await factory.CreateItemAsync("BIROTE", ItemType.FinishedGood, "pza");
         var flour = await factory.CreateItemAsync("HAR");
-        await factory.AddStockAsync(plant, flour.Id, 100, 20);
+        // Releasing reserves the flour at its origin (RN-110); the closes consume it at the factory (RN-49).
+        await factory.AddStockAsync(mp.Id, flour.Id, 100, 20);
+        await factory.AddStockAsync(floor.Id, flour.Id, 100, 20);
+        ComponentSourceRequest[] sources = [new(flour.Id, mp.Id)];
         await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes",
-            new CreateRecipeRequest(bread.Id, 100, null, [new RecipeLineRequest(flour.Id, 5, 0)])));
+            new CreateRecipeRequest(bread.Id, 100, null, [new RecipeLineRequest(flour.Id, 5, 0)], floor.Id)));
 
         var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(plant, bread.Id, 1000, Today, area.Id, null, null)));
+            new CreateProductionOrderRequest(plant, bread.Id, 1000, Today, null, null, sources)));
         order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
         var cancelled = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(plant, bread.Id, 500, Today, area.Id, null, null)));
+            new CreateProductionOrderRequest(plant, bread.Id, 500, Today, null, null)));
         await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{cancelled.Id}/cancel", new VersionRequest(cancelled.Version)));
 
         var c1 = await OkAsync<ProductionCloseResultDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/closes",
@@ -71,9 +80,9 @@ public class DashboardTests(ApiFactory factory)
         Assert.Equal(20m, c2.Close.WasteCost); // 1 kg over the theoretical 15, at $20
 
         var range = $"locationId={plant}&from={Today:yyyy-MM-dd}&to={Today:yyyy-MM-dd}";
-        var byArea = await admin.GetJsonAsync<ProductionSummaryDto>($"/api/v1/reports/production-summary?{range}&groupBy=Area");
-        var row = byArea!.Rows.Single(r => r.Key == area.Id);
-        Assert.Equal((area.Name, "pza", 1, 1000m, 700m, (decimal?)70m),
+        var byFactory = await admin.GetJsonAsync<ProductionSummaryDto>($"/api/v1/reports/production-summary?{range}&groupBy=Factory");
+        var row = byFactory!.Rows.Single(r => r.Key == floor.Id);
+        Assert.Equal((floor.Name, "pza", 1, 1000m, 700m, (decimal?)70m),
             (row.Label, row.BaseUomCode, row.Orders, row.Planned, row.Produced, row.CompliancePct));
         Assert.Equal((c1.Close.TotalCost + c2.Close.TotalCost, c1.Close.WasteCost + c2.Close.WasteCost), (row.ProducedCost, row.WasteCost));
 
@@ -87,7 +96,7 @@ public class DashboardTests(ApiFactory factory)
 
         var dashboard = await admin.GetJsonAsync<DashboardDto>($"/api/v1/dashboard?locationId={plant}");
         Assert.Equal((1, 1000m, 700m),
-            dashboard!.ProductionToday!.Where(r => r.AreaId == area.Id).Select(r => (r.Orders, r.Planned, r.Produced)).Single());
+            dashboard!.ProductionToday!.Where(r => r.FactoryId == floor.Id).Select(r => (r.Orders, r.Planned, r.Produced)).Single());
         Assert.True(dashboard.ProductionInProgress!.Count >= 1);
 
         var backwards = await admin.GetAsync(

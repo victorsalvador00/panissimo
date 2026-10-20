@@ -4,7 +4,7 @@
 --   final), the last 3 days InProgress with 1 close, the future ones Released or Draft.
 --   ~79,000 closes with 3 consumption lines each and their kardex: 1 output + 3 consumptions per close (~316,000
 --   movements; ~79,000 of them of the flour), plus one purchase receipt per raw material a year ago.
--- Run on a database already migrated and seeded (PLANTA, units, areas). It never touches documents of other prefixes.
+-- Run on a database already migrated and seeded (PLANTA, units). It never touches documents of other prefixes.
 -- Manual use: psql -v ON_ERROR_STOP=1 -d <db> -f volume.sql
 
 BEGIN;
@@ -32,19 +32,15 @@ SELECT m.id, 'VOL-MP-' || lpad(m.n::text, 2, '0'),
        'RawMaterial', c.category, c.kg, 1, false, 'Ambient', 0, 1, true, now()
 FROM vol_material m, vol_ctx c;
 
-CREATE TEMP TABLE vol_area ON COMMIT DROP AS
-SELECT row_number() OVER (ORDER BY sort_order, code) - 1 AS k, id FROM production.production_area;
-
 CREATE TEMP TABLE vol_product ON COMMIT DROP AS
 SELECT n, gen_random_uuid() AS id, gen_random_uuid() AS recipe_id,
-       (SELECT id FROM vol_area WHERE k = n % (SELECT count(*) FROM vol_area)) AS area_id,
        2 + n % 39 AS material_b, 2 + (n + 13) % 39 AS material_c
 FROM generate_series(0, 299) AS n;
 
 INSERT INTO catalog.item (id, sku, name, type, category_id, base_uom_id, purchase_to_base_factor, tracks_lots,
-                          storage_condition, tax_rate, presentation, production_area_id, production_multiple, is_active, created_at)
+                          storage_condition, tax_rate, presentation, production_multiple, is_active, created_at)
 SELECT p.id, 'VOL-PT-' || lpad(p.n::text, 3, '0'), 'Producto volumen ' || p.n,
-       'FinishedGood', c.category, c.pza, 1, false, 'Ambient', 0, 'Bulk', p.area_id, 1, true, now()
+       'FinishedGood', c.category, c.pza, 1, false, 'Ambient', 0, 'Bulk', 1, true, now()
 FROM vol_product p, vol_ctx c;
 
 -- Recipes: 100 pza = 5 kg of flour + 1 kg + 0.5 kg of two other materials.
@@ -64,7 +60,7 @@ FROM vol_recipe_line l JOIN vol_product p ON p.n = l.product;
 -- Orders ------------------------------------------------------------------------------------------------------------
 
 CREATE TEMP TABLE vol_order ON COMMIT DROP AS
-SELECT k, gen_random_uuid() AS id, p.n AS product, p.id AS item_id, p.recipe_id, p.area_id,
+SELECT k, gen_random_uuid() AS id, p.n AS product, p.id AS item_id, p.recipe_id,
        c.today - 360 + (k % 368) AS scheduled_date,
        (100 * (1 + k % 5))::numeric AS planned_qty,
        CASE WHEN c.today - 360 + (k % 368) < c.today - 2 THEN 'Completed'
@@ -93,8 +89,8 @@ CREATE TEMP TABLE vol_consumed ON COMMIT DROP AS
 SELECT order_id, material_id, sum(qty) AS qty FROM vol_close_line GROUP BY order_id, material_id;
 
 INSERT INTO production.production_order (id, folio, location_id, recipe_id, output_item_id, planned_qty, scheduled_date,
-    production_area_id, source, status, released_at, produced_qty, total_cost, unit_cost, close_count, completed_at, created_at)
-SELECT o.id, 'VOL-OP-' || lpad(o.k::text, 6, '0'), c.plant, o.recipe_id, o.item_id, o.planned_qty, o.scheduled_date, o.area_id,
+    source, status, released_at, produced_qty, total_cost, unit_cost, close_count, completed_at, created_at)
+SELECT o.id, 'VOL-OP-' || lpad(o.k::text, 6, '0'), c.plant, o.recipe_id, o.item_id, o.planned_qty, o.scheduled_date,
        'Manual', o.status, CASE WHEN o.status <> 'Draft' THEN o.scheduled_date - 1 + time '06:00' END,
        coalesce(t.produced, 0), coalesce(t.cost, 0), CASE WHEN t.produced > 0 THEN round(t.cost / t.produced, 4) ELSE 0 END,
        coalesce(t.closes, 0), CASE WHEN o.status = 'Completed' THEN o.scheduled_date + time '20:00' END,

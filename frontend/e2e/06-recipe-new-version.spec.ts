@@ -36,7 +36,6 @@ test('receta: editar una receta usada crea la versión N+1', async ({ page, base
       outputItemId: output,
       plannedQty: 20,
       scheduledDate: today(),
-      productionAreaId: null,
       shift: null,
       notes: 'E2E: marca la receta como usada',
     });

@@ -91,7 +91,6 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
     outputItemId: donut,
     plannedQty: 1000,
     scheduledDate: day(),
-    productionAreaId: null,
     shift: 'Day',
     notes: 'E2E 24',
   });

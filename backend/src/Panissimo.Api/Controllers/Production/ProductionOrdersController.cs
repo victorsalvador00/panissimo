@@ -15,7 +15,7 @@ public sealed class ProductionOrdersController(IProductionOrderService orders, I
 {
     /// <summary>
     /// Órdenes con avance (producido, % y número de cierres). Filtros: tab (ToProduce, InProgress, Drafts, All), status,
-    /// locationId, from, to (fecha programada), areaId, shift, source, importId, outputItemId, q (folio, SKU o nombre).
+    /// locationId, from, to (fecha programada), factoryId (fábrica de la receta), shift, source, importId, outputItemId, q (folio, SKU o nombre).
     /// </summary>
     [HttpGet]
     [RequirePermission(Permissions.ProductionView)]
@@ -27,7 +27,7 @@ public sealed class ProductionOrdersController(IProductionOrderService orders, I
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public Task<ProductionOrderDto> Get(Guid id, CancellationToken ct) => orders.GetAsync(id, ct);
 
-    /// <summary>Crea una orden en borrador (RN-73, origen Manual) con la receta activa del producto; área por omisión la del artículo.</summary>
+    /// <summary>Crea una orden en borrador (RN-73, origen Manual) con la receta activa del producto; se produce en la fábrica de esa receta (RN-49).</summary>
     [HttpPost]
     [RequirePermission(Permissions.ProductionOrdersManage)]
     [ProducesResponseType<ProductionOrderDto>(StatusCodes.Status201Created)]
@@ -121,7 +121,7 @@ public sealed class ProductionOrdersController(IProductionOrderService orders, I
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 public sealed class ProductionClosesController(IProductionCloseService closes) : ControllerBase
 {
-    /// <summary>Cierres de la Planta. Filtros: locationId, from, to (fecha de negocio), areaId, itemId, productionOrderId, kind, q.</summary>
+    /// <summary>Cierres de la Planta. Filtros: locationId, from, to (fecha de negocio), factoryId (fábrica de la receta), itemId, productionOrderId, kind, q.</summary>
     [HttpGet]
     public Task<PagedResult<ProductionCloseListItemDto>> List([FromQuery] ProductionCloseListQuery query, CancellationToken ct) =>
         closes.ListAsync(query, ct);

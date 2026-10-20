@@ -32,7 +32,6 @@ import { fromIsoDate, toIsoDate } from '../../../shared/forms/dates';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { ENUM_LABELS } from '../../../shared/pipes/labels';
 import { MxnPipe, QtyPipe } from '../../../shared/pipes/pipes';
-import { AreasApi } from '../../catalog/data-access/catalog-api';
 import { ProductionOrder, ProductionOrdersApi, RecipesApi } from '../data-access/production-api';
 import { OUTPUT_TYPES } from '../ui/recipe-rules';
 
@@ -40,8 +39,8 @@ type Shift = ApiEnum<'Shift'>;
 
 /**
  * /produccion/ordenes/nueva and /:id/editar (frontend §7.4, RN-14, RN-60): plant, product with its active recipe (or a
- * warning with the link to create it), quantity (whole for `pza`), date, area (the product's by default), shift and
- * notes. The explosion with availability (RN-12) is recalculated when typing stops. Saves a draft.
+ * warning with the link to create it), quantity (whole for `pza`), date, shift and notes; it is produced at the factory
+ * of the recipe (RN-49). The explosion with availability (RN-12) is recalculated when typing stops. Saves a draft.
  */
 @Component({
   selector: 'app-order-form-page',
@@ -70,7 +69,6 @@ export class OrderFormPage {
 
   private readonly api = inject(ProductionOrdersApi);
   private readonly recipesApi = inject(RecipesApi);
-  private readonly areasApi = inject(AreasApi);
   private readonly itemLookup = inject(ItemLookupApi);
   private readonly router = inject(Router);
   private readonly notifier = inject(Notifier);
@@ -95,7 +93,6 @@ export class OrderFormPage {
     output: new FormControl<ItemOption | null>(null, Validators.required),
     plannedQty: new FormControl<number | null>(null, Validators.required),
     scheduledDate: new FormControl<Date | null>(new Date(), Validators.required),
-    productionAreaId: new FormControl<string | null>(null),
     shift: new FormControl<Shift | null>(null),
     notes: new FormControl('', { nonNullable: true, validators: Validators.maxLength(500) }),
   });
@@ -116,10 +113,6 @@ export class OrderFormPage {
     { initialValue: { qty: null, locationId: null } },
   );
 
-  protected readonly areas = rxResource({
-    stream: () => this.areasApi.list().pipe(map((page) => page.items.filter((a) => a.isActive))),
-    defaultValue: [],
-  });
   /** The active recipe of the chosen product (RN-14). */
   protected readonly recipe = rxResource({
     params: () => this.output()?.id,
@@ -170,11 +163,6 @@ export class OrderFormPage {
     // Another product starts with the default origins.
     this.form.controls.output.valueChanges.subscribe(() => {
       if (!this.order()) this.chosenSources.set({});
-    });
-    // The area defaults to the product's while the user has not chosen one.
-    this.form.controls.output.valueChanges.subscribe((item) => {
-      const area = this.form.controls.productionAreaId;
-      if (item?.productionAreaId && !area.dirty) area.setValue(item.productionAreaId);
     });
   }
 
@@ -229,7 +217,6 @@ export class OrderFormPage {
       outputItemId: v.output!.id,
       plannedQty: v.plannedQty!,
       scheduledDate: toIsoDate(v.scheduledDate)!,
-      productionAreaId: v.productionAreaId,
       shift: v.shift,
       notes: v.notes.trim() || null,
       sources: (this.explosion.value()?.lines ?? [])
@@ -264,7 +251,6 @@ export class OrderFormPage {
       output,
       plannedQty: order.plannedQty,
       scheduledDate: fromIsoDate(order.scheduledDate),
-      productionAreaId: order.productionAreaId,
       shift: order.shift,
       notes: order.notes ?? '',
     });

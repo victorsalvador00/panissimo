@@ -19,7 +19,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<AppUser, AppRole, Guid>(options), IAppDbContext
 {
     public DbSet<Location> Locations => Set<Location>();
-    public DbSet<ProductionArea> ProductionAreas => Set<ProductionArea>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<UnitOfMeasure> UnitsOfMeasure => Set<UnitOfMeasure>();
     public DbSet<ItemCategory> ItemCategories => Set<ItemCategory>();

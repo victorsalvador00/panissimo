@@ -46,7 +46,7 @@ import { OrderImportsApi } from '../data-access/production-api';
                 <th scope="col">Fecha</th>
                 <th scope="col">Producto</th>
                 <th scope="col" class="end">Planeado</th>
-                <th scope="col">Área y turno</th>
+                <th scope="col">Fábrica y turno</th>
                 <th scope="col">Estado</th>
               </tr>
             </thead>
@@ -64,7 +64,7 @@ import { OrderImportsApi } from '../data-access/production-api';
                   </td>
                   <td class="end">{{ order.plannedQty | qty }}</td>
                   <td>
-                    {{ order.areaName ?? 'Sin área' }}
+                    {{ order.factoryName ?? 'Sin fábrica' }}
                     @if (order.shift) {
                       · {{ order.shift | statusLabel: 'Shift' }}
                     }

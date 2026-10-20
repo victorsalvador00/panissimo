@@ -19,7 +19,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { RouterLink } from '@angular/router';
-import { debounceTime, firstValueFrom, map, of } from 'rxjs';
+import { debounceTime, firstValueFrom, of } from 'rxjs';
 import type { ApiEnum } from '../../../core/api/api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { LocationContextService } from '../../../core/context/location-context.service';
@@ -32,7 +32,7 @@ import { documentLink } from '../../../shared/data-access/document-links';
 import { fromIsoDate, toIsoDate } from '../../../shared/forms/dates';
 import { ENUM_LABELS } from '../../../shared/pipes/labels';
 import { QtyPipe, StatusLabelPipe, formatQty } from '../../../shared/pipes/pipes';
-import { AreasApi } from '../../catalog/data-access/catalog-api';
+import { plantFactories } from '../data-access/plant-factories';
 import { GeneratedOrder, PlanRow, ProductionPlanApi } from '../data-access/production-api';
 import { groupPlan, offMultiple, planKey } from '../ui/plan-rules';
 
@@ -52,7 +52,7 @@ const DEMAND_DOCS = {
 } as const;
 
 /**
- * /produccion/plan (frontend §7.4.1, RN-70, RN-71): the plant's net demand by date and area — branch and customer
+ * /produccion/plan (frontend §7.4.1, RN-70, RN-71): the plant's net demand by date and factory (RN-49) — branch and customer
  * orders, stock replenishment and parent orders — with stock, open orders and what to produce. Rows with something to
  * produce are selected with an editable quantity (the multiple is a hint) and an optional shift; **"Generar OP (n)"**
  * creates the draft orders linked to the order lines they attend.
@@ -85,7 +85,6 @@ export class PlanPage {
   readonly q = input<string>();
 
   private readonly api = inject(ProductionPlanApi);
-  private readonly areasApi = inject(AreasApi);
   private readonly confirmService = inject(ConfirmService);
   private readonly notifier = inject(Notifier);
   protected readonly plant = inject(LocationContextService).plant;
@@ -98,7 +97,7 @@ export class PlanPage {
   protected readonly filters = new FormGroup({
     from: new FormControl<Date | null>(null),
     to: new FormControl<Date | null>(null),
-    areaId: new FormControl<string | null>(null),
+    factoryId: new FormControl<string | null>(null),
     q: new FormControl('', { nonNullable: true }),
   });
   private readonly applied = signal(this.filters.getRawValue());
@@ -112,7 +111,7 @@ export class PlanPage {
             locationId: params.plant,
             from: toIsoDate(f.from),
             to: toIsoDate(f.to),
-            areaId: f.areaId,
+            factoryId: f.factoryId,
             q: f.q.trim() || null,
           })
         : of(null);
@@ -121,10 +120,7 @@ export class PlanPage {
   protected readonly groups = computed(() =>
     this.plan.hasValue() && this.plan.value() ? groupPlan(this.plan.value()!.rows) : [],
   );
-  protected readonly areas = rxResource({
-    stream: () => this.areasApi.list().pipe(map((page) => page.items.filter((a) => a.isActive))),
-    defaultValue: [],
-  });
+  protected readonly factories = plantFactories();
 
   protected readonly selected = signal<Map<string, Selected>>(new Map());
   protected readonly expanded = signal<Set<string>>(new Set());
@@ -217,7 +213,7 @@ export class PlanPage {
       message: 'Se crean en borrador, ligadas a los pedidos que atienden; no apartan existencia.',
       summary: chosen.map((c) => ({
         label: `${c.row.sku} · ${new Date(`${c.row.date}T00:00`).toLocaleDateString('es-MX')}`,
-        value: `${formatQty(c.quantity.value, c.row.uomCode)} · ${c.row.areaName ?? 'sin área'}`,
+        value: `${formatQty(c.quantity.value, c.row.uomCode)} · ${c.row.factoryName ?? 'sin fábrica'}`,
       })),
       confirmLabel: 'Generar',
     });
@@ -230,7 +226,6 @@ export class PlanPage {
           lines: chosen.map((c) => ({
             itemId: c.row.itemId,
             date: c.row.date,
-            areaId: c.row.areaId,
             shift: c.shift.value,
             quantity: c.quantity.value!,
             demandLineIds: c.row.demandLines.map((d) => d.lineId),

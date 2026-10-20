@@ -23,17 +23,6 @@ internal sealed class LocationConfiguration : IEntityTypeConfiguration<Location>
     }
 }
 
-internal sealed class ProductionAreaConfiguration : IEntityTypeConfiguration<ProductionArea>
-{
-    public void Configure(EntityTypeBuilder<ProductionArea> builder)
-    {
-        builder.ToTable("production_area", "production");
-        builder.Property(a => a.Code).HasMaxLength(20);
-        builder.Property(a => a.Name).HasMaxLength(100);
-        builder.HasIndex(a => a.Code).IsUnique();
-    }
-}
-
 internal sealed class AppSettingConfiguration : IEntityTypeConfiguration<AppSetting>
 {
     public void Configure(EntityTypeBuilder<AppSetting> builder)

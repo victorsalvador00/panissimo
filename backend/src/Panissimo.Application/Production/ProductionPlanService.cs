@@ -22,8 +22,8 @@ public sealed record ProductionPlanQuery
     /// <summary>Default: from + production.plan_default_days.</summary>
     public DateOnly? To { get; init; }
 
-    /// <summary>The product's default area.</summary>
-    public Guid? AreaId { get; init; }
+    /// <summary>RN-49: the factory of the product's active recipe.</summary>
+    public Guid? FactoryId { get; init; }
 
     /// <summary>SKU or name (contains).</summary>
     public string? Q { get; init; }
@@ -35,22 +35,22 @@ public sealed record PlanDemandLineDto(
 /// <param name="Stock">Projected stock at the start of the day.</param>
 /// <param name="OpenOrders">Pending of open OPs that cover from this day.</param>
 /// <param name="SuggestedQty">To produce (RN-70), rounded up to the production multiple.</param>
+/// <param name="FactoryId">RN-49: the factory of the product's active recipe.</param>
 public sealed record ProductionPlanRowDto(
-    Guid ItemId, string Sku, string Name, ItemType Type, ItemPresentation? Presentation, Guid? AreaId, string? AreaName, string UomCode,
+    Guid ItemId, string Sku, string Name, ItemType Type, ItemPresentation? Presentation, Guid? FactoryId, string? FactoryCode, string? FactoryName, string UomCode,
     decimal ProductionMultiple, bool HasActiveRecipe, DateOnly Date, decimal BranchOrders, decimal CustomerOrders,
     decimal StockReplenishment, decimal ParentOrders, decimal TotalDemand, decimal Stock, decimal OpenOrders, decimal SuggestedQty,
     IReadOnlyList<PlanDemandLineDto> DemandLines, long? PhotoRevision = null);
 
 public sealed record ProductionPlanDto(Guid LocationId, DateOnly From, DateOnly To, IReadOnlyList<ProductionPlanRowDto> Rows);
 
-/// <param name="AreaId">Null = the product's default area.</param>
 /// <param name="DemandLineIds">Order lines this OP serves; null = the pending order lines of the product up to the date.</param>
-public sealed record GeneratePlanLineRequest(Guid ItemId, DateOnly Date, Guid? AreaId, Shift? Shift, decimal Quantity, IReadOnlyList<Guid>? DemandLineIds);
+public sealed record GeneratePlanLineRequest(Guid ItemId, DateOnly Date, Shift? Shift, decimal Quantity, IReadOnlyList<Guid>? DemandLineIds);
 
 public sealed record GenerateProductionPlanRequest(Guid LocationId, IReadOnlyList<GeneratePlanLineRequest> Lines);
 
 public sealed record GeneratedProductionOrderDto(
-    Guid Id, string Folio, Guid ItemId, string Sku, DateOnly ScheduledDate, Guid? ProductionAreaId, Shift? Shift, decimal PlannedQty,
+    Guid Id, string Folio, Guid ItemId, string Sku, DateOnly ScheduledDate, Shift? Shift, decimal PlannedQty,
     int LinkedLines);
 
 public sealed record GenerateProductionPlanResult(IReadOnlyList<GeneratedProductionOrderDto> Orders);
@@ -142,7 +142,7 @@ public interface IProductionPlanService
     /// <summary>RN-70: a query; it saves and reserves nothing.</summary>
     Task<ProductionPlanDto> GetAsync(ProductionPlanQuery query, CancellationToken ct = default);
 
-    /// <summary>RN-71: one draft OP per product, date, area and shift, linked to the order lines it serves. All or nothing.</summary>
+    /// <summary>RN-71: one draft OP per product, date and shift, linked to the order lines it serves. All or nothing.</summary>
     Task<GenerateProductionPlanResult> GenerateAsync(GenerateProductionPlanRequest request, CancellationToken ct = default);
 }
 
@@ -156,7 +156,7 @@ public sealed class ProductionPlanService(
     public const int MaxRangeDays = 31;
 
     private sealed record PlanItem(
-        Guid Id, string Sku, string Name, ItemType Type, ItemPresentation? Presentation, Guid? AreaId, string Uom, decimal Multiple);
+        Guid Id, string Sku, string Name, ItemType Type, ItemPresentation? Presentation, string Uom, decimal Multiple);
 
     public async Task<ProductionPlanDto> GetAsync(ProductionPlanQuery query, CancellationToken ct = default)
     {
@@ -185,8 +185,8 @@ public sealed class ProductionPlanService(
         var candidateIds = demands.Select(d => d.ItemId).Concat(supplies.Select(s => s.ItemId)).Concat(settings.Keys).Distinct().ToList();
         var produced = db.Items.AsNoTracking()
             .Where(i => candidateIds.Contains(i.Id) && i.IsActive && (i.Type == ItemType.FinishedGood || i.Type == ItemType.SemiFinished));
-        if (query.AreaId is { } areaId)
-            produced = produced.Where(i => i.ProductionAreaId == areaId);
+        if (query.FactoryId is { } onlyFactory)
+            produced = produced.Where(i => db.Recipes.Any(r => r.OutputItemId == i.Id && r.IsActive && r.FactoryId == onlyFactory));
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
             var term = query.Q.Trim().ToLower();
@@ -194,44 +194,47 @@ public sealed class ProductionPlanService(
         }
         var items = await (from i in produced
                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
-                           select new PlanItem(i.Id, i.Sku, i.Name, i.Type, i.Presentation, i.ProductionAreaId, u.Code, i.ProductionMultiple))
+                           select new PlanItem(i.Id, i.Sku, i.Name, i.Type, i.Presentation, u.Code, i.ProductionMultiple))
             .ToListAsync(ct);
         var itemIds = items.Select(i => i.Id).ToList();
 
         var stock = await RecipeService.UsableStockAsync(db, query.LocationId, itemIds, today, ct);
-        var withRecipe = (await db.Recipes.AsNoTracking().Where(r => r.IsActive && itemIds.Contains(r.OutputItemId))
-            .Select(r => r.OutputItemId).ToListAsync(ct)).ToHashSet();
-        var areas = await db.ProductionAreas.AsNoTracking().ToDictionaryAsync(a => a.Id, ct);
+        var activeRecipes = await db.Recipes.AsNoTracking().Where(r => r.IsActive && itemIds.Contains(r.OutputItemId))
+            .ToDictionaryAsync(r => r.OutputItemId, r => r.FactoryId, ct);
+        var factoryIds = activeRecipes.Values.OfType<Guid>().Distinct().ToList();
+        var factories = await db.Locations.AsNoTracking().Where(l => factoryIds.Contains(l.Id))
+            .ToDictionaryAsync(l => l.Id, l => new { l.Code, l.Name }, ct);
         var photos = await db.ItemPhotos.AsNoTracking().Where(p => itemIds.Contains(p.ItemId)).Select(p => new { p.ItemId, p.Revision }).ToDictionaryAsync(p => p.ItemId, p => p.Revision, ct);
         var demandsByItem = demands.ToLookup(d => d.ItemId);
         var suppliesByItem = supplies.ToLookup(s => s.ItemId);
 
-        var rows = new List<(int AreaOrder, ProductionPlanRowDto Row)>();
+        var rows = new List<ProductionPlanRowDto>();
         foreach (var item in items)
         {
             settings.TryGetValue(item.Id, out var setting);
             var input = new PlanItemInput(item.Id, stock.GetValueOrDefault(item.Id), item.Multiple, item.Uom == UnitOfMeasure.PieceCode,
                 setting?.MinQty, setting?.MaxQty, demandsByItem[item.Id].ToList(), suppliesByItem[item.Id].ToList());
-            var area = item.AreaId is { } a ? areas.GetValueOrDefault(a) : null;
+            var hasRecipe = activeRecipes.TryGetValue(item.Id, out var factoryId);
+            var factory = factoryId is { } f ? factories[f] : null;
             foreach (var day in ProductionPlanCalculator.Calculate(input, from, to))
-                rows.Add((area?.SortOrder ?? int.MaxValue, new ProductionPlanRowDto(item.Id, item.Sku, item.Name, item.Type, item.Presentation,
-                    item.AreaId, area?.Name, item.Uom, item.Multiple, withRecipe.Contains(item.Id), day.Date, day.BranchOrders,
+                rows.Add(new ProductionPlanRowDto(item.Id, item.Sku, item.Name, item.Type, item.Presentation,
+                    factoryId, factory?.Code, factory?.Name, item.Uom, item.Multiple, hasRecipe, day.Date, day.BranchOrders,
                     day.CustomerOrders, day.StockReplenishment, day.ParentOrders, day.TotalDemand, day.StartingStock, day.OpenOrders,
                     day.SuggestedQty, day.DemandLines.Select(d => new PlanDemandLineDto(d.Type, d.SourceLineId, d.DocumentId, d.Folio,
-                        d.PartyName, d.RequiredDate, d.Quantity)).ToList(), photos.TryGetValue(item.Id, out var revision) ? revision : null)));
+                        d.PartyName, d.RequiredDate, d.Quantity)).ToList(), photos.TryGetValue(item.Id, out var revision) ? revision : null));
         }
 
         return new ProductionPlanDto(query.LocationId, from, to,
-            rows.OrderBy(r => r.Row.Date).ThenBy(r => r.AreaOrder).ThenBy(r => r.Row.Sku).Select(r => r.Row).ToList());
+            rows.OrderBy(r => r.Date).ThenBy(r => r.FactoryCode is null).ThenBy(r => r.FactoryCode).ThenBy(r => r.Sku).ToList());
     }
 
     public async Task<GenerateProductionPlanResult> GenerateAsync(GenerateProductionPlanRequest request, CancellationToken ct = default)
     {
         await EnsurePlantAsync(request.LocationId, ct);
         var itemIds = request.Lines.Select(l => l.ItemId).Distinct().ToList();
-        var items = await db.Items.AsNoTracking().Where(i => itemIds.Contains(i.Id))
-            .ToDictionaryAsync(i => i.Id, i => new { i.Sku, i.ProductionAreaId }, ct);
-        foreach (var id in itemIds.Where(id => !items.ContainsKey(id)))
+        var skus = await db.Items.AsNoTracking().Where(i => itemIds.Contains(i.Id))
+            .ToDictionaryAsync(i => i.Id, i => i.Sku, ct);
+        foreach (var id in itemIds.Where(id => !skus.ContainsKey(id)))
             throw new NotFoundException("el artículo", id);
 
         // Pending order lines that may be linked (parent OPs are never linked).
@@ -242,10 +245,10 @@ public sealed class ProductionPlanService(
                 .Where(d => d.Type != DemandType.ParentOrder && itemIds.Contains(d.ItemId)));
         var demandById = demandLines.ToDictionary(d => d.SourceLineId);
 
-        // RN-71: one OP per product, date, area and shift.
+        // RN-71: one OP per product, date and shift.
         var groups = request.Lines
-            .GroupBy(l => (l.ItemId, l.Date, AreaId: l.AreaId ?? items[l.ItemId].ProductionAreaId, l.Shift))
-            .OrderBy(g => g.Key.Date).ThenBy(g => items[g.Key.ItemId].Sku)
+            .GroupBy(l => (l.ItemId, l.Date, l.Shift))
+            .OrderBy(g => g.Key.Date).ThenBy(g => skus[g.Key.ItemId])
             .Select(g => new
             {
                 g.Key,
@@ -264,7 +267,7 @@ public sealed class ProductionPlanService(
                 if (unknown.Count > 0)
                     throw new RequestValidationException(new Dictionary<string, string[]>
                     {
-                        ["lines"] = [$"Una línea de pedido indicada para {items[group.Key.ItemId].Sku} no es de ese producto o ya no está pendiente."],
+                        ["lines"] = [$"Una línea de pedido indicada para {skus[group.Key.ItemId]} no es de ese producto o ya no está pendiente."],
                     });
                 candidates = ids.Select(id => demandById[id]).ToList();
             }
@@ -277,7 +280,7 @@ public sealed class ProductionPlanService(
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var created = await orders.CreateManyInTransactionAsync(
-            groups.Select(g => new CreateProductionOrderRequest(request.LocationId, g.Key.ItemId, g.Quantity, g.Key.Date, g.Key.AreaId, g.Key.Shift,
+            groups.Select(g => new CreateProductionOrderRequest(request.LocationId, g.Key.ItemId, g.Quantity, g.Key.Date, g.Key.Shift,
                 null)).ToList(),
             ProductionOrderSource.Plan, null, ct);
         for (var i = 0; i < created.Count; i++)
@@ -286,7 +289,7 @@ public sealed class ProductionPlanService(
         await tx.CommitAsync(ct);
 
         return new GenerateProductionPlanResult(created.Select((o, i) => new GeneratedProductionOrderDto(o.Id, o.Folio, o.OutputItemId,
-            items[o.OutputItemId].Sku, o.ScheduledDate, o.ProductionAreaId, o.Shift, o.PlannedQty, links[i].Count)).ToList());
+            skus[o.OutputItemId], o.ScheduledDate, o.Shift, o.PlannedQty, links[i].Count)).ToList());
     }
 
     /// <summary>RN-71: the OP quantity is spread over the order lines in RequiredDate order.</summary>

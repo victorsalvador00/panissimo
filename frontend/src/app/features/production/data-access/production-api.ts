@@ -98,7 +98,7 @@ export class ProductionOrdersApi {
     return this.http.get<ProductionOrder>(`production-orders/${id}`);
   }
 
-  /** A draft with the product's active recipe; the area defaults to the item's. */
+  /** A draft with the product's active recipe; it is produced at that recipe's factory (RN-49). */
   create(request: Schemas['CreateProductionOrderRequest']): Observable<ProductionOrder> {
     return this.http.post<ProductionOrder>('production-orders', request);
   }
@@ -217,7 +217,7 @@ export class ProductionPlanApi {
     return this.http.get<ProductionPlan>('production-plan', { params: httpParams(filters) });
   }
 
-  /** One draft order per product, date, area and shift, linked to the order lines it attends. All or nothing. */
+  /** One draft order per product, date and shift, linked to the order lines it attends. All or nothing. */
   generate(request: Schemas['GenerateProductionPlanRequest']): Observable<GeneratedOrder[]> {
     return this.http
       .post<Schemas['GenerateProductionPlanResult']>('production-plan/generate', request)

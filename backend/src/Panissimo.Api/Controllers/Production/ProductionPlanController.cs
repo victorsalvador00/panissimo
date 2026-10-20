@@ -16,7 +16,7 @@ public sealed class ProductionPlanController(IProductionPlanService plan) : Cont
     /// <summary>
     /// Demanda neta por producto y día: pedidos de sucursal, pedidos de cliente, reposición a stock (mín/máx) y, para
     /// semiterminados, OP padre; contra existencia utilizable y OP abiertas. Es una consulta: no guarda ni reserva nada.
-    /// Rango por omisión: hoy + production.plan_default_days. Filtros: areaId, q (SKU o nombre).
+    /// Rango por omisión: hoy + production.plan_default_days. Filtros: factoryId (fábrica de la receta activa), q (SKU o nombre).
     /// </summary>
     [HttpGet]
     [RequirePermission(Permissions.ProductionView)]
@@ -25,7 +25,7 @@ public sealed class ProductionPlanController(IProductionPlanService plan) : Cont
     public Task<ProductionPlanDto> Get([FromQuery] ProductionPlanQuery query, CancellationToken ct) => plan.GetAsync(query, ct);
 
     /// <summary>
-    /// Genera una OP en borrador por producto, fecha, área y turno (origen Plan), ligada a las líneas de pedido que atiende,
+    /// Genera una OP en borrador por producto, fecha y turno (origen Plan), ligada a las líneas de pedido que atiende,
     /// repartida por fecha requerida. Todo o nada; un producto sin receta activa lo bloquea.
     /// </summary>
     [HttpPost("generate")]

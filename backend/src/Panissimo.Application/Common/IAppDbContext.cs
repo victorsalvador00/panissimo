@@ -19,7 +19,6 @@ namespace Panissimo.Application.Common;
 public interface IAppDbContext
 {
     DbSet<Location> Locations { get; }
-    DbSet<ProductionArea> ProductionAreas { get; }
     DbSet<AppSetting> AppSettings { get; }
     DbSet<UnitOfMeasure> UnitsOfMeasure { get; }
     DbSet<ItemCategory> ItemCategories { get; }

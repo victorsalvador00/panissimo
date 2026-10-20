@@ -77,7 +77,7 @@ public class ProductionPlanTests(ApiFactory factory)
 
         var generated = await OkAsync<GenerateProductionPlanResult>(admin.PostJsonAsync("/api/v1/production-plan/generate",
             new GenerateProductionPlanRequest(plant, new[] { breadRow, packagedRow, teleraRow }
-                .Select(r => new GeneratePlanLineRequest(r.ItemId, r.Date, null, Shift.Night, r.SuggestedQty, null)).ToList())));
+                .Select(r => new GeneratePlanLineRequest(r.ItemId, r.Date, Shift.Night, r.SuggestedQty, null)).ToList())));
         Assert.Equal(3, generated.Orders.Count);
         Assert.Equal([1, 1, 0], new[] { bread.Id, packaged.Id, telera.Id }.Select(id => generated.Orders.Single(o => o.ItemId == id).LinkedLines));
 
@@ -101,7 +101,7 @@ public class ProductionPlanTests(ApiFactory factory)
         var dough = await ProducedAsync(admin, "MASA", ItemType.SemiFinished);
         var bread = await ProducedAsync(admin, "PAN", componentId: dough.Id, componentQty: 0.5m);
         await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(plant, bread.Id, 100, Today.AddDays(1), null, null, null)));
+            new CreateProductionOrderRequest(plant, bread.Id, 100, Today.AddDays(1), null, null)));
 
         var plan = await PlanAsync(admin);
         var doughRow = plan.Rows.Single(r => r.ItemId == dough.Id);
@@ -112,7 +112,7 @@ public class ProductionPlanTests(ApiFactory factory)
 
         // A parent order is not an order line: generating links nothing.
         var generated = await OkAsync<GenerateProductionPlanResult>(admin.PostJsonAsync("/api/v1/production-plan/generate",
-            new GenerateProductionPlanRequest(plant, [new GeneratePlanLineRequest(dough.Id, doughRow.Date, null, null, 50, null)])));
+            new GenerateProductionPlanRequest(plant, [new GeneratePlanLineRequest(dough.Id, doughRow.Date, null, 50, null)])));
         Assert.Equal(0, generated.Orders.Single().LinkedLines);
     }
 
@@ -130,13 +130,13 @@ public class ProductionPlanTests(ApiFactory factory)
 
         var noRecipe = await admin.PostJsonAsync("/api/v1/production-plan/generate", new GenerateProductionPlanRequest(plant,
         [
-            new GeneratePlanLineRequest(withRecipe.Id, Today.AddDays(1), null, null, 10, null),
-            new GeneratePlanLineRequest(withoutRecipe.Id, Today.AddDays(1), null, null, 10, null),
+            new GeneratePlanLineRequest(withRecipe.Id, Today.AddDays(1), null, 10, null),
+            new GeneratePlanLineRequest(withoutRecipe.Id, Today.AddDays(1), null, 10, null),
         ]));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, noRecipe.StatusCode);
 
         var foreignLine = await admin.PostJsonAsync("/api/v1/production-plan/generate", new GenerateProductionPlanRequest(plant,
-            [new GeneratePlanLineRequest(withRecipe.Id, Today.AddDays(1), null, null, 10, [order.Lines[0].Id])]));
+            [new GeneratePlanLineRequest(withRecipe.Id, Today.AddDays(1), null, 10, [order.Lines[0].Id])]));
         Assert.Equal(HttpStatusCode.BadRequest, foreignLine.StatusCode);
 
         await using var scope = factory.CreateScope();
@@ -158,7 +158,7 @@ public class ProductionPlanTests(ApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, (await supervisor.GetAsync($"/api/v1/production-plan?locationId={plant}")).StatusCode);
         var generate = await supervisor.PostJsonAsync("/api/v1/production-plan/generate",
-            new GenerateProductionPlanRequest(plant, [new GeneratePlanLineRequest(Guid.NewGuid(), Today, null, null, 1, null)]));
+            new GenerateProductionPlanRequest(plant, [new GeneratePlanLineRequest(Guid.NewGuid(), Today, null, 1, null)]));
         Assert.Equal(HttpStatusCode.Forbidden, generate.StatusCode);
 
         var atBranch = await manager.GetAsync($"/api/v1/production-plan?locationId={await factory.LocationIdAsync("SUC-01")}");
@@ -190,7 +190,7 @@ public class ProductionPlanTests(ApiFactory factory)
             var recipes = items.Select(i => new Recipe(i.Id, 1, 1, null, [new RecipeLineInput(flour.Id, 0.05m, 0)])).ToList();
             db.Recipes.AddRange(recipes);
             db.ProductionOrders.AddRange(recipes.Select((r, i) => new ProductionOrder($"PERF-OP-{tag}-{i:000}", plant,
-                new ProductionOrderPlan(r, 50, today.AddDays(i % 7), null, null, null), ProductionOrderSource.Manual, null, today)));
+                new ProductionOrderPlan(r, 50, today.AddDays(i % 7), null, null), ProductionOrderSource.Manual, null, today)));
             for (var o = 0; o < 50; o++)
             {
                 var order = new BranchOrder($"PERF-PED-{tag}-{o:00}", branch, plant, today.AddDays(o % 7), null,

@@ -40,7 +40,6 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         public const string Presentation = "presentacion";
         public const string BulkSku = "sku_granel";
         public const string UnitsPerPackage = "piezas_por_paquete";
-        public const string Area = "area";
         public const string Multiple = "multiplo_op";
         public const string Weight = "gramaje_g";
 
@@ -49,7 +48,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         public static readonly IReadOnlyList<string> All =
         [
             .. Required, PurchaseUom, Factor, TracksLots, ShelfLife, Storage, Tax, Presentation, BulkSku, UnitsPerPackage,
-            Area, Multiple, Weight,
+            Multiple, Weight,
         ];
     }
 
@@ -85,7 +84,6 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         ["presentation"] = Columns.Presentation,
         ["bulkItemId"] = Columns.BulkSku,
         ["unitsPerPackage"] = Columns.UnitsPerPackage,
-        ["productionAreaId"] = Columns.Area,
         ["productionMultiple"] = Columns.Multiple,
         ["unitWeightGrams"] = Columns.Weight,
     };
@@ -97,8 +95,7 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
 
     private sealed record Catalogs(
         IReadOnlyDictionary<string, ItemCategory> Categories,
-        IReadOnlyDictionary<string, UnitOfMeasure> Uoms,
-        IReadOnlyDictionary<string, ProductionArea> Areas);
+        IReadOnlyDictionary<string, UnitOfMeasure> Uoms);
 
     public async Task<ItemImportResult> ImportAsync(Stream csv, CancellationToken ct = default)
     {
@@ -239,22 +236,13 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
     private async Task<Catalogs> LoadCatalogsAsync(CancellationToken ct)
     {
         var categories = await db.ItemCategories.AsNoTracking().ToListAsync(ct);
-        var areas = await db.ProductionAreas.AsNoTracking().ToListAsync(ct);
 
         // "Lácteos" and "lacteos" match the same category; prefer the active one if both exist.
         var categoriesByName = categories.GroupBy(c => CsvText.Normalize(c.Name))
             .ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.IsActive).First());
-        // Areas are matched by code or by name ("BIZ-DIA" or "Bizcocho Día").
-        var areasByKey = new Dictionary<string, ProductionArea>();
-        foreach (var area in areas.OrderBy(a => a.IsActive))
-        {
-            areasByKey[CsvText.Normalize(area.Code)] = area;
-            areasByKey[CsvText.Normalize(area.Name)] = area;
-        }
 
         return new Catalogs(categoriesByName,
-            await db.UnitsOfMeasure.AsNoTracking().ToDictionaryAsync(u => u.Code, ct),
-            areasByKey);
+            await db.UnitsOfMeasure.AsNoTracking().ToDictionaryAsync(u => u.Code, ct));
     }
 
     private static void ValidateLayout(CsvDocument document)
@@ -345,24 +333,13 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         var bulkSku = row.Get(Columns.BulkSku) is { Length: > 0 } bulkText ? ItemRules.NormalizeSku(bulkText) : null;
         var unitsPerPackage = ParseInt(Columns.UnitsPerPackage, "un número entero de piezas");
 
-        Guid? areaId = null;
-        if (row.Get(Columns.Area) is { Length: > 0 } areaText)
-        {
-            if (!catalogs.Areas.TryGetValue(CsvText.Normalize(areaText), out var area))
-                Error(Columns.Area, $"El área '{areaText}' no existe. Usa el código o el nombre de un área de producción.");
-            else if (!area.IsActive)
-                Error(Columns.Area, $"El área '{areaText}' está inactiva.");
-            else
-                areaId = area.Id;
-        }
-
         var multiple = ParseDecimal(Columns.Multiple);
         var weight = ParseDecimal(Columns.Weight);
 
         return errors.Count > before
             ? null
             : new ParsedRow(row.Line, new ItemDefinition(row.Get(Columns.Sku), row.Get(Columns.Name), type, categoryId,
-                baseUomId, purchaseUomId, factor, tracksLots, shelfLife, storage, taxRate, presentation, null, unitsPerPackage, areaId,
+                baseUomId, purchaseUomId, factor, tracksLots, shelfLife, storage, taxRate, presentation, null, unitsPerPackage,
                 multiple, weight), bulkSku);
 
         Guid? ResolveUom(string column, string label)

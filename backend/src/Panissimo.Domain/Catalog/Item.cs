@@ -41,7 +41,6 @@ public sealed record ItemDefinition(
     ItemPresentation? Presentation = null,
     Guid? BulkItemId = null,
     int? UnitsPerPackage = null,
-    Guid? ProductionAreaId = null,
     decimal? ProductionMultiple = null,
     decimal? UnitWeightGrams = null);
 
@@ -57,7 +56,7 @@ public static partial class ItemRules
 
     public static string NormalizeSku(string sku) => sku.Trim().ToUpperInvariant();
 
-    /// <summary>Produced with a production order and may have a default area.</summary>
+    /// <summary>Produced with a production order.</summary>
     public static bool IsProduced(ItemType type) => type is ItemType.SemiFinished or ItemType.FinishedGood;
 
     /// <summary>Returns (field, Spanish message) for every broken rule; empty when valid.</summary>
@@ -104,9 +103,6 @@ public static partial class ItemRules
             errors.Add(("unitsPerPackage", "Las piezas por paquete solo aplican a productos empaquetados."));
         if (item.UnitsPerPackage is <= 0)
             errors.Add(("unitsPerPackage", "Las piezas por paquete deben ser mayores que 0."));
-
-        if (!IsProduced(item.Type) && item.ProductionAreaId is not null)
-            errors.Add(("productionAreaId", "Solo los semiterminados y productos terminados tienen área de producción."));
 
         if (item.ProductionMultiple is { } multiple)
         {
@@ -167,9 +163,6 @@ public class Item : AuditableEntity, IVersioned
 
     public int? UnitsPerPackage { get; private set; }
 
-    /// <summary>Default area of its production orders.</summary>
-    public Guid? ProductionAreaId { get; private set; }
-
     /// <summary>The production plan rounds up to this multiple (RN-70).</summary>
     public decimal ProductionMultiple { get; private set; }
 
@@ -202,7 +195,6 @@ public class Item : AuditableEntity, IVersioned
         Presentation = d.Presentation;
         BulkItemId = d.BulkItemId;
         UnitsPerPackage = d.UnitsPerPackage;
-        ProductionAreaId = d.ProductionAreaId;
         ProductionMultiple = d.ProductionMultiple ?? 1m;
         UnitWeightGrams = d.UnitWeightGrams;
     }

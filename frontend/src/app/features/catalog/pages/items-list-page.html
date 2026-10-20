@@ -54,15 +54,6 @@
       }
     </mat-select>
   </mat-form-field>
-  <mat-form-field>
-    <mat-label>Área</mat-label>
-    <mat-select [value]="filters().areaId ?? null" (valueChange)="setFilter('areaId', $event)">
-      <mat-option [value]="null">Todas</mat-option>
-      @for (area of areas.value(); track area.id) {
-        <mat-option [value]="area.id">{{ area.name }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
   <mat-slide-toggle
     [checked]="!!filters().includeInactive"
     (change)="setFilter('includeInactive', $event.checked)"
@@ -105,9 +96,6 @@
   </ng-template>
   <ng-template appCell="unit" header="Unidad" [appCellOf]="rows()" let-item>
     {{ item.baseUomCode }}
-  </ng-template>
-  <ng-template appCell="area" header="Área" [appCellOf]="rows()" let-item>
-    {{ item.productionAreaName ?? '—' }}
   </ng-template>
   <ng-template appCell="status" header="Estado" [appCellOf]="rows()" let-item>
     <app-status-tag

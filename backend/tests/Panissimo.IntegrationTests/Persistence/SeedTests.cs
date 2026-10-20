@@ -28,16 +28,14 @@ public class SeedTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Seed_creates_units_areas_and_settings_with_defaults()
+    public async Task Seed_creates_units_and_settings_with_defaults()
     {
         await using var scope = factory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        // Other tests of the collection add their own units and areas.
+        // Other tests of the collection add their own units.
         var units = await db.UnitsOfMeasure.Select(u => u.Code).ToListAsync();
         Assert.All(DatabaseSeeder.UnitsOfMeasure, u => Assert.Contains(u.Code, units));
-        var areas = await db.ProductionAreas.Select(a => a.Code).ToListAsync();
-        Assert.All(DatabaseSeeder.ProductionAreas, a => Assert.Contains(a.Code, areas));
 
         var settings = await db.AppSettings.AsNoTracking().ToDictionaryAsync(s => s.Key, s => s.DecimalValue);
         Assert.Equal(SettingDefinitions.All.Count, settings.Count);
@@ -74,8 +72,8 @@ public class SeedTests(ApiFactory factory)
         await using (var scope = factory.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var area = await db.ProductionAreas.SingleAsync(a => a.Code == "RONDO");
-            area.Update("Rondo (editada)", area.SortOrder);
+            var box = await db.UnitsOfMeasure.SingleAsync(u => u.Code == "caja");
+            box.Update("Caja (editada)", box.Kind);
             await db.SaveChangesAsync();
         }
 
@@ -83,15 +81,15 @@ public class SeedTests(ApiFactory factory)
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var before = (await db.Locations.CountAsync(), await db.Roles.CountAsync(), await db.RolePermissions.CountAsync(),
-                await db.Users.CountAsync(), await db.ProductionAreas.CountAsync(), await db.AppSettings.CountAsync());
+                await db.Users.CountAsync(), await db.UnitsOfMeasure.CountAsync(), await db.AppSettings.CountAsync());
 
             await scope.ServiceProvider.GetRequiredService<DatabaseSeeder>().SeedAsync();
             await scope.ServiceProvider.GetRequiredService<DatabaseSeeder>().SeedAsync();
 
             var after = (await db.Locations.CountAsync(), await db.Roles.CountAsync(), await db.RolePermissions.CountAsync(),
-                await db.Users.CountAsync(), await db.ProductionAreas.CountAsync(), await db.AppSettings.CountAsync());
+                await db.Users.CountAsync(), await db.UnitsOfMeasure.CountAsync(), await db.AppSettings.CountAsync());
             Assert.Equal(before, after);
-            Assert.Equal("Rondo (editada)", (await db.ProductionAreas.AsNoTracking().SingleAsync(a => a.Code == "RONDO")).Name);
+            Assert.Equal("Caja (editada)", (await db.UnitsOfMeasure.AsNoTracking().SingleAsync(u => u.Code == "caja")).Name);
         }
     }
 }

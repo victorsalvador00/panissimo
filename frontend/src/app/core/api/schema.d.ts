@@ -6283,7 +6283,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Plantilla .xlsx con la hoja OP (fecha, sku, cantidad, area, turno, ubicacion, notas) e instrucciones. */
+    /** Plantilla .xlsx con la hoja OP (fecha, sku, cantidad, turno, ubicacion, notas) e instrucciones. */
     get: {
       parameters: {
         query?: never;
@@ -6637,7 +6637,7 @@ export interface paths {
     };
     /**
      * Órdenes con avance (producido, % y número de cierres). Filtros: tab (ToProduce, InProgress, Drafts, All), status,
-     *     locationId, from, to (fecha programada), areaId, shift, source, importId, outputItemId, q (folio, SKU o nombre).
+     *     locationId, from, to (fecha programada), factoryId (fábrica de la receta), shift, source, importId, outputItemId, q (folio, SKU o nombre).
      */
     get: {
       parameters: {
@@ -6647,7 +6647,7 @@ export interface paths {
           LocationId?: string;
           From?: string;
           To?: string;
-          AreaId?: string;
+          FactoryId?: string;
           Shift?: components['schemas']['Shift'];
           Source?: components['schemas']['ProductionOrderSource'];
           ImportId?: string;
@@ -6700,7 +6700,7 @@ export interface paths {
       };
     };
     put?: never;
-    /** Crea una orden en borrador (RN-73, origen Manual) con la receta activa del producto; área por omisión la del artículo. */
+    /** Crea una orden en borrador (RN-73, origen Manual) con la receta activa del producto; se produce en la fábrica de esa receta (RN-49). */
     post: {
       parameters: {
         query?: never;
@@ -7465,14 +7465,14 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Cierres de la Planta. Filtros: locationId, from, to (fecha de negocio), areaId, itemId, productionOrderId, kind, q. */
+    /** Cierres de la Planta. Filtros: locationId, from, to (fecha de negocio), factoryId (fábrica de la receta), itemId, productionOrderId, kind, q. */
     get: {
       parameters: {
         query?: {
           LocationId?: string;
           From?: string;
           To?: string;
-          AreaId?: string;
+          FactoryId?: string;
           ItemId?: string;
           ProductionOrderId?: string;
           Kind?: components['schemas']['ProductionCloseKind'];
@@ -7614,7 +7614,7 @@ export interface paths {
     /**
      * Demanda neta por producto y día: pedidos de sucursal, pedidos de cliente, reposición a stock (mín/máx) y, para
      *     semiterminados, OP padre; contra existencia utilizable y OP abiertas. Es una consulta: no guarda ni reserva nada.
-     *     Rango por omisión: hoy + production.plan_default_days. Filtros: areaId, q (SKU o nombre).
+     *     Rango por omisión: hoy + production.plan_default_days. Filtros: factoryId (fábrica de la receta activa), q (SKU o nombre).
      */
     get: {
       parameters: {
@@ -7622,7 +7622,7 @@ export interface paths {
           LocationId?: string;
           From?: string;
           To?: string;
-          AreaId?: string;
+          FactoryId?: string;
           Q?: string;
         };
         header?: never;
@@ -7706,7 +7706,7 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Genera una OP en borrador por producto, fecha, área y turno (origen Plan), ligada a las líneas de pedido que atiende,
+     * Genera una OP en borrador por producto, fecha y turno (origen Plan), ligada a las líneas de pedido que atiende,
      *     repartida por fecha requerida. Todo o nada; un producto sin receta activa lo bloquea.
      */
     post: {
@@ -7806,7 +7806,7 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Resumen de producción (RN-53) por área, producto o día en un rango (máx. 366 días): planeado (OP del rango no
+     * Resumen de producción (RN-53) por fábrica, producto o día en un rango (máx. 366 días): planeado (OP del rango no
      *     canceladas), producido (cierres del rango), % de cumplimiento, costo producido y merma en pesos (RN-13). Un renglón
      *     por unidad: nunca suma kg con piezas.
      */
@@ -13976,279 +13976,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/production-areas': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Áreas (cuadrillas) de la planta, en su orden. Activas por defecto. */
-    get: {
-      parameters: {
-        query?: {
-          IncludeInactive?: boolean;
-          Page?: number;
-          PageSize?: number;
-          Sort?: string;
-          Q?: string;
-          Skip?: number;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['PagedResultOfProductionAreaDto'];
-            'application/json': components['schemas']['PagedResultOfProductionAreaDto'];
-            'text/json': components['schemas']['PagedResultOfProductionAreaDto'];
-          };
-        };
-        /** @description Unauthorized */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-      };
-    };
-    put?: never;
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['CreateProductionAreaRequest'];
-          'text/json': components['schemas']['CreateProductionAreaRequest'];
-          'application/*+json': components['schemas']['CreateProductionAreaRequest'];
-        };
-      };
-      responses: {
-        /** @description Created */
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProductionAreaDto'];
-            'application/json': components['schemas']['ProductionAreaDto'];
-            'text/json': components['schemas']['ProductionAreaDto'];
-          };
-        };
-        /** @description Bad Request */
-        400: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-        /** @description Unauthorized */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-      };
-    };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/v1/production-areas/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProductionAreaDto'];
-            'application/json': components['schemas']['ProductionAreaDto'];
-            'text/json': components['schemas']['ProductionAreaDto'];
-          };
-        };
-        /** @description Unauthorized */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-        /** @description Not Found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-      };
-    };
-    /** Edita nombre, orden y estado. El código no cambia. */
-    put: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody: {
-        content: {
-          'application/json': components['schemas']['UpdateProductionAreaRequest'];
-          'text/json': components['schemas']['UpdateProductionAreaRequest'];
-          'application/*+json': components['schemas']['UpdateProductionAreaRequest'];
-        };
-      };
-      responses: {
-        /** @description OK */
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProductionAreaDto'];
-            'application/json': components['schemas']['ProductionAreaDto'];
-            'text/json': components['schemas']['ProductionAreaDto'];
-          };
-        };
-        /** @description Unauthorized */
-        401: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-        /** @description Forbidden */
-        403: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-        /** @description Not Found */
-        404: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-        /** @description Conflict */
-        409: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'text/plain': components['schemas']['ProblemDetails'];
-            'application/json': components['schemas']['ProblemDetails'];
-            'text/json': components['schemas']['ProblemDetails'];
-          };
-        };
-      };
-    };
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/v1/items': {
     parameters: {
       query?: never;
@@ -14256,14 +13983,13 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Lista paginada. Filtros: q (SKU o nombre), type, presentation, categoryId, areaId, bulkItemId, includeInactive. */
+    /** Lista paginada. Filtros: q (SKU o nombre), type, presentation, categoryId, bulkItemId, includeInactive. */
     get: {
       parameters: {
         query?: {
           Type?: components['schemas']['ItemType'];
           Presentation?: components['schemas']['ItemPresentation'];
           CategoryId?: string;
-          AreaId?: string;
           BulkItemId?: string;
           IncludeInactive?: boolean;
           Page?: number;
@@ -14395,7 +14121,6 @@ export interface paths {
           Q?: string;
           Type?: components['schemas']['ItemType'];
           Presentation?: components['schemas']['ItemPresentation'];
-          AreaId?: string;
           Id?: string;
           Limit?: number;
         };
@@ -15867,7 +15592,6 @@ export interface components {
      *       "presentation": "Packaged",
      *       "bulkItemId": "0199a1b2-0000-7000-8000-0000000000d9",
      *       "unitsPerPackage": 6,
-     *       "productionAreaId": "0199a1b2-0000-7000-8000-0000000000e1",
      *       "productionMultiple": 6,
      *       "unitWeightGrams": 85
      *     }
@@ -15895,8 +15619,6 @@ export interface components {
       bulkItemId: null | string;
       /** Format: int32 */
       unitsPerPackage: null | number;
-      /** Format: uuid */
-      productionAreaId: null | string;
       /** Format: double */
       productionMultiple: null | number;
       /** Format: double */
@@ -15931,19 +15653,6 @@ export interface components {
       /** Format: uuid */
       categoryId: null | string;
       notes: null | string;
-    };
-    /**
-     * @example {
-     *       "code": "HOJ-NOC",
-     *       "name": "Hojaldre Noche",
-     *       "sortOrder": 120
-     *     }
-     */
-    CreateProductionAreaRequest: {
-      code: string;
-      name: string;
-      /** Format: int32 */
-      sortOrder: number;
     };
     /**
      * @example {
@@ -15995,7 +15704,6 @@ export interface components {
      *       "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9",
      *       "plannedQty": 3200,
      *       "scheduledDate": "2026-10-17",
-     *       "productionAreaId": null,
      *       "shift": "Night",
      *       "notes": "Pedido de fin de semana"
      *     }
@@ -16009,8 +15717,6 @@ export interface components {
       plannedQty: number;
       /** Format: date */
       scheduledDate: string;
-      /** Format: uuid */
-      productionAreaId: null | string;
       shift: null | components['schemas']['Shift'];
       notes: null | string;
       sources?: null | components['schemas']['ComponentSourceRequest'][];
@@ -16106,7 +15812,7 @@ export interface components {
     /**
      * @example {
      *       "name": "Líder de línea",
-     *       "description": "Cierres de producción de su área",
+     *       "description": "Cierres de producción de su fábrica",
      *       "permissions": [
      *         "production.view",
      *         "production.orders.close"
@@ -16812,8 +16518,6 @@ export interface components {
       sku: string;
       /** Format: date */
       scheduledDate: string;
-      /** Format: uuid */
-      productionAreaId: null | string;
       shift: null | components['schemas']['Shift'];
       /** Format: double */
       plannedQty: number;
@@ -16825,8 +16529,6 @@ export interface components {
       itemId: string;
       /** Format: date */
       date: string;
-      /** Format: uuid */
-      areaId: null | string;
       shift: null | components['schemas']['Shift'];
       /** Format: double */
       quantity: number;
@@ -16839,7 +16541,6 @@ export interface components {
      *         {
      *           "itemId": "0199a1b2-0000-7000-8000-0000000000d1",
      *           "date": "2026-10-18",
-     *           "areaId": null,
      *           "shift": "Night",
      *           "quantity": 1200,
      *           "demandLineIds": null
@@ -16847,7 +16548,6 @@ export interface components {
      *         {
      *           "itemId": "0199a1b2-0000-7000-8000-0000000000d3",
      *           "date": "2026-10-18",
-     *           "areaId": null,
      *           "shift": null,
      *           "quantity": 96,
      *           "demandLineIds": [
@@ -16961,7 +16661,7 @@ export interface components {
       scheduledDate: string;
       /** Format: double */
       plannedQty: number;
-      areaName: null | string;
+      factoryName: null | string;
       shift: null | components['schemas']['Shift'];
       status: components['schemas']['ProductionOrderStatus'];
     };
@@ -16982,9 +16682,7 @@ export interface components {
       itemId: string;
       sku: string;
       name: string;
-      /** Format: uuid */
-      productionAreaId: null | string;
-      areaName: null | string;
+      factoryName: null | string;
       shift: null | components['schemas']['Shift'];
       /** Format: double */
       quantity: number;
@@ -17059,8 +16757,6 @@ export interface components {
       bulkItemName: null | string;
       /** Format: int32 */
       unitsPerPackage: null | number;
-      /** Format: uuid */
-      productionAreaId: null | string;
       /** Format: double */
       productionMultiple: number;
       /** Format: double */
@@ -17094,9 +16790,6 @@ export interface components {
       categoryId: string;
       categoryName: string;
       baseUomCode: string;
-      /** Format: uuid */
-      productionAreaId: null | string;
-      productionAreaName: null | string;
       tracksLots: boolean;
       storageCondition: components['schemas']['StorageCondition'];
       isActive: boolean;
@@ -17132,8 +16825,6 @@ export interface components {
       tracksLots: boolean;
       /** Format: int32 */
       shelfLifeDays: null | number;
-      /** Format: uuid */
-      productionAreaId: null | string;
       /** Format: int64 */
       photoRevision: null | number;
     };
@@ -17472,15 +17163,6 @@ export interface components {
       /** Format: int32 */
       total: number;
     };
-    PagedResultOfProductionAreaDto: {
-      items: components['schemas']['ProductionAreaDto'][];
-      /** Format: int32 */
-      page: number;
-      /** Format: int32 */
-      pageSize: number;
-      /** Format: int32 */
-      total: number;
-    };
     PagedResultOfProductionCloseListItemDto: {
       items: components['schemas']['ProductionCloseListItemDto'][];
       /** Format: int32 */
@@ -17711,17 +17393,6 @@ export interface components {
       detail?: null | string;
       instance?: null | string;
     };
-    ProductionAreaDto: {
-      /** Format: uuid */
-      id: string;
-      code: string;
-      name: string;
-      /** Format: int32 */
-      sortOrder: number;
-      isActive: boolean;
-      /** Format: uint32 */
-      version: number;
-    };
     ProductionCloseDto: {
       /** Format: uuid */
       id: string;
@@ -17741,8 +17412,9 @@ export interface components {
       itemName: string;
       baseUomCode: string;
       /** Format: uuid */
-      productionAreaId: null | string;
-      productionAreaName: null | string;
+      factoryId: null | string;
+      factoryCode: null | string;
+      factoryName: null | string;
       /** Format: double */
       producedQty: number;
       exceedsTolerance: boolean;
@@ -17812,8 +17484,9 @@ export interface components {
       itemName: string;
       baseUomCode: string;
       /** Format: uuid */
-      productionAreaId: null | string;
-      productionAreaName: null | string;
+      factoryId: null | string;
+      factoryCode: null | string;
+      factoryName: null | string;
       shift: null | components['schemas']['Shift'];
       kind: components['schemas']['ProductionCloseKind'];
       /** Format: int32 */
@@ -17907,9 +17580,6 @@ export interface components {
       exceedsTolerance: boolean;
       /** Format: date */
       scheduledDate: string;
-      /** Format: uuid */
-      productionAreaId: null | string;
-      productionAreaName: null | string;
       shift: null | components['schemas']['Shift'];
       source: components['schemas']['ProductionOrderSource'];
       /** Format: uuid */
@@ -18023,8 +17693,9 @@ export interface components {
       /** Format: date */
       scheduledDate: string;
       /** Format: uuid */
-      productionAreaId: null | string;
-      productionAreaName: null | string;
+      factoryId: null | string;
+      factoryCode: null | string;
+      factoryName: null | string;
       shift: null | components['schemas']['Shift'];
       source: components['schemas']['ProductionOrderSource'];
       /** Format: uuid */
@@ -18066,8 +17737,9 @@ export interface components {
       type: components['schemas']['ItemType'];
       presentation: null | components['schemas']['ItemPresentation'];
       /** Format: uuid */
-      areaId: null | string;
-      areaName: null | string;
+      factoryId: null | string;
+      factoryCode: null | string;
+      factoryName: null | string;
       uomCode: string;
       /** Format: double */
       productionMultiple: number;
@@ -18109,7 +17781,7 @@ export interface components {
       wasteCost: number;
     };
     /** @enum {unknown} */
-    ProductionSummaryGroupBy: 'Area' | 'Item' | 'Day';
+    ProductionSummaryGroupBy: 'Factory' | 'Item' | 'Day';
     ProductionSummaryRowDto: {
       /** Format: uuid */
       key: null | string;
@@ -18133,8 +17805,8 @@ export interface components {
     };
     ProductionTodayRowDto: {
       /** Format: uuid */
-      areaId: null | string;
-      areaName: string;
+      factoryId: null | string;
+      factoryName: string;
       baseUomCode: string;
       /** Format: int32 */
       orders: number;
@@ -18933,7 +18605,7 @@ export interface components {
       /** Format: date */
       scheduledDate: string;
       shift: null | components['schemas']['Shift'];
-      areaName: null | string;
+      factoryName: null | string;
       recipeName: string;
       /** Format: int32 */
       recipeVersion: number;
@@ -19510,7 +19182,6 @@ export interface components {
      *       "presentation": null,
      *       "bulkItemId": null,
      *       "unitsPerPackage": null,
-     *       "productionAreaId": null,
      *       "productionMultiple": 1,
      *       "unitWeightGrams": null,
      *       "isActive": true
@@ -19541,8 +19212,6 @@ export interface components {
       bulkItemId: null | string;
       /** Format: int32 */
       unitsPerPackage: null | number;
-      /** Format: uuid */
-      productionAreaId: null | string;
       /** Format: double */
       productionMultiple: null | number;
       /** Format: double */
@@ -19601,26 +19270,9 @@ export interface components {
     /**
      * @example {
      *       "version": 1234,
-     *       "name": "Hojaldre Noche",
-     *       "sortOrder": 120,
-     *       "isActive": true
-     *     }
-     */
-    UpdateProductionAreaRequest: {
-      /** Format: uint32 */
-      version: number;
-      name: string;
-      /** Format: int32 */
-      sortOrder: number;
-      isActive: boolean;
-    };
-    /**
-     * @example {
-     *       "version": 1234,
      *       "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9",
      *       "plannedQty": 3000,
      *       "scheduledDate": "2026-10-17",
-     *       "productionAreaId": "0199a1b2-0000-7000-8000-0000000000e1",
      *       "shift": "Night",
      *       "notes": null
      *     }
@@ -19634,8 +19286,6 @@ export interface components {
       plannedQty: number;
       /** Format: date */
       scheduledDate: string;
-      /** Format: uuid */
-      productionAreaId: null | string;
       shift: null | components['schemas']['Shift'];
       notes: null | string;
       sources?: null | components['schemas']['ComponentSourceRequest'][];

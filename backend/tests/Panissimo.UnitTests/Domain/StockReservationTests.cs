@@ -68,7 +68,7 @@ public class StockReservationTests
         var recipe = new Recipe(Guid.NewGuid(), 1, 100, null, [new RecipeLineInput(Flour, 5, 0), new RecipeLineInput(Sugar, 1, 0)]);
         var other = Guid.NewGuid();
         var order = new ProductionOrder("OP-000001", Guid.NewGuid(),
-            new ProductionOrderPlan(recipe, 200, new DateOnly(2026, 10, 20), null, null, null, new Dictionary<Guid, Guid> { [Sugar] = other }),
+            new ProductionOrderPlan(recipe, 200, new DateOnly(2026, 10, 20), null, null, new Dictionary<Guid, Guid> { [Sugar] = other }),
             ProductionOrderSource.Manual, null, new DateOnly(2026, 10, 19));
 
         order.AssignMissingSources(component => component == Flour ? RawMaterials : null);

@@ -56,8 +56,6 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
             items = items.Where(i => i.Presentation == presentation);
         if (query.CategoryId is { } categoryId)
             items = items.Where(i => i.CategoryId == categoryId);
-        if (query.AreaId is { } areaId)
-            items = items.Where(i => i.ProductionAreaId == areaId);
         if (query.BulkItemId is { } bulkItemId)
             items = items.Where(i => i.BulkItemId == bulkItemId);
         if (query.SearchTerm() is { } term)
@@ -65,20 +63,17 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
 
         var page = await items.ApplySort(query.Sort, SortColumns, "name").ToPagedResultAsync(query, ct);
 
-        // Categories, units and areas are small catalogs: resolve the page's names in three queries.
+        // Categories and units are small catalogs: resolve the page's names in two queries.
         var categoryIds = page.Items.Select(i => i.CategoryId).Distinct().ToList();
         var uomIds = page.Items.Select(i => i.BaseUomId).Distinct().ToList();
-        var areaIds = page.Items.Select(i => i.ProductionAreaId).OfType<Guid>().Distinct().ToList();
         var categories = await db.ItemCategories.Where(c => categoryIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Name, ct);
         var uoms = await db.UnitsOfMeasure.Where(u => uomIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Code, ct);
-        var areas = await db.ProductionAreas.Where(a => areaIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Name, ct);
         var itemIds = page.Items.Select(i => i.Id).ToList();
         var photos = await db.ItemPhotos.Where(p => itemIds.Contains(p.ItemId)).Select(p => new { p.ItemId, p.Revision }).ToDictionaryAsync(p => p.ItemId, p => p.Revision, ct);
 
         return new PagedResult<ItemListItemDto>(
             page.Items.Select(i => new ItemListItemDto(i.Id, i.Sku, i.Name, i.Type, i.Presentation, i.CategoryId,
-                categories[i.CategoryId], uoms[i.BaseUomId], i.ProductionAreaId,
-                i.ProductionAreaId is { } a ? areas.GetValueOrDefault(a) : null, i.TracksLots, i.StorageCondition, i.IsActive,
+                categories[i.CategoryId], uoms[i.BaseUomId], i.TracksLots, i.StorageCondition, i.IsActive,
                 photos.TryGetValue(i.Id, out var revision) ? revision : null)).ToList(),
             page.Page, page.PageSize, page.Total);
     }
@@ -94,8 +89,6 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
             items = items.Where(i => i.Type == type);
         if (query.Presentation is { } presentation)
             items = items.Where(i => i.Presentation == presentation);
-        if (query.AreaId is { } areaId)
-            items = items.Where(i => i.ProductionAreaId == areaId);
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
             var term = query.Q.Trim().ToLower();
@@ -107,7 +100,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
                       join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                       orderby i.Sku
                       select new ItemLookupDto(i.Id, i.Sku, i.Name, i.Type, i.Presentation, u.Code, i.TracksLots,
-                          i.ShelfLifeDays, i.ProductionAreaId,
+                          i.ShelfLifeDays,
                           db.ItemPhotos.Where(p => p.ItemId == i.Id).Select(p => (long?)p.Revision).FirstOrDefault()))
             .Take(limit)
             .ToListAsync(ct);
@@ -191,7 +184,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
     }
 
     /// <summary>
-    /// SKU unique; category, units and area must exist and be active (the current ones may stay even if deactivated);
+    /// SKU unique; category and units must exist and be active (the current ones may stay even if deactivated);
     /// the bulk link must point to an active bulk finished good; a bulk item with packaged versions stays bulk.
     /// </summary>
     private async Task ValidateReferencesAsync(ItemDefinition d, Item? current, CancellationToken ct)
@@ -202,7 +195,6 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         var currentCategoryId = current?.CategoryId;
         var currentBaseUomId = current?.BaseUomId;
         var currentPurchaseUomId = current?.PurchaseUomId;
-        var currentAreaId = current?.ProductionAreaId;
 
         if (await db.Items.AnyAsync(i => i.Sku == sku && i.Id != currentId, ct))
             errors["sku"] = [$"El SKU '{sku}' ya existe."];
@@ -220,10 +212,6 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
         if (d.PurchaseUomId is { } purchaseUomId
             && !await db.UnitsOfMeasure.AnyAsync(u => u.Id == purchaseUomId && (u.IsActive || u.Id == currentPurchaseUomId), ct))
             errors["purchaseUomId"] = ["La unidad de compra no existe o está inactiva."];
-
-        if (d.ProductionAreaId is { } areaId
-            && !await db.ProductionAreas.AnyAsync(a => a.Id == areaId && (a.IsActive || a.Id == currentAreaId), ct))
-            errors["productionAreaId"] = ["El área de producción no existe o está inactiva."];
 
         if (d.BulkItemId is { } bulkItemId && d.BulkItemId != current?.BulkItemId)
         {
@@ -252,7 +240,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
 
         return new ItemDto(i.Id, i.Sku, i.Name, i.Type, i.CategoryId, i.BaseUomId, baseUomCode, i.PurchaseUomId,
             i.PurchaseToBaseFactor, i.TracksLots, i.ShelfLifeDays, i.StorageCondition, i.TaxRate, i.Presentation,
-            i.BulkItemId, bulk?.Sku, bulk?.Name, i.UnitsPerPackage, i.ProductionAreaId, i.ProductionMultiple, i.UnitWeightGrams,
+            i.BulkItemId, bulk?.Sku, bulk?.Name, i.UnitsPerPackage, i.ProductionMultiple, i.UnitWeightGrams,
             i.IsActive, i.CreatedAt, names.Of(i.CreatedBy), i.UpdatedAt, names.Of(i.UpdatedBy), i.Version, photoRevision);
     }
 

@@ -23,7 +23,7 @@ export const base = {
   /** Supply, pza, without lots (purchase unit "paq" of 100). */
   bag: 'IN-002',
   bagName: 'Bolsa Empaquetado',
-  /** Finished good, bulk, pza, with lots (2 days), area Repostería, recipe v1 of 20 pza made at FABRICA-PT. */
+  /** Finished good, bulk, pza, with lots (2 days), recipe v1 of 20 pza made at FABRICA-PT. */
   donut: 'PT-020-DONA',
   donutName: 'Dona a granel',
   /** Finished good, packaged version of the donut. */

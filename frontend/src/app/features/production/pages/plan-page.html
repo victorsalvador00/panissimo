@@ -22,15 +22,17 @@
       <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
       <mat-datepicker #toPicker />
     </mat-form-field>
-    <mat-form-field>
-      <mat-label>Área</mat-label>
-      <mat-select formControlName="areaId">
-        <mat-option [value]="null">Todas</mat-option>
-        @for (area of areas.value(); track area.id) {
-          <mat-option [value]="area.id">{{ area.name }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+    @if (factories().length > 0) {
+      <mat-form-field>
+        <mat-label>Fábrica</mat-label>
+        <mat-select formControlName="factoryId">
+          <mat-option [value]="null">Todas</mat-option>
+          @for (factory of factories(); track factory.id) {
+            <mat-option [value]="factory.id">{{ factory.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    }
     <mat-form-field class="search">
       <mat-label>Buscar por SKU o producto</mat-label>
       <input matInput type="search" formControlName="q" />
@@ -82,8 +84,8 @@
       [attr.aria-label]="'Plan del ' + (group.date | date: 'dd/MM/yyyy')"
     >
       <h2>{{ group.date | date: "EEEE d 'de' MMMM" }}</h2>
-      @for (area of group.areas; track area.areaName) {
-        <h3>{{ area.areaName }}</h3>
+      @for (factory of group.factories; track factory.factoryName) {
+        <h3>{{ factory.factoryName }}</h3>
         <div class="table-wrap">
           <table>
             <thead>
@@ -103,7 +105,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of area.rows; track key(row)) {
+              @for (row of factory.rows; track key(row)) {
                 <tr [class.todo]="row.suggestedQty > 0">
                   <td class="check">
                     @if (selectable(row)) {

@@ -34,7 +34,6 @@ public sealed record ItemListQuery : CatalogListQuery
     public ItemType? Type { get; init; }
     public ItemPresentation? Presentation { get; init; }
     public Guid? CategoryId { get; init; }
-    public Guid? AreaId { get; init; }
 
     /// <summary>Packaged versions of a bulk item.</summary>
     public Guid? BulkItemId { get; init; }
@@ -49,7 +48,6 @@ public sealed record ItemLookupQuery
     public string? Q { get; init; }
     public ItemType? Type { get; init; }
     public ItemPresentation? Presentation { get; init; }
-    public Guid? AreaId { get; init; }
 
     /// <summary>One specific item (e.g. to show a filter that arrives by URL), even if inactive.</summary>
     public Guid? Id { get; init; }
@@ -65,7 +63,6 @@ public sealed record ItemLookupDto(
     string BaseUomCode,
     bool TracksLots,
     int? ShelfLifeDays,
-    Guid? ProductionAreaId,
     long? PhotoRevision);
 
 public sealed record ItemListItemDto(
@@ -77,8 +74,6 @@ public sealed record ItemListItemDto(
     Guid CategoryId,
     string CategoryName,
     string BaseUomCode,
-    Guid? ProductionAreaId,
-    string? ProductionAreaName,
     bool TracksLots,
     StorageCondition StorageCondition,
     bool IsActive,
@@ -103,7 +98,6 @@ public sealed record ItemDto(
     string? BulkItemSku,
     string? BulkItemName,
     int? UnitsPerPackage,
-    Guid? ProductionAreaId,
     decimal ProductionMultiple,
     decimal? UnitWeightGrams,
     bool IsActive,
@@ -129,13 +123,12 @@ public sealed record CreateItemRequest(
     ItemPresentation? Presentation,
     Guid? BulkItemId,
     int? UnitsPerPackage,
-    Guid? ProductionAreaId,
     decimal? ProductionMultiple,
     decimal? UnitWeightGrams)
 {
     public ItemDefinition ToDefinition() => new(Sku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
         PurchaseToBaseFactor, TracksLots, ShelfLifeDays, StorageCondition, TaxRate, Presentation, BulkItemId,
-        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams);
+        UnitsPerPackage, ProductionMultiple, UnitWeightGrams);
 }
 
 public sealed record UpdateItemRequest(
@@ -154,14 +147,13 @@ public sealed record UpdateItemRequest(
     ItemPresentation? Presentation,
     Guid? BulkItemId,
     int? UnitsPerPackage,
-    Guid? ProductionAreaId,
     decimal? ProductionMultiple,
     decimal? UnitWeightGrams,
     bool IsActive)
 {
     public ItemDefinition ToDefinition() => new(Sku, Name, Type, CategoryId, BaseUomId, PurchaseUomId,
         PurchaseToBaseFactor, TracksLots, ShelfLifeDays, StorageCondition, TaxRate, Presentation, BulkItemId,
-        UnitsPerPackage, ProductionAreaId, ProductionMultiple, UnitWeightGrams);
+        UnitsPerPackage, ProductionMultiple, UnitWeightGrams);
 }
 
 // Min/max per location

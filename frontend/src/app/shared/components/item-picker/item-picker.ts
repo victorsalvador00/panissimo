@@ -14,7 +14,7 @@ import { LookupPicker } from '../lookup-picker/lookup-picker';
 export type { ItemOption };
 
 /**
- * Item autocomplete by SKU or name (`GET /items/lookup`, frontend §8), filterable by type, presentation and area.
+ * Item autocomplete by SKU or name (`GET /items/lookup`, frontend §8), filterable by type and presentation.
  * The value is the chosen ItemLookupDto (with its unit). `types` allows several types (one search per type). Each
  * option and the chosen item show their photo (app-item-photo, F-23).
  */
@@ -36,12 +36,11 @@ export class ItemPicker extends LookupPicker<ItemOption> {
   readonly type = input<ApiEnum<'ItemType'> | null>(null);
   readonly types = input<readonly ApiEnum<'ItemType'>[]>([]);
   readonly presentation = input<ApiEnum<'ItemPresentation'> | null>(null);
-  readonly areaId = input<string | null>(null);
 
   private readonly lookup = inject(ItemLookupApi);
 
   protected override runSearch(q: string): Observable<ItemOption[]> {
-    const filters = { presentation: this.presentation(), areaId: this.areaId() };
+    const filters = { presentation: this.presentation() };
     const types = this.types();
     if (types.length === 0) return this.lookup.search(q, { ...filters, type: this.type() });
     return forkJoin(types.map((type) => this.lookup.search(q, { ...filters, type }))).pipe(

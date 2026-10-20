@@ -86,7 +86,6 @@ public sealed class SampleDataSeeder(AppDbContext db, IOptions<SeedOptions> opti
     {
         var categories = await db.ItemCategories.ToDictionaryAsync(c => c.Name, c => c.Id, StringComparer.OrdinalIgnoreCase, ct);
         var units = await db.UnitsOfMeasure.ToDictionaryAsync(u => u.Code, u => u.Id, StringComparer.OrdinalIgnoreCase, ct);
-        var areas = await db.ProductionAreas.ToDictionaryAsync(a => a.Name, a => a.Id, StringComparer.OrdinalIgnoreCase, ct);
         var skus = await db.Items.ToDictionaryAsync(i => i.Sku, i => i.Id, StringComparer.OrdinalIgnoreCase, ct);
 
         // Bulk items first: a packaged item points to its bulk one (D-05).
@@ -105,7 +104,6 @@ public sealed class SampleDataSeeder(AppDbContext db, IOptions<SeedOptions> opti
                 row.Presentation,
                 row.BulkSku is null ? null : Find(skus, row.BulkSku, "el artículo a granel", row.Sku),
                 row.UnitsPerPackage,
-                row.ProductionArea is null ? null : Find(areas, row.ProductionArea, "el área", row.Sku),
                 row.ProductionMultiple,
                 row.UnitWeightGrams));
             db.Items.Add(item);
@@ -221,7 +219,7 @@ public sealed class SampleDataSeeder(AppDbContext db, IOptions<SeedOptions> opti
     private sealed record SampleItem(
         string Sku, string Name, ItemType Type, string Category, string BaseUom, string? PurchaseUom, decimal? PurchaseToBaseFactor,
         bool TracksLots, int? ShelfLifeDays, StorageCondition StorageCondition, decimal TaxRate, ItemPresentation? Presentation,
-        string? BulkSku, int? UnitsPerPackage, string? ProductionArea, decimal? ProductionMultiple, decimal? UnitWeightGrams);
+        string? BulkSku, int? UnitsPerPackage, decimal? ProductionMultiple, decimal? UnitWeightGrams);
 
     private sealed record SampleRecipe(string OutputSku, decimal YieldQty, string? Notes, string? Factory, IReadOnlyList<SampleRecipeLine> Lines);
 

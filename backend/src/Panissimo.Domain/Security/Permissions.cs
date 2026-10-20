@@ -22,7 +22,6 @@ public static class Permissions
     public const string ProductionOrdersManage = "production.orders.manage";
     public const string ProductionOrdersClose = "production.orders.close";
     public const string ProductionOrdersImport = "production.orders.import";
-    public const string ProductionAreasManage = "production.areas.manage";
 
     public const string LogisticsView = "logistics.view";
     public const string LogisticsOrdersCreate = "logistics.orders.create";
@@ -71,7 +70,6 @@ public static class Permissions
         new(ProductionOrdersManage, "Producción", "Administrar órdenes de producción y generar desde el plan"),
         new(ProductionOrdersClose, "Producción", "Registrar cierres parciales y finales"),
         new(ProductionOrdersImport, "Producción", "Importar órdenes de producción desde Excel"),
-        new(ProductionAreasManage, "Producción", "Administrar áreas de producción"),
         new(LogisticsView, "Logística", "Ver logística"),
         new(LogisticsOrdersCreate, "Logística", "Crear pedidos de sucursal"),
         new(LogisticsOrdersApprove, "Logística", "Aprobar pedidos de sucursal"),

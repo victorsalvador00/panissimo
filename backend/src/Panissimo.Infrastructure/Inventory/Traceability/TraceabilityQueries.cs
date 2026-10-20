@@ -61,11 +61,11 @@ public sealed class TraceabilityQueries(IAppDbContext db, IUserDirectory userDir
     public async Task<IReadOnlyList<TraceOrder>> OrdersAsync(IReadOnlyCollection<Guid> orderIds, CancellationToken ct) =>
         await (from o in db.ProductionOrders.AsNoTracking()
                join r in db.Recipes on o.RecipeId equals r.Id
-               join a in db.ProductionAreas on o.ProductionAreaId equals a.Id into areas
-               from a in areas.DefaultIfEmpty()
+               join f in db.Locations on r.FactoryId equals f.Id into factories
+               from f in factories.DefaultIfEmpty()
                where orderIds.Contains(o.Id)
                select new TraceOrder(o.Id, o.Folio, o.OutputItemId, o.PlannedQty, o.ProducedQty, o.Status, o.ScheduledDate, o.Shift,
-                   a == null ? null : a.Name, r.VersionNumber, o.Source, o.TotalCost, o.UnitCost, o.ShortfallReason, o.CreatedAt, o.CreatedBy,
+                   f == null ? null : f.Name, r.VersionNumber, o.Source, o.TotalCost, o.UnitCost, o.ShortfallReason, o.CreatedAt, o.CreatedBy,
                    o.ReleasedAt, o.ReleasedBy, o.CompletedAt, o.CompletedBy, o.CancelledAt))
             .ToListAsync(ct);
 

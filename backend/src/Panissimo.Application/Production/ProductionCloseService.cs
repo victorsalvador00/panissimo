@@ -44,7 +44,7 @@ public sealed record ProductionCloseLineDto(
 
 public sealed record ProductionCloseDto(
     Guid Id, string Folio, Guid ProductionOrderId, string OrderFolio, int Sequence, ProductionCloseKind Kind, DateOnly BusinessDate,
-    Shift? Shift, Guid OutputItemId, string Sku, string ItemName, string BaseUomCode, Guid? ProductionAreaId, string? ProductionAreaName,
+    Shift? Shift, Guid OutputItemId, string Sku, string ItemName, string BaseUomCode, Guid? FactoryId, string? FactoryCode, string? FactoryName,
     decimal ProducedQty, bool ExceedsTolerance, Guid OutputLocationId, string OutputLocationCode, Guid? OutputLotId, string? OutputLotNumber, DateOnly? OutputLotExpiration, decimal TotalCost, decimal UnitCost,
     decimal WasteQty, decimal WasteCost, DateTimeOffset ClosedAt, Guid? ClosedBy, string? ClosedByName, string? Notes,
     IReadOnlyList<ProductionCloseLineDto> Lines);
@@ -56,7 +56,8 @@ public sealed record ProductionCloseListQuery : PageQuery
     public Guid? LocationId { get; init; }
     public DateOnly? From { get; init; }
     public DateOnly? To { get; init; }
-    public Guid? AreaId { get; init; }
+    /// <summary>RN-49: the factory of the order's recipe.</summary>
+    public Guid? FactoryId { get; init; }
     public Guid? ItemId { get; init; }
     public Guid? ProductionOrderId { get; init; }
     public ProductionCloseKind? Kind { get; init; }
@@ -64,7 +65,7 @@ public sealed record ProductionCloseListQuery : PageQuery
 
 public sealed record ProductionCloseListItemDto(
     Guid Id, string Folio, DateOnly BusinessDate, DateTimeOffset ClosedAt, Guid ProductionOrderId, string OrderFolio, Guid OutputItemId,
-    string Sku, string ItemName, string BaseUomCode, Guid? ProductionAreaId, string? ProductionAreaName, Shift? Shift, ProductionCloseKind Kind,
+    string Sku, string ItemName, string BaseUomCode, Guid? FactoryId, string? FactoryCode, string? FactoryName, Shift? Shift, ProductionCloseKind Kind,
     int Sequence, decimal ProducedQty, bool ExceedsTolerance, string? OutputLotNumber, decimal TotalCost, decimal UnitCost, decimal WasteCost,
     string? ClosedByName, Guid? OutputLotId = null);
 
@@ -301,8 +302,8 @@ public sealed class ProductionCloseService(
             rows = rows.Where(x => x.Close.BusinessDate >= from);
         if (query.To is { } to)
             rows = rows.Where(x => x.Close.BusinessDate <= to);
-        if (query.AreaId is { } areaId)
-            rows = rows.Where(x => x.Order.ProductionAreaId == areaId);
+        if (query.FactoryId is { } factoryId)
+            rows = rows.Where(x => db.Recipes.Any(r => r.Id == x.Order.RecipeId && r.FactoryId == factoryId));
         if (query.ItemId is { } itemId)
             rows = rows.Where(x => x.Order.OutputItemId == itemId);
         if (query.ProductionOrderId is { } orderId)
@@ -334,16 +335,16 @@ public sealed class ProductionCloseService(
         var lines = await db.ProductionCloses.AsNoTracking().Where(c => closeIds.Contains(c.Id))
             .SelectMany(c => c.Lines.Select(l => new { c.Id, l.WasteQty, l.UnitCost })).ToListAsync(ct);
         var wasteCost = lines.GroupBy(l => l.Id).ToDictionary(g => g.Key, g => InventoryMath.Round(g.Sum(l => l.WasteQty * l.UnitCost)));
-        var names = await NamesAsync(page.Items.Select(x => x.Order.OutputItemId), page.Items.Select(x => x.Order.ProductionAreaId),
+        var names = await NamesAsync(page.Items.Select(x => x.Order.OutputItemId), page.Items.Select(x => x.Order.RecipeId),
             page.Items.Select(x => x.Close.OutputLotId), ct);
         var users = await userDirectory.GetNamesAsync(page.Items.Select(x => x.Close.ClosedBy), ct);
 
         return new PagedResult<ProductionCloseListItemDto>(page.Items.Select(x =>
         {
             var item = names.Items[x.Order.OutputItemId];
+            var factory = names.Factories.GetValueOrDefault(x.Order.RecipeId);
             return new ProductionCloseListItemDto(x.Close.Id, x.Close.Folio, x.Close.BusinessDate, x.Close.ClosedAt, x.Order.Id, x.Order.Folio,
-                x.Order.OutputItemId, item.Sku, item.Name, item.Uom, x.Order.ProductionAreaId,
-                x.Order.ProductionAreaId is { } a ? names.Areas.GetValueOrDefault(a) : null, x.Close.Shift, x.Close.Kind, x.Close.Sequence,
+                x.Order.OutputItemId, item.Sku, item.Name, item.Uom, factory?.Id, factory?.Code, factory?.Name, x.Close.Shift, x.Close.Kind, x.Close.Sequence,
                 x.Close.ProducedQty, x.Close.ExceedsTolerance, x.Close.OutputLotId is { } lot ? names.Lots[lot].LotNumber : null, x.Close.TotalCost, x.Close.UnitCost,
                 wasteCost.GetValueOrDefault(x.Close.Id), users.Of(x.Close.ClosedBy), x.Close.OutputLotId);
         }).ToList(), page.Page, page.PageSize, page.Total);
@@ -358,7 +359,7 @@ public sealed class ProductionCloseService(
         scope.EnsureAccess(order.LocationId);
 
         var lotIds = close.Lines.SelectMany(l => l.Lots.Select(x => (Guid?)x.LotId)).Append(close.OutputLotId);
-        var names = await NamesAsync([order.OutputItemId], [order.ProductionAreaId], lotIds, ct);
+        var names = await NamesAsync([order.OutputItemId], [order.RecipeId], lotIds, ct);
         var components = await ComponentsAsync(close.Lines.Select(l => l.ComponentItemId).ToList(), ct);
         var item = names.Items[order.OutputItemId];
         var users = await userDirectory.GetNamesAsync([close.ClosedBy], ct);
@@ -376,9 +377,9 @@ public sealed class ProductionCloseService(
         }).OrderBy(l => l.Sku).ToList();
 
         var outputLot = close.OutputLotId is { } lotId ? names.Lots[lotId] : null;
+        var factory = names.Factories.GetValueOrDefault(order.RecipeId);
         return new ProductionCloseDto(close.Id, close.Folio, order.Id, order.Folio, close.Sequence, close.Kind, close.BusinessDate, close.Shift,
-            order.OutputItemId, item.Sku, item.Name, item.Uom, order.ProductionAreaId,
-            order.ProductionAreaId is { } a ? names.Areas.GetValueOrDefault(a) : null, close.ProducedQty, close.ExceedsTolerance,
+            order.OutputItemId, item.Sku, item.Name, item.Uom, factory?.Id, factory?.Code, factory?.Name, close.ProducedQty, close.ExceedsTolerance,
             close.OutputLocationId, stockCodes[close.OutputLocationId], close.OutputLotId, outputLot?.LotNumber, outputLot?.ExpirationDate, close.TotalCost, close.UnitCost, close.WasteQty, close.WasteCost,
             close.ClosedAt, close.ClosedBy, users.Of(close.ClosedBy), close.Notes, lines);
     }
@@ -396,7 +397,10 @@ public sealed class ProductionCloseService(
 
     private sealed record LotName(string LotNumber, DateOnly? ExpirationDate);
 
-    private sealed record Names(Dictionary<Guid, ItemName> Items, Dictionary<Guid, string> Areas, Dictionary<Guid, LotName> Lots);
+    private sealed record FactoryName(Guid Id, string Code, string Name);
+
+    /// <param name="Factories">Recipe → its factory (RN-49); recipes without one are missing.</param>
+    private sealed record Names(Dictionary<Guid, ItemName> Items, Dictionary<Guid, FactoryName> Factories, Dictionary<Guid, LotName> Lots);
 
     private async Task<Dictionary<Guid, ItemName>> ComponentsAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct) =>
         await (from i in db.Items.AsNoTracking()
@@ -404,14 +408,17 @@ public sealed class ProductionCloseService(
                where ids.Contains(i.Id)
                select new { i.Id, Name = new ItemName(i.Sku, i.Name, u.Code, i.TracksLots) }).ToDictionaryAsync(x => x.Id, x => x.Name, ct);
 
-    private async Task<Names> NamesAsync(IEnumerable<Guid> itemIds, IEnumerable<Guid?> areaIds, IEnumerable<Guid?> lotIds, CancellationToken ct)
+    private async Task<Names> NamesAsync(IEnumerable<Guid> itemIds, IEnumerable<Guid> recipeIds, IEnumerable<Guid?> lotIds, CancellationToken ct)
     {
         var items = await ComponentsAsync(itemIds.Distinct().ToList(), ct);
-        var areaList = areaIds.OfType<Guid>().Distinct().ToList();
-        var areas = await db.ProductionAreas.AsNoTracking().Where(a => areaList.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Name, ct);
+        var recipeList = recipeIds.Distinct().ToList();
+        var factories = await (from r in db.Recipes.AsNoTracking()
+                               where recipeList.Contains(r.Id)
+                               join f in db.Locations on r.FactoryId equals f.Id
+                               select new { r.Id, Factory = new FactoryName(f.Id, f.Code, f.Name) }).ToDictionaryAsync(x => x.Id, x => x.Factory, ct);
         var lotList = lotIds.OfType<Guid>().Distinct().ToList();
         var lotNames = await db.Lots.AsNoTracking().Where(l => lotList.Contains(l.Id))
             .ToDictionaryAsync(l => l.Id, l => new LotName(l.LotNumber, l.ExpirationDate), ct);
-        return new Names(items, areas, lotNames);
+        return new Names(items, factories, lotNames);
     }
 }

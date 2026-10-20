@@ -11,7 +11,7 @@ from pathlib import Path
 from openpyxl import Workbook
 
 FIXTURES = Path(__file__).resolve().parent.parent / "e2e" / "fixtures"
-HEADERS = ["fecha", "sku", "cantidad", "area", "turno", "ubicacion", "notas"]
+HEADERS = ["fecha", "sku", "cantidad", "turno", "ubicacion", "notas"]
 # The donut of the base catalogs (deploy/seed/sample-data.json), with its active recipe; whole pieces.
 PRODUCT = "PT-020-DONA"
 
@@ -32,9 +32,9 @@ workbook(
     FIXTURES / "ordenes-con-errores.xlsx",
     HEADERS,
     [
-        ["01/01/2020", PRODUCT, 5, "", "", "", ""],
-        ["31/12/2030", "NO-EXISTE", 5, "", "", "", ""],
-        ["31/12/2030", PRODUCT, -2, "", "", "", ""],
+        ["01/01/2020", PRODUCT, 5, "", "", ""],
+        ["31/12/2030", "NO-EXISTE", 5, "", "", ""],
+        ["31/12/2030", PRODUCT, -2, "", "", ""],
     ],
 )
 
@@ -43,9 +43,9 @@ workbook(
     FIXTURES / "ordenes-validas.xlsx",
     HEADERS + ["comentario"],
     [
-        ["31/12/2030", PRODUCT, 12, "", "Día", "", "E2E 8", "se ignora"],
-        ["31/12/2030", PRODUCT, 8, "", "Día", "", "E2E 8", ""],
-        ["30/12/2030", PRODUCT, 10, "", "", "", "E2E 8", ""],
+        ["31/12/2030", PRODUCT, 12, "Día", "", "E2E 8", "se ignora"],
+        ["31/12/2030", PRODUCT, 8, "Día", "", "E2E 8", ""],
+        ["30/12/2030", PRODUCT, 10, "", "", "E2E 8", ""],
     ],
 )
 

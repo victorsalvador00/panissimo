@@ -21,7 +21,6 @@ export const columns = [
   'presentacion',
   'sku_granel',
   'piezas_por_paquete',
-  'area',
   'multiplo_op',
   'gramaje_g',
 ];
@@ -44,7 +43,6 @@ export const exampleRows = [
     '',
     '',
     '',
-    '',
   ],
   [
     'PT-010',
@@ -61,7 +59,6 @@ export const exampleRows = [
     'granel',
     '',
     '',
-    'PAN-DULCE',
     '12',
     '70',
   ],
@@ -80,7 +77,6 @@ export const exampleRows = [
     'empaquetado',
     'PT-010',
     '6',
-    'PAN-DULCE',
     '',
     '420',
   ],
@@ -122,10 +118,6 @@ const guide: CsvColumnGuide[] = [
     description: 'Empaquetados: SKU de su versión a granel (existente o en el mismo archivo).',
   },
   { column: 'piezas_por_paquete', description: 'Empaquetados: número entero de piezas.' },
-  {
-    column: 'area',
-    description: 'Semiterminados y terminados: código o nombre del área de producción.',
-  },
   { column: 'multiplo_op', description: 'Múltiplo de las órdenes de producción, en unidad base.' },
   { column: 'gramaje_g', description: 'Peso por pieza en gramos.' },
 ];

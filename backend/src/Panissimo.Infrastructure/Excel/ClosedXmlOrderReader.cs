@@ -90,17 +90,17 @@ public sealed class ClosedXmlOrderReader : IExcelOrderReader
     {
         using var workbook = new XLWorkbook();
         var sheet = workbook.Worksheets.Add(SheetName);
-        string[] headers = ["fecha", "sku", "cantidad", "area", "turno", "ubicacion", "notas"];
+        string[] headers = ["fecha", "sku", "cantidad", "turno", "ubicacion", "notas"];
         for (var i = 0; i < headers.Length; i++)
             sheet.Cell(1, i + 1).Value = headers[i];
         var header = sheet.Range(1, 1, 1, headers.Length);
         header.Style.Font.Bold = true;
         header.Style.Fill.BackgroundColor = XLColor.FromHtml("#E8EAF6");
         sheet.Column(1).Style.DateFormat.Format = "dd/mm/yyyy";
-        sheet.Range("E2:E3001").CreateDataValidation().List("\"Día,Tarde,Noche\"", true);
+        sheet.Range("D2:D3001").CreateDataValidation().List("\"Día,Tarde,Noche\"", true);
         sheet.SheetView.FreezeRows(1);
         sheet.Columns(1, headers.Length).Width = 16;
-        sheet.Column(7).Width = 40;
+        sheet.Column(6).Width = 40;
 
         var help = workbook.Worksheets.Add("Instrucciones");
         string[][] lines =
@@ -109,12 +109,11 @@ public sealed class ClosedXmlOrderReader : IExcelOrderReader
             ["fecha", "Sí", "Fecha programada (celda de fecha o texto dd/mm/aaaa). No puede ser pasada."],
             ["sku", "Sí", "SKU del artículo: semiterminado o producto terminado activo con receta activa."],
             ["cantidad", "Sí", "Mayor que cero, hasta 4 decimales; entera si el producto se maneja en piezas."],
-            ["area", "No", "Código o nombre de un área activa. Vacío = el área del artículo."],
             ["turno", "No", "Día, Tarde o Noche. Vacío = sin turno."],
             ["ubicacion", "No", "Código de la Planta. Vacío = la Planta."],
             ["notas", "No", "Máximo 500 caracteres."],
             ["", "", ""],
-            ["Reglas", "", "Las filas con la misma fecha, SKU, área, turno y ubicación se suman en una sola orden. Máximo 3,000 filas. " +
+            ["Reglas", "", "Las filas con la misma fecha, SKU, turno y ubicación se suman en una sola orden. Máximo 3,000 filas. " +
                 "Si hay un solo error no se crea nada; corrige y vuelve a subir el archivo."],
         ];
         for (var r = 0; r < lines.Length; r++)

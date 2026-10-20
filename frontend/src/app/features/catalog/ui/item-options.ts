@@ -16,7 +16,7 @@ export const TAX_OPTIONS = [
   { value: 0.16, label: '16 %' },
 ];
 
-/** Semi-finished and finished goods are produced with a production order and may have an area (ItemRules). */
+/** Semi-finished and finished goods are produced with a production order (ItemRules). */
 export function isProduced(type: ApiEnum<'ItemType'> | null | undefined): boolean {
   return type === 'SemiFinished' || type === 'FinishedGood';
 }

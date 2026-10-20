@@ -63,9 +63,9 @@ const RECIPE_FORM: HelpTopic = {
 const PRODUCTION_ORDER_FORM: HelpTopic = {
   title: 'Orden de producción',
   summary:
-    'Una orden para producir un producto en una fecha, área y turno, con su explosión de materiales calculada con la receta activa.',
+    'Una orden para producir un producto en una fecha y turno, con su explosión de materiales calculada con la receta activa. Se produce en la fábrica de esa receta.',
   steps: [
-    'Elige el producto, la cantidad, la fecha programada, el área y el turno.',
+    'Elige el producto, la cantidad, la fecha programada y el turno.',
     'Revisa la explosión: lo que consume cada componente, la existencia y si falta algo.',
     'Guarda como borrador y libérala cuando se vaya a producir.',
   ],
@@ -409,9 +409,9 @@ export const HELP: Readonly<Record<string, HelpTopic>> = {
   'produccion/plan': {
     title: 'Plan de producción',
     summary:
-      'Qué producir por día y área: pedidos de sucursal y de cliente, reposición a mínimo y semiterminados de otras órdenes, contra existencia y órdenes abiertas.',
+      'Qué producir por día y fábrica: pedidos de sucursal y de cliente, reposición a mínimo y semiterminados de otras órdenes, contra existencia y órdenes abiertas.',
     steps: [
-      'Elige el rango de fechas y, si quieres, el área.',
+      'Elige el rango de fechas y, si quieres, la fábrica.',
       'Revisa "Por producir"; expande un renglón para ver los pedidos que lo originan.',
       'Elige los renglones, ajusta la cantidad (el múltiplo es una sugerencia) y genera las órdenes en borrador.',
     ],
@@ -420,7 +420,7 @@ export const HELP: Readonly<Record<string, HelpTopic>> = {
   'produccion/resumen': {
     title: 'Resumen de producción',
     summary:
-      'Planeado contra producido, % de cumplimiento, costo y merma por área, producto o día en un periodo.',
+      'Planeado contra producido, % de cumplimiento, costo y merma por fábrica, producto o día en un periodo.',
     tips: ['Cada unidad va en su propio renglón: nunca se suman kilos con piezas.'],
   },
   'produccion/ordenes': {
@@ -462,7 +462,7 @@ export const HELP: Readonly<Record<string, HelpTopic>> = {
     title: 'Importar órdenes',
     summary: 'Crea órdenes de producción desde un Excel: primero se valida y luego se confirma.',
     steps: [
-      'Descarga la plantilla y llena fecha, SKU, cantidad, área y turno.',
+      'Descarga la plantilla y llena fecha, SKU, cantidad y turno.',
       'Súbela: los errores bloquean; los avisos deben aceptarse con la casilla.',
       'Confirma para crear las órdenes agrupadas.',
     ],
@@ -475,10 +475,6 @@ export const HELP: Readonly<Record<string, HelpTopic>> = {
   'produccion/importaciones/:id': {
     title: 'Importación',
     summary: 'Detalle de una importación: archivo, avisos y órdenes creadas.',
-  },
-  'produccion/areas': {
-    title: 'Áreas de producción',
-    summary: 'Hornos, pastelería, empaque… Ordenan el plan y el resumen de producción.',
   },
 
   // Logística

@@ -428,7 +428,7 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
             if (o.CancelledAt is { } cancelled)
                 history.Add(new TraceStatusDto(ProductionOrderStatus.Cancelled, cancelled, null));
             return new TraceGroupDto(OrderId(o.Id), o.Id, o.Folio, item.Id, item.Sku, item.Name, o.PlannedQty, o.ProducedQty, item.BaseUom,
-                o.Status, o.ScheduledDate, o.Shift, o.AreaName, item.Name, o.RecipeVersion, o.Source,
+                o.Status, o.ScheduledDate, o.Shift, o.FactoryName, item.Name, o.RecipeVersion, o.Source,
                 _options.ProductionCosts ? o.TotalCost : null, _options.ProductionCosts ? o.UnitCost : null, o.ShortfallReason,
                 history, [.. demands.Where(d => d.ProductionOrderId == o.Id).Select(d => new TraceDemandDto(d.Type, d.Folio, d.PartyName, d.Quantity))],
                 [.. _closes.Values.Where(c => c.ProductionOrderId == o.Id && _nodes.ContainsKey(CloseId(c.Id))).OrderBy(c => c.Sequence)

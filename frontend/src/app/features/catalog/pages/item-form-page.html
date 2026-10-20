@@ -163,17 +163,6 @@
         <h2 id="item-production">Producción y peso</h2>
         <div class="fields">
           @if (isProduced()) {
-            <mat-form-field>
-              <mat-label>Área de producción</mat-label>
-              <mat-select formControlName="productionAreaId">
-                <mat-option [value]="null">Sin área</mat-option>
-                @for (area of areas.value(); track area.id) {
-                  @if (area.isActive || area.id === form.controls.productionAreaId.value) {
-                    <mat-option [value]="area.id">{{ area.name }}</mat-option>
-                  }
-                }
-              </mat-select>
-            </mat-form-field>
             <app-qty-input
               formControlName="productionMultiple"
               label="Múltiplo de OP"

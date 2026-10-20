@@ -13,7 +13,7 @@ public class ProductionCloseTests
     private static ProductionOrder Released(decimal planned = 1000)
     {
         var recipe = new Recipe(Guid.NewGuid(), 1, 100, null, [new RecipeLineInput(Flour, 5, 0), new RecipeLineInput(Sugar, 1, 0)]);
-        var order = new ProductionOrder("OP-000123", Guid.NewGuid(), new ProductionOrderPlan(recipe, planned, Today, null, null, null),
+        var order = new ProductionOrder("OP-000123", Guid.NewGuid(), new ProductionOrderPlan(recipe, planned, Today, null, null),
             ProductionOrderSource.Manual, null, Today);
         order.Release(Now, null);
         return order;
@@ -119,6 +119,6 @@ public class ProductionCloseTests
     public void Draft_orders_cannot_be_closed() =>
         Assert.Equal("production_order_not_open", Assert.Throws<BusinessRuleException>(() =>
             new ProductionOrder("OP-1", Guid.NewGuid(), new ProductionOrderPlan(
-                    new Recipe(Guid.NewGuid(), 1, 1, null, [new RecipeLineInput(Flour, 1, 0)]), 10, Today, null, null, null),
+                    new Recipe(Guid.NewGuid(), 1, 1, null, [new RecipeLineInput(Flour, 1, 0)]), 10, Today, null, null),
                 ProductionOrderSource.Manual, null, Today).EnsureCanClose(ProductionCloseKind.Partial, 1, 10, null, null)).Code);
 }

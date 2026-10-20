@@ -51,7 +51,7 @@ import { ImportPreview, ImportResult, OrderImportsApi } from '../data-access/pro
           <p class="summary" role="status">
             {{ p.rowCount }} {{ p.rowCount === 1 ? 'fila' : 'filas' }} →
             <strong>{{ p.orderCount }} {{ p.orderCount === 1 ? 'orden' : 'órdenes' }}</strong>
-            (las filas con la misma fecha, producto, área, turno y planta se suman).
+            (las filas con la misma fecha, producto, turno y planta se suman).
           </p>
           <div class="table-wrap">
             <table aria-label="Órdenes a crear">
@@ -61,7 +61,7 @@ import { ImportPreview, ImportResult, OrderImportsApi } from '../data-access/pro
                   <th scope="col">Fecha</th>
                   <th scope="col">Producto</th>
                   <th scope="col" class="end">Cantidad</th>
-                  <th scope="col">Área y turno</th>
+                  <th scope="col">Fábrica y turno</th>
                   <th scope="col">Planta</th>
                   <th scope="col">Receta</th>
                 </tr>
@@ -76,7 +76,7 @@ import { ImportPreview, ImportResult, OrderImportsApi } from '../data-access/pro
                     </td>
                     <td class="end">{{ order.quantity | qty: order.uom }}</td>
                     <td>
-                      {{ order.areaName ?? 'Sin área' }}
+                      {{ order.factoryName ?? 'Sin fábrica' }}
                       @if (order.shift) {
                         · {{ order.shift | statusLabel: 'Shift' }}
                       }

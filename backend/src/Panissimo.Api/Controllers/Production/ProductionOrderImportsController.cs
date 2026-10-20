@@ -16,7 +16,7 @@ public sealed class ProductionOrderImportsController(IProductionOrderImportServi
     public const long ExcelMaxBytes = 5 * 1024 * 1024;
     private const string XlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-    /// <summary>Plantilla .xlsx con la hoja OP (fecha, sku, cantidad, area, turno, ubicacion, notas) e instrucciones.</summary>
+    /// <summary>Plantilla .xlsx con la hoja OP (fecha, sku, cantidad, turno, ubicacion, notas) e instrucciones.</summary>
     [HttpGet("template")]
     [RequirePermission(Permissions.ProductionOrdersImport)]
     [ProducesResponseType<Stream>(StatusCodes.Status200OK, XlsxContentType)]

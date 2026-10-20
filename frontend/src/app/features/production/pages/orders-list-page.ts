@@ -18,7 +18,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { Router, RouterLink } from '@angular/router';
-import { debounceTime, map } from 'rxjs';
+import { debounceTime } from 'rxjs';
 import type { ApiEnum } from '../../../core/api/api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { CellDef, DataTable } from '../../../shared/components/data-table/data-table';
@@ -29,7 +29,7 @@ import { ListQuery } from '../../../shared/data-access/list-query';
 import { toIsoDate } from '../../../shared/forms/dates';
 import { ENUM_LABELS } from '../../../shared/pipes/labels';
 import { QtyPipe, StatusLabelPipe } from '../../../shared/pipes/pipes';
-import { AreasApi } from '../../catalog/data-access/catalog-api';
+import { plantFactories } from '../data-access/plant-factories';
 import { ProductionOrderTab, ProductionOrdersApi } from '../data-access/production-api';
 
 type Tab = NonNullable<ProductionOrderTab>;
@@ -49,7 +49,7 @@ function options<K extends 'Shift' | 'ProductionOrderSource'>(kind: K) {
 }
 
 /**
- * /produccion/ordenes (frontend §7.4): orders by tab (kept in `?tab=`), filters of scheduled date, area, shift, source
+ * /produccion/ordenes (frontend §7.4): orders by tab (kept in `?tab=`), filters of scheduled date, factory (RN-49), shift, source
  * and import (`?importId=` arrives from the import history), with progress and number of closes.
  */
 @Component({
@@ -117,15 +117,17 @@ function options<K extends 'Shift' | 'ProductionOrderSource'>(kind: K) {
           <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
           <mat-datepicker #toPicker />
         </mat-form-field>
-        <mat-form-field>
-          <mat-label>Área</mat-label>
-          <mat-select formControlName="areaId">
-            <mat-option [value]="null">Todas</mat-option>
-            @for (area of areas.value(); track area.id) {
-              <mat-option [value]="area.id">{{ area.name }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        @if (factories().length > 0) {
+          <mat-form-field>
+            <mat-label>Fábrica</mat-label>
+            <mat-select formControlName="factoryId">
+              <mat-option [value]="null">Todas</mat-option>
+              @for (factory of factories(); track factory.id) {
+                <mat-option [value]="factory.id">{{ factory.name }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        }
         <mat-form-field>
           <mat-label>Turno</mat-label>
           <mat-select formControlName="shift">
@@ -170,8 +172,8 @@ function options<K extends 'Shift' | 'ProductionOrderSource'>(kind: K) {
         <ng-template appCell="scheduledDate" header="Fecha" sortable [appCellOf]="rows()" let-order>
           {{ order.scheduledDate | date: 'dd/MM/yyyy' }}
         </ng-template>
-        <ng-template appCell="area" header="Área y turno" [appCellOf]="rows()" let-order>
-          {{ order.productionAreaName ?? '—' }}
+        <ng-template appCell="factory" header="Fábrica y turno" [appCellOf]="rows()" let-order>
+          {{ order.factoryName ?? '—' }}
           @if (order.shift) {
             · {{ order.shift | statusLabel: 'Shift' }}
           }
@@ -233,7 +235,6 @@ export class OrdersListPage {
   readonly importId = input<string | undefined>();
 
   private readonly api = inject(ProductionOrdersApi);
-  private readonly areasApi = inject(AreasApi);
   private readonly router = inject(Router);
   protected readonly canManage = inject(AuthService).can('production.orders.manage');
   protected readonly tabs = TABS;
@@ -247,7 +248,7 @@ export class OrdersListPage {
     q: new FormControl('', { nonNullable: true }),
     from: new FormControl<Date | null>(null),
     to: new FormControl<Date | null>(null),
-    areaId: new FormControl<string | null>(null),
+    factoryId: new FormControl<string | null>(null),
     shift: new FormControl<ApiEnum<'Shift'> | null>(null),
     source: new FormControl<ApiEnum<'ProductionOrderSource'> | null>(null),
   });
@@ -273,7 +274,7 @@ export class OrdersListPage {
           tab: params.tab,
           from: toIsoDate(f.from),
           to: toIsoDate(f.to),
-          areaId: f.areaId,
+          factoryId: f.factoryId,
           shift: f.shift,
           source: f.source,
           importId: params.importId,
@@ -288,10 +289,7 @@ export class OrdersListPage {
     this.orders.hasValue() ? this.orders.value().total : 0,
   );
 
-  protected readonly areas = rxResource({
-    stream: () => this.areasApi.list().pipe(map((page) => page.items.filter((a) => a.isActive))),
-    defaultValue: [],
-  });
+  protected readonly factories = plantFactories();
 
   constructor() {
     this.filters.valueChanges.pipe(debounceTime(300), takeUntilDestroyed()).subscribe(() => {

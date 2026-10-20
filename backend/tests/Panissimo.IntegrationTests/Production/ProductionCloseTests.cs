@@ -34,7 +34,7 @@ public class ProductionCloseTests(ApiFactory factory)
         await admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bread.Id, 100, null,
             [new RecipeLineRequest(flour.Id, 5, 0), new RecipeLineRequest(bag.Id, 100, 0)]));
         var order = (await (await admin.PostJsonAsync("/api/v1/production-orders",
-            new CreateProductionOrderRequest(plant, bread.Id, 1000, Today, null, Shift.Night, null))).Content.ReadJsonAsync<ProductionOrderDto>())!;
+            new CreateProductionOrderRequest(plant, bread.Id, 1000, Today, Shift.Night, null))).Content.ReadJsonAsync<ProductionOrderDto>())!;
         order = (await (await admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)))
             .Content.ReadJsonAsync<ProductionOrderDto>())!;
         return new Setup(plant, bread, flour, bag, order);

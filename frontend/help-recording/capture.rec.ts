@@ -154,7 +154,6 @@ test('cierre de producción', async ({ page, baseURL }) => {
     outputItemId: masa,
     plannedQty: 20,
     scheduledDate: inDays(0),
-    productionAreaId: null,
     shift: 'Day',
     notes: 'Video de ayuda',
   });

@@ -17,7 +17,7 @@ import { MxnPipe, QtyPipe } from '../../../shared/pipes/pipes';
 import { ProductionSummaryApi, SummaryGroupBy, SummaryRow } from '../data-access/production-api';
 
 const GROUPS: readonly { value: SummaryGroupBy; label: string; column: string }[] = [
-  { value: 'Area', label: 'Por área', column: 'Área' },
+  { value: 'Factory', label: 'Por fábrica', column: 'Fábrica' },
   { value: 'Item', label: 'Por producto', column: 'Producto' },
   { value: 'Day', label: 'Por día', column: 'Día' },
 ];
@@ -44,7 +44,7 @@ export function summaryLabel(row: SummaryRow): string {
 
 /**
  * /produccion/resumen (frontend §7.4, RN-53): planned (orders of the range not cancelled), produced (closes of the range),
- * compliance, cost and waste in pesos, by area, product or day; table and bars. One row per unit.
+ * compliance, cost and waste in pesos, by factory (RN-49), product or day; table and bars. One row per unit.
  */
 @Component({
   selector: 'app-summary-page',
@@ -79,7 +79,7 @@ export class SummaryPage {
   private readonly rangeValue = toSignal(this.range.valueChanges.pipe(debounceTime(200)), {
     initialValue: this.range.value,
   });
-  protected readonly groupBy = signal<SummaryGroupBy>('Area');
+  protected readonly groupBy = signal<SummaryGroupBy>('Factory');
   protected readonly column = computed(
     () => GROUPS.find((g) => g.value === this.groupBy())!.column,
   );

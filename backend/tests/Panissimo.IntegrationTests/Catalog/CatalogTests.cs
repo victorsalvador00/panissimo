@@ -14,7 +14,7 @@ namespace Panissimo.IntegrationTests.Catalog;
 [Collection(ApiCollection.Name)]
 public class CatalogTests(ApiFactory factory)
 {
-    private sealed record Refs(Guid CategoryId, string CategoryName, Guid Kg, Guid Pza, Guid Bulto, ProductionAreaDto Area);
+    private sealed record Refs(Guid CategoryId, string CategoryName, Guid Kg, Guid Pza, Guid Bulto);
 
     private static string Unique(string prefix) => $"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 9)].ToUpperInvariant();
 
@@ -24,14 +24,13 @@ public class CatalogTests(ApiFactory factory)
         var category = await (await admin.PostJsonAsync("/api/v1/item-categories", new CreateItemCategoryRequest(name)))
             .Content.ReadJsonAsync<ItemCategoryDto>();
         var units = (await admin.GetJsonAsync<PagedResult<UnitOfMeasureDto>>("/api/v1/units-of-measure"))!.Items;
-        var areas = (await admin.GetJsonAsync<PagedResult<ProductionAreaDto>>("/api/v1/production-areas"))!.Items;
         return new Refs(category!.Id, category.Name, units.Single(u => u.Code == "kg").Id, units.Single(u => u.Code == "pza").Id,
-            units.Single(u => u.Code == "bulto").Id, areas.Single(a => a.Code == "BIZ-DIA"));
+            units.Single(u => u.Code == "bulto").Id);
     }
 
     private static CreateItemRequest FinishedGood(Refs refs, string sku, ItemPresentation presentation, Guid? bulkItemId = null) =>
         new(sku, $"Producto {sku}", ItemType.FinishedGood, refs.CategoryId, refs.Pza, null, null, true, 3, StorageCondition.Ambient, 0m,
-            presentation, bulkItemId, presentation == ItemPresentation.Packaged ? 6 : null, refs.Area.Id, 12, 85);
+            presentation, bulkItemId, presentation == ItemPresentation.Packaged ? 6 : null, 12, 85);
 
     [Fact]
     public async Task Bulk_item_and_its_packaged_version_are_linked()
@@ -56,7 +55,7 @@ public class CatalogTests(ApiFactory factory)
         // A bulk item with packaged versions cannot stop being bulk.
         var change = await admin.PutJsonAsync($"/api/v1/items/{bulk.Id}", new UpdateItemRequest(bulk.Version, bulk.Sku, bulk.Name,
             ItemType.FinishedGood, refs.CategoryId, refs.Pza, null, null, true, 3, StorageCondition.Ambient, 0m,
-            ItemPresentation.Packaged, null, null, refs.Area.Id, 12, 85, true));
+            ItemPresentation.Packaged, null, null, 12, 85, true));
         Assert.Equal(HttpStatusCode.BadRequest, change.StatusCode);
     }
 
@@ -100,21 +99,21 @@ public class CatalogTests(ApiFactory factory)
 
         var change = await admin.PutJsonAsync($"/api/v1/items/{item.Id}", new UpdateItemRequest(item.Version, item.Sku, item.Name,
             ItemType.FinishedGood, refs.CategoryId, refs.Pza, null, null, true, 3, StorageCondition.Ambient, 0m,
-            ItemPresentation.Bulk, null, null, refs.Area.Id, 12, 85, true));
+            ItemPresentation.Bulk, null, null, 12, 85, true));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, change.StatusCode);
         Assert.Contains("item_has_movements", await change.Content.ReadAsStringAsync());
     }
 
     [Fact]
-    public async Task Lookup_filters_by_type_presentation_and_area()
+    public async Task Lookup_filters_by_type_and_presentation()
     {
         var admin = await factory.LoginAsAdminAsync();
         var refs = await RefsAsync(admin);
         var sku = Unique("BOMBA");
         await admin.PostJsonAsync("/api/v1/items", FinishedGood(refs, sku, ItemPresentation.Bulk));
 
-        var bulk = await admin.GetJsonAsync<List<ItemLookupDto>>($"/api/v1/items/lookup?q={sku}&presentation=Bulk&areaId={refs.Area.Id}");
+        var bulk = await admin.GetJsonAsync<List<ItemLookupDto>>($"/api/v1/items/lookup?q={sku}&presentation=Bulk");
         var packaged = await admin.GetJsonAsync<List<ItemLookupDto>>($"/api/v1/items/lookup?q={sku}&presentation=Packaged");
 
         Assert.Equal(sku, Assert.Single(bulk!).Sku);
@@ -143,40 +142,17 @@ public class CatalogTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Production_areas_are_managed_by_code()
-    {
-        var admin = await factory.LoginAsAdminAsync();
-        var code = Unique("AREA");
-
-        var created = await admin.PostJsonAsync("/api/v1/production-areas", new CreateProductionAreaRequest(code, "Hojaldre", 120));
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var area = await created.Content.ReadJsonAsync<ProductionAreaDto>();
-
-        var duplicate = await admin.PostJsonAsync("/api/v1/production-areas", new CreateProductionAreaRequest(code, "Otra", 1));
-        Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
-
-        var updated = await admin.PutJsonAsync($"/api/v1/production-areas/{area!.Id}",
-            new UpdateProductionAreaRequest(area.Version, "Hojaldre Noche", 125, false));
-        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
-
-        var active = await admin.GetJsonAsync<PagedResult<ProductionAreaDto>>("/api/v1/production-areas?pageSize=100");
-        Assert.DoesNotContain(active!.Items, a => a.Code == code);
-    }
-
-    [Fact]
     public async Task Csv_with_errors_reports_every_row_and_imports_nothing()
     {
         var admin = await factory.LoginAsAdminAsync();
         var refs = await RefsAsync(admin);
         var ok = Unique("OK");
         var csv = $"""
-            sku,nombre,tipo,categoria,unidad_base,presentacion,sku_granel,area,multiplo_op
-            {ok},Pan correcto,terminado,{refs.CategoryName},pza,granel,,BIZ-DIA,12
-            {Unique("A")},Sin presentación,terminado,{refs.CategoryName},pza,,,,
-            {Unique("B")},Área inexistente,terminado,{refs.CategoryName},pza,granel,,NO-EXISTE,
-            {Unique("C")},Insumo con área,insumo,{refs.CategoryName},pza,,,BIZ-DIA,
-            {Unique("D")},Ligado a inexistente,terminado,{refs.CategoryName},pza,empaquetado,NOEXISTE,,
-            {Unique("E")},Categoría mala,terminado,No Existe,pza,granel,,,
+            sku,nombre,tipo,categoria,unidad_base,presentacion,sku_granel,multiplo_op
+            {ok},Pan correcto,terminado,{refs.CategoryName},pza,granel,,12
+            {Unique("A")},Sin presentación,terminado,{refs.CategoryName},pza,,,
+            {Unique("D")},Ligado a inexistente,terminado,{refs.CategoryName},pza,empaquetado,NOEXISTE,
+            {Unique("E")},Categoría mala,terminado,No Existe,pza,granel,,
             """;
 
         var response = await PostCsvAsync(admin, csv);
@@ -186,10 +162,8 @@ public class CatalogTests(ApiFactory factory)
         var errors = body.RootElement.GetProperty("rowErrors").EnumerateArray()
             .Select(e => (Row: e.GetProperty("row").GetInt32(), Column: e.GetProperty("column").GetString())).ToList();
         Assert.Contains((3, "presentacion"), errors);
-        Assert.Contains((4, "area"), errors);
-        Assert.Contains((5, "area"), errors);
-        Assert.Contains((6, "sku_granel"), errors);
-        Assert.Contains((7, "categoria"), errors);
+        Assert.Contains((4, "sku_granel"), errors);
+        Assert.Contains((5, "categoria"), errors);
         Assert.DoesNotContain(errors, e => e.Row == 2);
 
         var lookup = await admin.GetJsonAsync<List<ItemLookupDto>>($"/api/v1/items/lookup?q={ok}");
@@ -203,10 +177,10 @@ public class CatalogTests(ApiFactory factory)
         var refs = await RefsAsync(admin);
         var trenza = Unique("TRENZA");
         var csv = $"""
-            sku;nombre;tipo;categoria;unidad_base;unidad_compra;factor_compra;maneja_lotes;vida_util_dias;iva;presentacion;sku_granel;piezas_por_paquete;area;multiplo_op;gramaje_g
-            {trenza}-EMB;Trenza embolsada;terminado;{refs.CategoryName};pza;;;sí;5;0;Empaquetado;{trenza};6;Empaque;6;
-            {trenza};Trenza;Terminado;{refs.CategoryName};pza;;;si;3;0;granel;;;Bizcocho Día;30;85.5
-            {trenza}-HAR;Harina;materia prima;{refs.CategoryName};kg;bulto;44;no;;0;;;;;;
+            sku;nombre;tipo;categoria;unidad_base;unidad_compra;factor_compra;maneja_lotes;vida_util_dias;iva;presentacion;sku_granel;piezas_por_paquete;multiplo_op;gramaje_g
+            {trenza}-EMB;Trenza embolsada;terminado;{refs.CategoryName};pza;;;sí;5;0;Empaquetado;{trenza};6;6;
+            {trenza};Trenza;Terminado;{refs.CategoryName};pza;;;si;3;0;granel;;;30;85.5
+            {trenza}-HAR;Harina;materia prima;{refs.CategoryName};kg;bulto;44;no;;0;;;;;
             """;
 
         var first = await PostCsvAsync(admin, csv);

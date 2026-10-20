@@ -19,9 +19,9 @@
         <dd>{{ o.locationCode }}</dd>
         <dt>Fecha</dt>
         <dd>{{ o.scheduledDate | date: 'dd/MM/yyyy' }}</dd>
-        <dt>Área y turno</dt>
+        <dt>Fábrica y turno</dt>
         <dd>
-          {{ o.productionAreaName ?? 'Sin área' }} ·
+          {{ o.factoryName ?? 'Sin fábrica' }} ·
           {{ o.shift ? (o.shift | statusLabel: 'Shift') : 'sin turno' }}
         </dd>
         <dt>Origen</dt>

@@ -112,7 +112,7 @@ export const ENUM_LABELS: { [K in EnumName]: Record<ApiEnum<K>, string> } = {
     Drafts: 'Borradores',
     All: 'Todas',
   },
-  ProductionSummaryGroupBy: { Area: 'Área', Item: 'Producto', Day: 'Día' },
+  ProductionSummaryGroupBy: { Factory: 'Fábrica', Item: 'Producto', Day: 'Día' },
   PurchaseOrderTab: { All: 'Todas', ToApprove: 'Por aprobar', ToReceive: 'Por recibir' },
   PurchaseOrderStatus: {
     Draft: 'Borrador',

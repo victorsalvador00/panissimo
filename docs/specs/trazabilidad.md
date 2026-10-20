@@ -205,7 +205,7 @@ Antes de escribir código, confirma en el repositorio y anótalo en el plan:
   "groups": [
     { "id": "op:…", "type": "ProductionOrder", "folio": "OP-000412", "itemName": "MICHAS", "plannedQty": 3500,
       "producedQty": 3500, "status": "Completed", "scheduledDate": "2026-10-20", "shift": "Night",
-      "areaName": "Pan de Sal Noche", "recipeVersion": 1, "nodeIds": ["cp:…", "cp:…"] }
+      "factoryName": "Fábrica PT", "recipeVersion": 1, "nodeIds": ["cp:…", "cp:…"] }
   ],
   "events": [
     { "at": "2026-09-30T15:10:00Z", "docType": "GoodsReceipt", "folio": "REC-000301",

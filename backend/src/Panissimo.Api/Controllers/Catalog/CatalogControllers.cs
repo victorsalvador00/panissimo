@@ -77,48 +77,13 @@ public sealed class ItemCategoriesController(IItemCategoryService categories) : 
 }
 
 [ApiController]
-[Route("production-areas")]
-[Tags("Áreas de producción")]
-[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
-[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
-public sealed class ProductionAreasController(IProductionAreaService areas) : ControllerBase
-{
-    /// <summary>Áreas (cuadrillas) de la planta, en su orden. Activas por defecto.</summary>
-    [HttpGet]
-    [RequirePermission(Permissions.ProductionView, Permissions.CatalogView)]
-    public Task<PagedResult<ProductionAreaDto>> List([FromQuery] ProductionAreaListQuery query, CancellationToken ct) => areas.ListAsync(query, ct);
-
-    [HttpGet("{id:guid}")]
-    [RequirePermission(Permissions.ProductionView, Permissions.CatalogView)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    public Task<ProductionAreaDto> Get(Guid id, CancellationToken ct) => areas.GetAsync(id, ct);
-
-    [HttpPost]
-    [RequirePermission(Permissions.ProductionAreasManage)]
-    [ProducesResponseType<ProductionAreaDto>(StatusCodes.Status201Created)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ProductionAreaDto>> Create(CreateProductionAreaRequest request, CancellationToken ct)
-    {
-        var area = await areas.CreateAsync(request, ct);
-        return CreatedAtAction(nameof(Get), new { id = area.Id }, area);
-    }
-
-    /// <summary>Edita nombre, orden y estado. El código no cambia.</summary>
-    [HttpPut("{id:guid}")]
-    [RequirePermission(Permissions.ProductionAreasManage)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public Task<ProductionAreaDto> Update(Guid id, UpdateProductionAreaRequest request, CancellationToken ct) => areas.UpdateAsync(id, request, ct);
-}
-
-[ApiController]
 [Route("items")]
 [Tags("Artículos")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 public sealed class ItemsController(IItemService items) : ControllerBase
 {
-    /// <summary>Lista paginada. Filtros: q (SKU o nombre), type, presentation, categoryId, areaId, bulkItemId, includeInactive.</summary>
+    /// <summary>Lista paginada. Filtros: q (SKU o nombre), type, presentation, categoryId, bulkItemId, includeInactive.</summary>
     [HttpGet]
     [RequirePermission(Permissions.CatalogView)]
     public Task<PagedResult<ItemListItemDto>> List([FromQuery] ItemListQuery query, CancellationToken ct) => items.ListAsync(query, ct);

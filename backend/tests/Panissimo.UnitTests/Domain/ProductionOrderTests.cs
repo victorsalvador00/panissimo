@@ -13,7 +13,7 @@ public class ProductionOrderTests
     private static Recipe ActiveRecipe() => new(Guid.NewGuid(), 1, 120, null, [new RecipeLineInput(Flour, 6, 2)]);
 
     private static ProductionOrder Draft(Recipe? recipe = null) =>
-        new("OP-000001", Guid.NewGuid(), new ProductionOrderPlan(recipe ?? ActiveRecipe(), 240, Today, null, Shift.Night, null),
+        new("OP-000001", Guid.NewGuid(), new ProductionOrderPlan(recipe ?? ActiveRecipe(), 240, Today, Shift.Night, null),
             ProductionOrderSource.Manual, null, Today);
 
     [Fact]
@@ -39,10 +39,10 @@ public class ProductionOrderTests
     public void Past_dates_and_invalid_quantities_are_rejected()
     {
         Assert.Equal("production_order_past_date", Assert.Throws<BusinessRuleException>(() =>
-            new ProductionOrder("OP-1", Guid.NewGuid(), new ProductionOrderPlan(ActiveRecipe(), 10, Today.AddDays(-1), null, null, null),
+            new ProductionOrder("OP-1", Guid.NewGuid(), new ProductionOrderPlan(ActiveRecipe(), 10, Today.AddDays(-1), null, null),
                 ProductionOrderSource.Manual, null, Today)).Code);
         Assert.Equal("invalid_quantity", Assert.Throws<BusinessRuleException>(() =>
-            new ProductionOrder("OP-1", Guid.NewGuid(), new ProductionOrderPlan(ActiveRecipe(), 0, Today, null, null, null),
+            new ProductionOrder("OP-1", Guid.NewGuid(), new ProductionOrderPlan(ActiveRecipe(), 0, Today, null, null),
                 ProductionOrderSource.Manual, null, Today)).Code);
     }
 
@@ -50,14 +50,14 @@ public class ProductionOrderTests
     public void Draft_is_edited_released_and_then_no_longer_edited()
     {
         var order = Draft();
-        order.UpdateDraft(new ProductionOrderPlan(ActiveRecipe(), 120, Today.AddDays(1), null, Shift.Day, "x"), Today);
+        order.UpdateDraft(new ProductionOrderPlan(ActiveRecipe(), 120, Today.AddDays(1), Shift.Day, "x"), Today);
         Assert.Equal((120m, Shift.Day), (order.PlannedQty, order.Shift));
 
         order.Release(Now, Guid.NewGuid());
 
         Assert.Equal(ProductionOrderStatus.Released, order.Status);
         Assert.Equal("production_order_not_draft", Assert.Throws<BusinessRuleException>(() =>
-            order.UpdateDraft(new ProductionOrderPlan(ActiveRecipe(), 1, Today, null, null, null), Today)).Code);
+            order.UpdateDraft(new ProductionOrderPlan(ActiveRecipe(), 1, Today, null, null), Today)).Code);
         Assert.Equal("production_order_not_draft", Assert.Throws<BusinessRuleException>(() => order.Release(Now, null)).Code);
     }
 

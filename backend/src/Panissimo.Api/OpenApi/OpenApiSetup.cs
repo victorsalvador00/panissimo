@@ -32,7 +32,7 @@ public static class OpenApiSetup
             """,
         [typeof(ResetPasswordRequest)] = """{ "newPassword": "Temporal2026x" }""",
         [typeof(CreateRoleRequest)] = """
-            { "name": "Líder de línea", "description": "Cierres de producción de su área",
+            { "name": "Líder de línea", "description": "Cierres de producción de su fábrica",
               "permissions": ["production.view", "production.orders.close"] }
             """,
         [typeof(UpdateRoleRequest)] = """
@@ -45,22 +45,20 @@ public static class OpenApiSetup
         [typeof(UpdateUnitOfMeasureRequest)] = """{ "version": 1234, "name": "Bolsa", "kind": "Unit", "isActive": true }""",
         [typeof(CreateItemCategoryRequest)] = """{ "name": "Pan dulce" }""",
         [typeof(UpdateItemCategoryRequest)] = """{ "version": 1234, "name": "Pan dulce", "isActive": true }""",
-        [typeof(CreateProductionAreaRequest)] = """{ "code": "HOJ-NOC", "name": "Hojaldre Noche", "sortOrder": 120 }""",
-        [typeof(UpdateProductionAreaRequest)] = """{ "version": 1234, "name": "Hojaldre Noche", "sortOrder": 120, "isActive": true }""",
         [typeof(CreateItemRequest)] = """
             { "sku": "SKU0042", "name": "Trenza embolsada 6 pzas", "type": "FinishedGood",
               "categoryId": "0199a1b2-0000-7000-8000-0000000000c1", "baseUomId": "0199a1b2-0000-7000-8000-0000000000b5",
               "purchaseUomId": null, "purchaseToBaseFactor": null, "tracksLots": true, "shelfLifeDays": 5,
               "storageCondition": "Ambient", "taxRate": 0, "presentation": "Packaged",
               "bulkItemId": "0199a1b2-0000-7000-8000-0000000000d9", "unitsPerPackage": 6,
-              "productionAreaId": "0199a1b2-0000-7000-8000-0000000000e1", "productionMultiple": 6, "unitWeightGrams": 85 }
+              "productionMultiple": 6, "unitWeightGrams": 85 }
             """,
         [typeof(UpdateItemRequest)] = """
             { "version": 1234, "sku": "SKU0007", "name": "Harina de trigo", "type": "RawMaterial",
               "categoryId": "0199a1b2-0000-7000-8000-0000000000c1", "baseUomId": "0199a1b2-0000-7000-8000-0000000000b1",
               "purchaseUomId": "0199a1b2-0000-7000-8000-0000000000b7", "purchaseToBaseFactor": 44, "tracksLots": true,
               "shelfLifeDays": 180, "storageCondition": "Ambient", "taxRate": 0, "presentation": null, "bulkItemId": null,
-              "unitsPerPackage": null, "productionAreaId": null, "productionMultiple": 1, "unitWeightGrams": null, "isActive": true }
+              "unitsPerPackage": null, "productionMultiple": 1, "unitWeightGrams": null, "isActive": true }
             """,
         [typeof(UpdateItemLocationSettingsRequest)] = """
             { "settings": [
@@ -124,11 +122,11 @@ public static class OpenApiSetup
             """,
         [typeof(CreateProductionOrderRequest)] = """
             { "locationId": "0199a1b2-0000-7000-8000-0000000000a9", "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9",
-              "plannedQty": 3200, "scheduledDate": "2026-10-17", "productionAreaId": null, "shift": "Night", "notes": "Pedido de fin de semana" }
+              "plannedQty": 3200, "scheduledDate": "2026-10-17", "shift": "Night", "notes": "Pedido de fin de semana" }
             """,
         [typeof(UpdateProductionOrderRequest)] = """
             { "version": 1234, "outputItemId": "0199a1b2-0000-7000-8000-0000000000d9", "plannedQty": 3000,
-              "scheduledDate": "2026-10-17", "productionAreaId": "0199a1b2-0000-7000-8000-0000000000e1", "shift": "Night", "notes": null }
+              "scheduledDate": "2026-10-17", "shift": "Night", "notes": null }
             """,
         [typeof(CreateProductionCloseRequest)] = """
             { "version": 1234, "kind": "Partial", "producedQty": 1200, "shift": "Night", "notes": "Primer tramo",
@@ -200,9 +198,9 @@ public static class OpenApiSetup
             """,
         [typeof(GenerateProductionPlanRequest)] = """
             { "locationId": "0199a1b2-0000-7000-8000-0000000000a1",
-              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "date": "2026-10-18", "areaId": null, "shift": "Night",
+              "lines": [ { "itemId": "0199a1b2-0000-7000-8000-0000000000d1", "date": "2026-10-18", "shift": "Night",
                            "quantity": 1200, "demandLineIds": null },
-                         { "itemId": "0199a1b2-0000-7000-8000-0000000000d3", "date": "2026-10-18", "areaId": null, "shift": null,
+                         { "itemId": "0199a1b2-0000-7000-8000-0000000000d3", "date": "2026-10-18", "shift": null,
                            "quantity": 96, "demandLineIds": ["0199a1b2-0000-7000-8000-0000000000c7"] } ] }
             """,
         [typeof(CreateInternalTransferRequest)] = """

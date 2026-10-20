@@ -109,12 +109,6 @@ export const NAVIGATION: readonly NavSection[] = [
         route: '/produccion/resumen',
         permission: 'production.view',
       },
-      {
-        label: 'Áreas',
-        icon: 'category',
-        route: '/produccion/areas',
-        permission: 'production.view',
-      },
     ],
   },
   {

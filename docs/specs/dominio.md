@@ -10,7 +10,7 @@
 
 Paníssimo (Grupo Maroño, S.A. de C.V.) es una panadería con planta propia:
 
-- **1 planta** que compra materias primas, insumos y productos de uso general; produce y abastece. Trabaja en tres turnos (día, tarde y noche) con áreas de producción (cuadrillas).
+- **1 planta** que compra materias primas, insumos y productos de uso general; produce y abastece. Trabaja en tres turnos (día, tarde y noche); produce en sus fábricas (RN-48).
 - **N sucursales propias** (cantidad por confirmar, D-01) que reciben pan **a granel** (no empaquetado) mediante pedidos, lo almacenan y lo consumen o venden.
 - **Clientes terceros** (cadenas comerciales, institucionales, etc.) que compran producto **empaquetado** mediante pedidos.
 - La planta también **produce para stock** y produce **semiterminados** (masas, revueltos, rellenos, betunes) que se usan como ingrediente de los productos terminados.
@@ -50,7 +50,6 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 | Semiterminado | `SemiFinished` | Masa, revuelto, relleno, betún. Se produce con OP y se usa en otra receta |
 | Producto terminado | `FinishedGood` | |
 | Presentación | `ItemPresentation` | `Bulk` (granel, para sucursales) o `Packaged` (empaquetado, para clientes) |
-| Área de producción | `ProductionArea` | Cuadrilla: Bizcocho Día, Pan de Sal Noche, Rondo… |
 | Turno | `Shift` | `Day`, `Afternoon`, `Night` |
 | Unidad de medida | `UnitOfMeasure` | |
 | Categoría | `ItemCategory` | |
@@ -88,7 +87,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 - **Identificadores:** `Guid` v7 (`Guid.CreateVersion7()`).
 - **Campos de auditoría:** `CreatedAt`, `CreatedBy`, `UpdatedAt`, `UpdatedBy`. Los DTO exponen además el nombre del usuario (`createdByName`, etc.).
-- **Catálogos** (ubicaciones, artículos, proveedores, clientes, áreas…) usan `IsActive` para baja lógica; nunca se borran físicamente.
+- **Catálogos** (ubicaciones, artículos, proveedores, clientes…) usan `IsActive` para baja lógica; nunca se borran físicamente.
 - **Documentos** (OC, OP, traspasos, pedidos, remisiones…) tienen `Folio`, `Status`, `Notes` y **no se borran: se cancelan**.
 - **Cantidades:** siempre en la **unidad base** del artículo, `numeric(18,4)`.
   - Si la unidad base es `pza`, las cantidades de OP, cierres, pedidos, traspasos, remisiones, ajustes, conteos y consumos deben ser **enteras** (RN-03b).
@@ -142,7 +141,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
     Decidido con el usuario el 2026-10-18: reservar y generar vales **al liberar** (no al crear el borrador), bloquear sin existencia libre, un vale por origen, flujo enviar/recibir y origen por omisión según el tipo.
   - **RN-47 (vale interno)**: mueve producto entre subalmacenes de la misma ubicación con recepción, como un traspaso: `Draft → Dispatched → Received | ReceivedWithDiscrepancies`; `Cancelled` solo en `Draft`. Enviar exige el subalmacén origen y recibir el destino. El costo viaja con el producto (RN-04).
 
-**ProductionArea**: `Code` (único), `Name`, `SortOrder`, `IsActive`. Semilla (editable): Bizcocho Día, Pan de Sal Día, Pan de Sal Noche, Rondo, Repostería, Panquelería, Pastelería, Congelado, Bocadillos, Masas, Empaque.
+**Sin áreas de producción** (decidido con el usuario el 2026-10-20): el catálogo de áreas (cuadrillas), el área del artículo y el área de la OP se eliminaron. Donde se agrupaba por área (OP, cierres, plan, resumen RN-53, tablero, trazabilidad) se usa la **fábrica de la receta** (RN-49); sin fábrica = "Sin fábrica".
 
 **Shift** (enum, no catálogo): `Day` (Día), `Afternoon` (Tarde), `Night` (Noche).
 
@@ -161,7 +160,6 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - `Presentation` (`Bulk | Packaged`): obligatorio para `FinishedGood`, nulo para los demás tipos.
 - `BulkItemId` (opcional, solo si `Presentation = Packaged`): el producto a granel del que es versión empaquetada (ej. `TRENZA EMBOLSADA` → `TRENZA`). Debe ser un `FinishedGood` `Bulk` activo. Es informativo (reportes y equivalencias); no mueve inventario.
 - `UnitsPerPackage` (opcional, `Packaged`): piezas por paquete (informativo).
-- `ProductionAreaId` (opcional; solo `SemiFinished` y `FinishedGood`): área por defecto de sus OP.
 - `ProductionMultiple` (`numeric(18,4)`, default 1, > 0): el plan redondea hacia arriba a este múltiplo (columna "Múltiplo OP" de la Matriz Maestra del cliente).
 - `UnitWeightGrams` (opcional): gramaje objetivo por pieza. Informativo.
 - `IsActive`.
@@ -211,7 +209,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - Los componentes pueden ser `RawMaterial`, `Supply` (ej. bolsa y etiqueta del empaquetado) o `SemiFinished`. Un `FinishedGood` no es componente (D-04). Un producto no puede ser su propio componente ni repetir componentes.
 
 **ProductionOrder**
-- Encabezado: `Folio`, `LocationId` (Plant), `RecipeId` (versión exacta), `OutputItemId`, `PlannedQty`, `ScheduledDate`, `ProductionAreaId` (default: el del artículo), `Shift` (opcional), `Source` (`Manual | Plan | Import`), `ImportId` (opcional), `Notes`.
+- Encabezado: `Folio`, `LocationId` (Plant), `RecipeId` (versión exacta), `OutputItemId`, `PlannedQty`, `ScheduledDate`, `Shift` (opcional), `Source` (`Manual | Plan | Import`), `ImportId` (opcional), `Notes`.
 - `Status`: `Draft → Released → InProgress → Completed`; además `Cancelled` (RN-60).
 - Acumulados (se recalculan con cada cierre): `ProducedQty`, `TotalCost`, `UnitCost` (= `TotalCost / ProducedQty`).
 - Cierre final: `CompletedAt`, `CompletedBy`, `ShortfallReason` (`MissingMaterial | MissingStaff | EquipmentFailure | DemandChange | Other`; requerido si `ProducedQty < PlannedQty`), `ShortfallNotes`.
@@ -346,7 +344,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 ### Órdenes de producción con cierre parcial y final
 
 - **RN-60 (estados)**:
-  - `Draft`: se edita (producto, cantidad, fecha, área, turno, notas) y se puede cancelar. Al cambiar de producto se toma su receta activa.
+  - `Draft`: se edita (producto, cantidad, fecha, turno, notas) y se puede cancelar. Al cambiar de producto se toma su receta activa.
   - `Released`: liberada para producir. Se puede cancelar mientras no tenga cierres. No se edita.
   - `InProgress`: tiene al menos un cierre parcial. **No se puede cancelar**; se termina con el cierre final.
   - `Completed` y `Cancelled`: finales.
@@ -378,7 +376,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   - **Cálculo por día, acumulado:** en orden de fecha, la existencia cubre primero los días más próximos; una OP pendiente cubre a partir de su `ScheduledDate` (las anteriores al rango, desde el primer día); lo sugerido para un día cuenta como cubierto para los siguientes.
   - **Por producir** = faltante del día, redondeado **hacia arriba** al `ProductionMultiple` (y a entero si es `pza`).
   - El plan es una consulta: no guarda nada ni reserva existencia.
-- **RN-71 (generar OP desde el plan)**: el usuario elige renglones del plan y ajusta la cantidad (> 0). Se crea **una OP `Draft` por producto, fecha, área y turno**, con `Source = Plan`, la receta activa y una liga `ProductionOrderDemand` por línea de pedido que originó la demanda (repartiendo en orden de `RequiredDate`). Todo o nada; un producto sin receta activa lo bloquea.
+- **RN-71 (generar OP desde el plan)**: el usuario elige renglones del plan y ajusta la cantidad (> 0). Se crea **una OP `Draft` por producto, fecha y turno**, con `Source = Plan`, la receta activa y una liga `ProductionOrderDemand` por línea de pedido que originó la demanda (repartiendo en orden de `RequiredDate`). Todo o nada; un producto sin receta activa lo bloquea.
 - **RN-72 (ligas informativas)**: las ligas muestran qué pedidos atiende una OP. **No reservan** producto terminado (la reserva de RN-110 es solo de ingredientes de una OP liberada): los pedidos se surten desde la existencia de la Planta con traspasos o remisiones. Cancelar una OP no cambia el pedido.
 - **RN-73 (OP manual)**: también se crean OP sin pedido (para stock), con `Source = Manual`.
 
@@ -391,15 +389,14 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   | `fecha` | Sí | Fecha programada (celda de fecha o texto `dd/mm/aaaa`). No pasada |
   | `sku` | Sí | `Sku` (D-07) de un artículo activo `SemiFinished` o `FinishedGood` con receta activa |
   | `cantidad` | Sí | > 0, hasta 4 decimales (entero si es `pza`) |
-  | `area` | No | Código o nombre de un área activa. Vacío = área del artículo |
   | `turno` | No | `Día`, `Tarde` o `Noche`. Vacío = sin turno |
   | `ubicacion` | No | Código de una Planta del alcance del usuario. Vacío = la Planta |
   | `notas` | No | Máximo 500 caracteres |
 
-  Columnas desconocidas se ignoran con aviso; filas vacías se ignoran; máximo **3,000 filas**. El sistema ofrece una **plantilla** con esos encabezados y una hoja de instrucciones.
+  Columnas desconocidas se ignoran con aviso (también `area`, de la plantilla anterior); filas vacías se ignoran; máximo **3,000 filas**. El sistema ofrece una **plantilla** con esos encabezados y una hoja de instrucciones.
 - **RN-91 (todo o nada)**: se validan todas las filas y se reportan **todos** los errores por fila y columna. Con un solo error, no se crea nada.
-- **RN-92 (agrupación)**: filas con el mismo `(fecha, sku, area, turno, ubicacion)` se suman en una sola OP. La vista previa muestra "N filas → M órdenes".
-- **RN-93 (avisos)**: requieren confirmación del usuario, no son errores: archivo con el mismo SHA-256 que una importación anterior, y OP no cancelada existente del mismo producto, fecha, área y turno.
+- **RN-92 (agrupación)**: filas con el mismo `(fecha, sku, turno, ubicacion)` se suman en una sola OP. La vista previa muestra "N filas → M órdenes".
+- **RN-93 (avisos)**: requieren confirmación del usuario, no son errores: archivo con el mismo SHA-256 que una importación anterior, y OP no cancelada existente del mismo producto, fecha y turno.
 - **RN-94 (resultado)**: crea un `ProductionOrderImport` y sus OP en `Draft` con `Source = Import`. Con **"Liberar al importar"** (y permiso de gestionar OP) las crea en `Released`. Todo en una transacción.
 - **RN-95 (Matriz Maestra)**: las hojas de la Matriz Maestra del cliente no se importan directamente (usan los SKU `SKU0001…` en otra disposición). El cliente copia `fecha`, `sku` y `cantidad` a la plantilla (D-07).
 
@@ -479,7 +476,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   - Cantidad sugerida en unidades de compra completas (hacia arriba). La **requisición sugerida** es una requisición normal en `Draft`.
 - **RN-51 (costo de receta)**: costo teórico por versión = Σ `Quantity × (1 + WastePct/100) × costo promedio vigente` / `YieldQty`. Solo lectura. Un componente "subió" si su último costo de entrada (`PurchaseReceipt`) supera al anterior en ≥ `production.cost_increase_alert_pct` y esa entrada tiene ≤ 30 días.
 - **RN-52 (análisis de consumo)**: sobre semanas completas hasta ayer (8 por omisión, máx. 26), con las salidas `Consumption`, `ProductionConsumption`, `TransferOut` y `CustomerShipment`. Promedio diario = total / días; patrón por día de la semana; tendencia = últimas 4 semanas contra las 4 anteriores. Mín sugerido = promedio × `inventory.min_cover_days`; máx = promedio × `inventory.max_cover_days`, redondeados hacia arriba (enteros en `pza`); el máx nunca queda por debajo del mín. Aplicarlo usa el mín/máx normal.
-- **RN-53 (resumen de producción)**: por área, producto o día en un rango: planeado (OP del rango no canceladas), producido (cierres del rango), % de cumplimiento, costo producido y merma de producción en pesos (RN-13).
+- **RN-53 (resumen de producción)**: por fábrica de la receta (RN-49), producto o día en un rango: planeado (OP del rango no canceladas), producido (cierres del rango), % de cumplimiento, costo producido y merma de producción en pesos (RN-13).
 
 ### Trazabilidad
 
@@ -510,7 +507,7 @@ Detalle, algoritmo y API en `docs/specs/trazabilidad.md` (B-28) y la pantalla en
 | Organización | `locations.view`, `locations.manage`, `locations.all` |
 | Catálogos | `catalog.view`, `catalog.manage` |
 | Inventario | `inventory.view`, `inventory.adjust`, `inventory.count`, `inventory.consumption`, `inventory.internal_transfers` (vales internos, RN-47), `inventory.traceability` (trazabilidad de lotes, RN-109) |
-| Producción | `production.view`, `production.recipes.manage`, `production.orders.manage`, `production.orders.close`, `production.orders.import`, `production.areas.manage` |
+| Producción | `production.view`, `production.recipes.manage`, `production.orders.manage`, `production.orders.close`, `production.orders.import` |
 | Logística | `logistics.view`, `logistics.orders.create`, `logistics.orders.approve`, `logistics.transfers.dispatch`, `logistics.transfers.receive`, `logistics.transfers.special` |
 | Ventas | `sales.view`, `sales.customers.manage`, `sales.orders.manage`, `sales.shipments.dispatch` |
 | Compras | `purchasing.view`, `purchasing.suppliers.manage`, `purchasing.requisitions.manage`, `purchasing.po.manage`, `purchasing.po.approve`, `purchasing.receive` |

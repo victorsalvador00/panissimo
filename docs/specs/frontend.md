@@ -59,7 +59,7 @@ frontend/
 │   │   │   ├── dashboard/
 │   │   │   ├── catalog/           # ubicaciones, artículos, categorías, unidades
 │   │   │   ├── inventory/         # existencias, kardex, ajustes, conteos, consumos, análisis
-│   │   │   ├── production/        # recetas, áreas, OP, cierres, plan, importación, resumen
+│   │   │   ├── production/        # recetas, OP, cierres, plan, importación, resumen
 │   │   │   ├── logistics/         # pedidos de sucursal, traspasos
 │   │   │   ├── sales/             # clientes, pedidos de cliente, remisiones
 │   │   │   ├── purchasing/        # proveedores, requisiciones, OC, recepciones, requerimiento
@@ -161,12 +161,11 @@ Rutas en español. Entre corchetes, el permiso mínimo. ★ = diseño móvil o t
 | Ruta | Pantalla | Permiso |
 |---|---|---|
 | `/catalogos/ubicaciones` | Lista y diálogo (nombre y dirección editables) | [locations.view] |
-| `/catalogos/articulos` | Lista con foto, filtros (tipo, presentación, categoría, área, activo) y búsqueda por SKU o nombre | [catalog.view] |
-| `/catalogos/articulos/nuevo`, `/:id` | Datos generales (tipo, categoría, unidades y factor, lotes y vida útil, almacenamiento, IVA 0/16 %, presentación, "Versión empaquetada de", piezas por paquete, área, múltiplo de OP, gramaje); pestañas **Foto** (elegir o tomar con la cámara), **Mín/Máx por ubicación** (guardado propio), versiones empaquetadas (si es granel) e historial | [catalog.manage] |
+| `/catalogos/articulos` | Lista con foto, filtros (tipo, presentación, categoría, activo) y búsqueda por SKU o nombre | [catalog.view] |
+| `/catalogos/articulos/nuevo`, `/:id` | Datos generales (tipo, categoría, unidades y factor, lotes y vida útil, almacenamiento, IVA 0/16 %, presentación, "Versión empaquetada de", piezas por paquete, múltiplo de OP, gramaje); pestañas **Foto** (elegir o tomar con la cámara), **Mín/Máx por ubicación** (guardado propio), versiones empaquetadas (si es granel) e historial | [catalog.manage] |
 | `/catalogos/articulos/importar` | CSV: plantilla generada en el navegador (con BOM), guía de valores, vista previa de 20 filas y tabla de errores por fila | [catalog.manage] |
 | `/catalogos/articulos/fotos` | Importación masiva de fotos por SKU (`TRENZA.jpg`), redimensionadas y subidas una por una | [catalog.manage] |
 | `/catalogos/categorias`, `/catalogos/unidades` | Listas con diálogo | [catalog.view] |
-| `/produccion/areas` | Lista y diálogo (código, nombre, orden, activa) | [production.view]; editar [production.areas.manage] |
 
 ### 7.3 Inventario
 
@@ -190,26 +189,26 @@ Rutas en español. Entre corchetes, el permiso mínimo. ★ = diseño móvil o t
 | `/produccion/recetas` | Recetas activas (interruptor "Incluir versiones anteriores") | [production.view] |
 | `/produccion/recetas/nueva`, `/:id` | Editor: producto (semiterminado o terminado), rendimiento, componentes (materia prima, insumo o semiterminado; cantidad y % merma). Si ya se usó: "Guardar creará la versión N+1" con confirmación. Desactivar / Activar esta versión. Pestaña **Costos** por versión con alzas de insumos. Historial de versiones | [production.view]; editar [production.recipes.manage] |
 | `/produccion/plan` | **Plan de producción** (7.4.1) | [production.view] |
-| `/produccion/ordenes` | Lista con pestañas **Por producir**, **En proceso**, **Borradores**, **Todas**; filtros de fecha, área, turno, origen e importación; avance (`app-progress-meter`) y número de cierres | [production.view] |
-| `/produccion/ordenes/nueva`, `/:id/editar` | Planta, producto con su receta activa (o aviso y enlace para crearla), cantidad (entera si es `pza`), fecha, área (default la del producto), turno, notas; explosión con disponibilidad que se recalcula al dejar de escribir | [production.orders.manage] |
+| `/produccion/ordenes` | Lista con pestañas **Por producir**, **En proceso**, **Borradores**, **Todas**; filtros de fecha, fábrica (si la planta tiene), turno, origen e importación; columna "Fábrica y turno"; avance (`app-progress-meter`) y número de cierres | [production.view] |
+| `/produccion/ordenes/nueva`, `/:id/editar` | Planta, producto con su receta activa (o aviso y enlace para crearla), cantidad (entera si es `pza`), fecha, turno, notas (se produce en la fábrica de la receta, RN-49); explosión con disponibilidad que se recalcula al dejar de escribir | [production.orders.manage] |
 | `/produccion/ordenes/:id` | Detalle (7.4.2) | [production.view] |
 | ★ `/produccion/ordenes/:id/cerrar?tipo=parcial\|final` | **Cierre de producción** (7.4.3) | [production.orders.close] |
-| `/produccion/cierres`, `/:id` | Lista (fecha, OP, producto, área, turno, tipo, producido, costo, merma) y detalle con consumos y lotes | [production.view] |
+| `/produccion/cierres`, `/:id` | Lista (fecha, OP, producto, fábrica, turno, tipo, producido, costo, merma) y detalle con consumos y lotes | [production.view] |
 | `/produccion/importar` | **Importar OP desde Excel** (7.4.4) | [production.orders.import] |
 | `/produccion/importaciones`, `/:id` | Historial de importaciones y sus OP | [production.view] |
-| `/produccion/resumen` | Resumen por área, producto o día: planeado, producido, % de cumplimiento, costo y merma (tabla y barras) | [production.view] |
+| `/produccion/resumen` | Resumen por fábrica, producto o día: planeado, producido, % de cumplimiento, costo y merma (tabla y barras) | [production.view] |
 
 #### 7.4.1 Plan de producción
 
-- Encabezado: Planta, rango de fechas (hoy + `production.plan_default_days`), área y búsqueda.
-- Tabla (`app-plan-table`) agrupada por **fecha** y luego por **área**: foto, SKU, producto, tipo y presentación, demanda (sucursales, clientes, stock, OP padre), existencia, OP pendientes y **por producir** (resaltado si > 0). Al expandir: líneas de pedido que lo originan (folio con enlace, sucursal o cliente, fecha, cantidad).
+- Encabezado: Planta, rango de fechas (hoy + `production.plan_default_days`), fábrica (si la planta tiene) y búsqueda.
+- Tabla (`app-plan-table`) agrupada por **fecha** y luego por **fábrica** de la receta activa: foto, SKU, producto, tipo y presentación, demanda (sucursales, clientes, stock, OP padre), existencia, OP pendientes y **por producir** (resaltado si > 0). Al expandir: líneas de pedido que lo originan (folio con enlace, sucursal o cliente, fecha, cantidad).
 - Selección de renglones con sugerido > 0; cantidad editable (prellenada con el sugerido; múltiplo como pista, no como bloqueo) y turno opcional.
-- **"Generar OP (n)"** ([production.orders.manage]): confirmación con producto / fecha / área / cantidad → diálogo con los folios creados y "Ver órdenes del día".
+- **"Generar OP (n)"** ([production.orders.manage]): confirmación con producto / fecha / fábrica / cantidad → diálogo con los folios creados y "Ver órdenes del día".
 - Vacío: "No hay nada por producir en este rango".
 
 #### 7.4.2 Detalle de OP
 
-- Encabezado: folio, estado, producto, receta (versión con enlace), área, turno, fecha, origen (enlace a la importación) y `app-progress-meter` (producido / planeado; naranja si supera lo planeado).
+- Encabezado: folio, estado, producto, receta (versión con enlace), fábrica y turno, fecha, origen (enlace a la importación) y `app-progress-meter` (producido / planeado; naranja si supera lo planeado).
 - Acciones (`productionOrderActions`): Liberar, Editar, Cancelar (borrador); Cancelar (liberada sin cierres); **Cierre parcial** y **Cierre final** (liberada o en proceso).
 - Pestañas: **Componentes** (teórico, real acumulado, merma; disponibilidad mientras está abierta), **Cierres** (`app-close-timeline`: folio, tipo, fecha y hora, turno, usuario, producido, lote y caducidad, costo unitario, merma; al expandir, consumos y lotes), **Pedidos** (que atiende, con enlaces) e **Historial**.
 - Completada: producido vs planeado, motivo de faltante, costo total y unitario, merma total.
@@ -288,7 +287,7 @@ Tarjetas según permisos y tipo de ubicación (`dashboardCards`); cada una enlaz
 - Bajo mínimo y lotes por caducar.
 - Traspasos por recibir (sucursal) o por despachar (Planta); pedidos en curso (sucursal); pedidos por aprobar (Planta).
 - OC por aprobar.
-- **Producción de hoy por área** (barras horizontales planeado vs producido) y **OP en proceso**.
+- **Producción de hoy por fábrica** (barras horizontales planeado vs producido) y **OP en proceso**.
 - Recetas con alza de insumos.
 - Pedidos de cliente por surtir hoy o vencidos; remisiones por despachar.
 - Con `locations.all`: barras de artículos bajo mínimo por ubicación (un tono, sin leyenda, tabla oculta para lector de pantalla); tocar una barra cambia de ubicación y abre Existencias filtradas.
@@ -303,7 +302,7 @@ Filtros por URL que usan las tarjetas: `?bajoMinimo=1`, `?porCaducar=1`, `?pesta
 | `app-page-header` | Título, migas (`BreadcrumbsService`) y acciones |
 | `app-data-table` | `mat-table` + paginador (en español) + orden en modo servidor (`ListQuery` → `page/pageSize/sort/q`); plantillas `appCell`/`appCardDef`; filas expandibles (`appRowDetail`); selección (`selectable`, `[(selection)]`, conservada entre páginas); skeleton y vacío; tarjetas en móvil |
 | `app-status-tag` | Etiqueta con color por estado |
-| `app-item-picker` | Autocompletado de artículos (`/items/lookup`) por SKU o nombre, con foto, unidad y existencia opcional; filtros `type`, `presentation`, `areaId` |
+| `app-item-picker` | Autocompletado de artículos (`/items/lookup`) por SKU o nombre, con foto, unidad y existencia opcional; filtros `type`, `presentation` |
 | `app-lookup-picker` | Autocompletado genérico con búsqueda en servidor (proveedores, clientes) |
 | `app-location-picker` | Selector de ubicaciones permitidas, filtrable por tipo |
 | `app-qty-input` | Input decimal con unidad; `decimals` (0 automático si la unidad es `pza`), `max`, `allowZero`, salida `(entered)`; muestra el error del control padre |
@@ -391,7 +390,7 @@ Cada tarea deja `npm run lint` y `npm test` en verde. **Una tarea por sesión, e
 | F-02 | `api:types`, interceptores, `AuthService` (refresh al iniciar, Web Locks), login con fondo plexus, guardas, `*hasPermission`, `LocationContextService`, `/perfil` | B-03 | Login funcional; menú filtrado; la sesión sobrevive a F5 y a dos pestañas |
 | F-03 | Layout (sidebar con etiqueta, topbar, drawer), estilos de §4.1, componentes compartidos base (`page-header`, `data-table`, `status-tag`, `item-picker`, `lookup-picker`, `location-picker`, `qty-input`, `lines-editor`, `confirm-summary`, diálogos de 409, `reason-dialog`, `stamp`) y `/demo/componentes` | F-02 | La demo muestra todos los componentes en claro y oscuro, escritorio y 390 px |
 | F-04 | Administración: usuarios, roles, bitácora (`app-audit-panel`), configuración | B-04 | E2E 1 en verde |
-| F-05 | Catálogos: ubicaciones, categorías, unidades, áreas, artículos (todos los campos y mín/máx), importación CSV | B-05 | E2E 2 en verde; alta de granel y su empaquetado ligado |
+| F-05 | Catálogos: ubicaciones, categorías, unidades, artículos (todos los campos y mín/máx), importación CSV | B-05 | E2E 2 en verde; alta de granel y su empaquetado ligado |
 | F-06 | Inventario: existencias con lotes, kardex, ajustes, existencias iniciales | B-07 | E2E 3 en verde |
 | F-07 | ★ Conteo físico (captura a ciegas, autoguardado) y consumo | B-08 | E2E 4 en verde |
 | F-08 | Traspasos directos con despacho y ★ recepción | B-09 | E2E 5 en verde |

@@ -75,7 +75,6 @@ test('accesibilidad con Lighthouse ≥ 90', async ({ baseURL }) => {
       outputItemId: await api.itemId('E2E-MASA'),
       plannedQty: 10,
       scheduledDate: today(),
-      productionAreaId: null,
       shift: null,
       notes: 'Lighthouse',
     });

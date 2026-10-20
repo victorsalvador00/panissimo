@@ -23,7 +23,7 @@ test.describe('tablero por rol', () => {
     ])
       await expect(main.getByRole('heading', { name: title, exact: true })).toBeVisible();
     await expect(main.getByRole('heading', { name: 'Traspasos por recibir' })).toHaveCount(0);
-    await expect(main.getByRole('heading', { name: 'Producción de hoy por área' })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Producción de hoy por fábrica' })).toBeVisible();
     await expect(
       main.getByRole('heading', { name: 'Artículos bajo mínimo por ubicación' }),
     ).toBeVisible();
@@ -87,7 +87,7 @@ test.describe('tablero por rol', () => {
       'OC por aprobar',
       'OP en proceso',
       'Pedidos por aprobar',
-      'Producción de hoy por área',
+      'Producción de hoy por fábrica',
     ])
       await expect(main.getByRole('heading', { name: title })).toHaveCount(0);
     await expect(

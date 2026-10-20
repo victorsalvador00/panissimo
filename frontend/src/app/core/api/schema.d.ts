@@ -16892,6 +16892,8 @@ export interface components {
       shelfLifeDays: null | number;
       /** Format: int64 */
       photoRevision: null | number;
+      /** Format: uuid */
+      bulkItemId?: null | string;
     };
     ItemPhotoDto: {
       /** Format: uuid */
@@ -18165,6 +18167,7 @@ export interface components {
       factoryId?: null | string;
       factoryCode?: null | string;
       factoryName?: null | string;
+      outputPresentation?: null | components['schemas']['ItemPresentation'];
     };
     RecipeLineDto: {
       /** Format: uuid */

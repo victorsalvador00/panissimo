@@ -108,8 +108,8 @@
             >
               <app-item-picker
                 [formControl]="line.controls.item"
-                label="Materia prima, insumo o semiterminado"
-                [types]="componentTypes"
+                [label]="componentLabel()"
+                [types]="componentTypes()"
               />
             </ng-template>
             <ng-template

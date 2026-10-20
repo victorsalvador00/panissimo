@@ -13,9 +13,14 @@ import { LookupPicker } from '../lookup-picker/lookup-picker';
 
 export type { ItemOption };
 
+/** A type to search, alone or with its presentation (e.g. only the bulk finished goods). */
+export type ItemTypeFilter =
+  ApiEnum<'ItemType'> | { type: ApiEnum<'ItemType'>; presentation: ApiEnum<'ItemPresentation'> };
+
 /**
  * Item autocomplete by SKU or name (`GET /items/lookup`, frontend §8), filterable by type and presentation.
- * The value is the chosen ItemLookupDto (with its unit). `types` allows several types (one search per type). Each
+ * The value is the chosen ItemLookupDto (with its unit). `types` allows several types (one search per type), each
+ * optionally with its own presentation. Each
  * option and the chosen item show their photo (app-item-photo, F-23).
  */
 @Component({
@@ -34,16 +39,21 @@ export type { ItemOption };
 })
 export class ItemPicker extends LookupPicker<ItemOption> {
   readonly type = input<ApiEnum<'ItemType'> | null>(null);
-  readonly types = input<readonly ApiEnum<'ItemType'>[]>([]);
+  readonly types = input<readonly ItemTypeFilter[]>([]);
   readonly presentation = input<ApiEnum<'ItemPresentation'> | null>(null);
 
   private readonly lookup = inject(ItemLookupApi);
 
   protected override runSearch(q: string): Observable<ItemOption[]> {
-    const filters = { presentation: this.presentation() };
+    const presentation = this.presentation();
     const types = this.types();
-    if (types.length === 0) return this.lookup.search(q, { ...filters, type: this.type() });
-    return forkJoin(types.map((type) => this.lookup.search(q, { ...filters, type }))).pipe(
+    if (types.length === 0) return this.lookup.search(q, { presentation, type: this.type() });
+    const searches = types.map((t) =>
+      typeof t === 'string'
+        ? this.lookup.search(q, { presentation, type: t })
+        : this.lookup.search(q, { presentation: t.presentation, type: t.type }),
+    );
+    return forkJoin(searches).pipe(
       map((results) => results.flat().sort((a, b) => a.sku.localeCompare(b.sku))),
     );
   }

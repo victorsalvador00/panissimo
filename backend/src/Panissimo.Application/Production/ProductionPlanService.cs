@@ -117,7 +117,10 @@ public sealed class CustomerOrderDemandSource(IAppDbContext db) : IDemandSource
         .ToList();
 }
 
-/// <summary>Semi-finished goods: RN-11 on what is still to be produced of the open OPs that use them, by ScheduledDate.</summary>
+/// <summary>
+/// Semi-finished goods and bulk goods packed into a packaged one (RN-119): RN-11 on what is still to be produced of the open
+/// OPs that use them, by ScheduledDate.
+/// </summary>
 public sealed class ParentOrderDemandSource(IAppDbContext db) : IDemandSource
 {
     public async Task<IReadOnlyList<PlanDemand>> LoadAsync(Guid locationId, DateOnly to, CancellationToken ct) =>
@@ -125,7 +128,7 @@ public sealed class ParentOrderDemandSource(IAppDbContext db) : IDemandSource
                 from l in o.Lines
                 join c in db.Items on l.ComponentItemId equals c.Id
                 join p in db.Items on o.OutputItemId equals p.Id
-                where o.LocationId == locationId && o.ScheduledDate <= to && c.Type == ItemType.SemiFinished
+                where o.LocationId == locationId && o.ScheduledDate <= to && (c.Type == ItemType.SemiFinished || c.Type == ItemType.FinishedGood)
                       && (o.Status == ProductionOrderStatus.Draft || o.Status == ProductionOrderStatus.Released
                           || o.Status == ProductionOrderStatus.InProgress)
                       && o.PlannedQty > o.ProducedQty

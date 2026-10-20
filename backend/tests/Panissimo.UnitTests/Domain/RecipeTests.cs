@@ -73,11 +73,24 @@ public class RecipeTests
     [InlineData(ItemType.RawMaterial, false, true)]
     [InlineData(ItemType.Supply, false, true)]
     [InlineData(ItemType.SemiFinished, true, true)]
-    [InlineData(ItemType.FinishedGood, true, false)]
     public void Produced_items_and_components_follow_d04(ItemType type, bool produced, bool component)
     {
         Assert.Equal(produced, RecipeRules.CanBeProduced(type));
-        Assert.Equal(component, RecipeRules.CanBeComponent(type));
+        Assert.Equal(component, RecipeRules.CanBeComponent(type, null, ItemType.FinishedGood, ItemPresentation.Bulk));
+        Assert.Equal(component, RecipeRules.CanBeComponent(type, null, ItemType.SemiFinished, null));
+    }
+
+    [Theory]
+    [InlineData(ItemPresentation.Bulk, ItemType.FinishedGood, ItemPresentation.Packaged, true)]
+    [InlineData(ItemPresentation.Bulk, ItemType.FinishedGood, ItemPresentation.Bulk, false)]
+    [InlineData(ItemPresentation.Bulk, ItemType.SemiFinished, null, false)]
+    [InlineData(ItemPresentation.Packaged, ItemType.FinishedGood, ItemPresentation.Packaged, false)]
+    [InlineData(ItemPresentation.Packaged, ItemType.FinishedGood, ItemPresentation.Bulk, false)]
+    public void A_finished_good_is_a_component_only_when_bulk_goes_into_packaged_rn119(
+        ItemPresentation presentation, ItemType outputType, ItemPresentation? outputPresentation, bool component)
+    {
+        Assert.True(RecipeRules.CanBeProduced(ItemType.FinishedGood));
+        Assert.Equal(component, RecipeRules.CanBeComponent(ItemType.FinishedGood, presentation, outputType, outputPresentation));
     }
 
     [Fact]

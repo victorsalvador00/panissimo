@@ -101,7 +101,7 @@ public sealed class ItemService(IAppDbContext db, ILocationScope scope, IUserDir
                       orderby i.Sku
                       select new ItemLookupDto(i.Id, i.Sku, i.Name, i.Type, i.Presentation, u.Code, i.TracksLots,
                           i.ShelfLifeDays,
-                          db.ItemPhotos.Where(p => p.ItemId == i.Id).Select(p => (long?)p.Revision).FirstOrDefault()))
+                          db.ItemPhotos.Where(p => p.ItemId == i.Id).Select(p => (long?)p.Revision).FirstOrDefault(), i.BulkItemId))
             .Take(limit)
             .ToListAsync(ct);
     }

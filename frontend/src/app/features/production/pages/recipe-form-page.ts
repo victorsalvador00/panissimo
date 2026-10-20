@@ -15,7 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { rxResource, takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import type { Schemas } from '../../../core/api/api';
@@ -24,6 +24,7 @@ import { Notifier } from '../../../core/http/notifier';
 import { BreadcrumbsService } from '../../../core/layout/breadcrumbs.service';
 import { ConfirmService } from '../../../shared/components/confirm-summary/confirm-summary';
 import { ItemOption, ItemPicker } from '../../../shared/components/item-picker/item-picker';
+import { ItemLookupApi } from '../../../shared/data-access/item-lookup';
 import {
   LineColumn,
   LinesEditor,
@@ -39,7 +40,13 @@ import { LocationContextService } from '../../../core/context/location-context.s
 import { StockApi } from '../../inventory/data-access/inventory-api';
 import { Recipe, RecipesApi } from '../data-access/production-api';
 import { RecipeCosts } from '../ui/recipe-costs';
-import { COMPONENT_TYPES, OUTPUT_TYPES, savesNewVersion } from '../ui/recipe-rules';
+import {
+  OUTPUT_TYPES,
+  componentFilters,
+  componentLabel,
+  isPackaged,
+  savesNewVersion,
+} from '../ui/recipe-rules';
 
 type ComponentLine = FormGroup<{
   item: FormControl<ItemOption | null>;
@@ -95,7 +102,6 @@ export class RecipeFormPage {
   private readonly canManage = inject(AuthService).can('production.recipes.manage');
 
   protected readonly outputTypes = OUTPUT_TYPES;
-  protected readonly componentTypes = COMPONENT_TYPES;
   protected readonly controlError = controlError;
   protected readonly busy = signal(false);
   protected readonly recipe = signal<Recipe | null>(null);
@@ -115,6 +121,14 @@ export class RecipeFormPage {
     factoryId: new FormControl<string | null>(null),
     lines: this.lines,
   });
+
+  /** RN-119: a packaged product also takes bulk finished goods as components. */
+  private readonly output = toSignal(this.form.controls.output.valueChanges, {
+    initialValue: null,
+  });
+  protected readonly componentTypes = computed(() => componentFilters(this.output()));
+  protected readonly componentLabel = computed(() => componentLabel(this.output()));
+  private readonly itemLookup = inject(ItemLookupApi);
 
   /** RN-49: the factories of the plant; with any, the recipe must name the one where it is produced. */
   private readonly stockApi = inject(StockApi);
@@ -140,6 +154,10 @@ export class RecipeFormPage {
       // The product of an existing recipe does not change: a new product is a new recipe.
       if (this.recipe()) this.form.controls.output.disable({ emitEvent: false });
     });
+    // RN-119: a new packaged recipe starts with its bulk good in the first empty line.
+    this.form.controls.output.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((output) => void this.proposeBulk(output));
     // RN-49: required while the plant has a factory; a single one is chosen for a new recipe.
     effect(() => {
       const factories = this.factories();
@@ -148,6 +166,17 @@ export class RecipeFormPage {
       if (!this.id() && !control.value && factories.length === 1) control.setValue(factories[0].id);
       control.updateValueAndValidity({ emitEvent: false });
     });
+  }
+
+  private async proposeBulk(output: ItemOption | null): Promise<void> {
+    const bulkId = output?.bulkItemId;
+    if (this.id() || !bulkId || !isPackaged(output)) return;
+    const items = this.lines.controls.map((l) => l.controls.item.value);
+    const empty = this.lines.controls.find((l) => !l.controls.item.value);
+    if (!empty || items.some((i) => i?.id === bulkId)) return;
+    const bulk = await firstValueFrom(this.itemLookup.byId(bulkId));
+    if (bulk && !empty.controls.item.value && this.form.controls.output.value?.id === output.id)
+      empty.controls.item.setValue(bulk);
   }
 
   protected hasFactoryOption(id: string): boolean {
@@ -253,7 +282,7 @@ export class RecipeFormPage {
       sku: recipe.outputSku,
       name: recipe.outputName,
       type: recipe.outputType,
-      presentation: null,
+      presentation: recipe.outputPresentation ?? null,
       baseUomCode: recipe.outputUomCode,
       tracksLots: false,
       shelfLifeDays: null,

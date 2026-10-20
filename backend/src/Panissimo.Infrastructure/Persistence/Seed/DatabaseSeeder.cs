@@ -91,7 +91,7 @@ public sealed class DatabaseSeeder(
         ("MP", "Materias primas", [ItemType.RawMaterial]),
         ("INS", "Insumos y empaque", [ItemType.Supply]),
         ("SEMI", "Semiterminados", [ItemType.SemiFinished]),
-        ("PT", "Producto terminado", []),
+        ("PT", "Producto terminado", [ItemType.FinishedGood]),
     ];
 
     /// <summary>Only on a plant without sub-warehouses and without stock (RN-44); never touches existing ones.</summary>

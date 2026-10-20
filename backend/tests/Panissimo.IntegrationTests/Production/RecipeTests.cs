@@ -80,7 +80,7 @@ public class RecipeTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Recipes_are_for_produced_items_and_finished_goods_are_not_components()
+    public async Task Recipes_are_for_produced_items_and_only_bulk_goods_go_into_packaged_ones()
     {
         var admin = await factory.LoginAsAdminAsync();
         var flour = await factory.CreateItemAsync("HAR");
@@ -91,9 +91,13 @@ public class RecipeTests(ApiFactory factory)
         var rawOutput = await admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(flour.Id, 1, null, [new RecipeLineRequest(supply.Id, 1, 0)]));
         Assert.Contains("recipe_not_produced", await rawOutput.Content.ReadAsStringAsync());
 
-        var finishedComponent = await admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(packaged.Id, 6, null,
+        // RN-119: the packaged good may use its bulk good; the bulk good may not use the packaged one.
+        var packagedInBulk = await admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bulk.Id, 1, null,
+            [new RecipeLineRequest(packaged.Id, 1, 0)]));
+        Assert.Equal(HttpStatusCode.BadRequest, packagedInBulk.StatusCode);
+        var bulkInPackaged = await admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(packaged.Id, 6, null,
             [new RecipeLineRequest(bulk.Id, 6, 0), new RecipeLineRequest(supply.Id, 1, 0)]));
-        Assert.Equal(HttpStatusCode.BadRequest, finishedComponent.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, bulkInPackaged.StatusCode);
     }
 
     [Fact]

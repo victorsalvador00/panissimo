@@ -63,7 +63,8 @@ public sealed record ItemLookupDto(
     string BaseUomCode,
     bool TracksLots,
     int? ShelfLifeDays,
-    long? PhotoRevision);
+    long? PhotoRevision,
+    Guid? BulkItemId = null);
 
 public sealed record ItemListItemDto(
     Guid Id,

@@ -16,8 +16,14 @@ public static class RecipeRules
     /// <summary>RN-14: only semi-finished and finished goods are produced.</summary>
     public static bool CanBeProduced(ItemType type) => type is ItemType.SemiFinished or ItemType.FinishedGood;
 
-    /// <summary>Dominio §4.4 and D-04: raw materials, supplies (bag, label) and semi-finished goods; never a finished good.</summary>
-    public static bool CanBeComponent(ItemType type) => type is ItemType.RawMaterial or ItemType.Supply or ItemType.SemiFinished;
+    /// <summary>
+    /// Dominio §4.4 and D-04: raw materials, supplies (bag, label) and semi-finished goods; a finished good only when it is
+    /// bulk and goes into a packaged one (RN-119), so a packaged good is never a component.
+    /// </summary>
+    public static bool CanBeComponent(ItemType type, ItemPresentation? presentation, ItemType outputType, ItemPresentation? outputPresentation) =>
+        type is ItemType.RawMaterial or ItemType.Supply or ItemType.SemiFinished
+        || (type == ItemType.FinishedGood && presentation == ItemPresentation.Bulk
+            && outputType == ItemType.FinishedGood && outputPresentation == ItemPresentation.Packaged);
 
     /// <summary>RN-11: theoretical consumption of a line for <paramref name="quantity"/> of output.</summary>
     public static decimal Theoretical(decimal quantity, decimal yieldQty, decimal lineQuantity, decimal wastePct) =>

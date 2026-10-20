@@ -48,7 +48,7 @@ public sealed record RecipeDto(
     Guid Id, Guid OutputItemId, string OutputSku, string OutputName, ItemType OutputType, string OutputUomCode, int RecipeVersion,
     bool IsActive, bool IsUsed, decimal YieldQty, string? Notes, IReadOnlyList<RecipeLineDto> Lines, IReadOnlyList<RecipeVersionDto> Versions,
     DateTimeOffset CreatedAt, Guid? CreatedBy, string? CreatedByName, DateTimeOffset? UpdatedAt, string? UpdatedByName, uint Version,
-    Guid? FactoryId = null, string? FactoryCode = null, string? FactoryName = null);
+    Guid? FactoryId = null, string? FactoryCode = null, string? FactoryName = null, ItemPresentation? OutputPresentation = null);
 
 /// <param name="Available">Usable stock at the location (expired lots excluded, RN-05); null without location.</param>
 /// <param name="HasRecipe">A semi-finished component with its own active recipe: a shortage is "por producir" (RN-67).</param>
@@ -326,12 +326,15 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
     {
         var ids = lines.Select(l => l.ComponentItemId).Distinct().ToList();
         var items = await db.Items.AsNoTracking().Where(i => ids.Contains(i.Id)).ToDictionaryAsync(i => i.Id, ct);
+        var output = await db.Items.AsNoTracking().SingleAsync(i => i.Id == outputItemId, ct);
         var errors = new List<string>();
         if (items.Count != ids.Count)
             errors.Add("Uno o más componentes no existen.");
         errors.AddRange(items.Values.Where(i => !i.IsActive).Select(i => $"El componente {i.Sku} está inactivo."));
-        errors.AddRange(items.Values.Where(i => !RecipeRules.CanBeComponent(i.Type))
-            .Select(i => $"{i.Sku} es un producto terminado: los componentes son materias primas, insumos o semiterminados."));
+        errors.AddRange(items.Values.Where(i => !RecipeRules.CanBeComponent(i.Type, i.Presentation, output.Type, output.Presentation))
+            .Select(i => i.Presentation == ItemPresentation.Bulk
+                ? $"{i.Sku} es un producto terminado a granel: solo es componente de un producto empaquetado (RN-119)."
+                : $"{i.Sku} es un producto terminado empaquetado: los componentes son materias primas, insumos, semiterminados o, en un empaquetado, terminados a granel."));
         if (errors.Count > 0)
             throw new RequestValidationException(new Dictionary<string, string[]> { ["lines"] = [.. errors] });
 
@@ -388,7 +391,7 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
         var output = await (from i in db.Items.AsNoTracking()
                             join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                             where i.Id == r.OutputItemId
-                            select new { i.Sku, i.Name, i.Type, Uom = u.Code }).SingleAsync(ct);
+                            select new { i.Sku, i.Name, i.Type, i.Presentation, Uom = u.Code }).SingleAsync(ct);
         var components = await ComponentsAsync(r.Lines.Select(l => l.ComponentItemId), ct);
         var lines = r.Lines.Select(l =>
         {
@@ -405,7 +408,7 @@ public sealed class RecipeService(IAppDbContext db, ILocationScope scope, IClock
 
         return new RecipeDto(r.Id, r.OutputItemId, output.Sku, output.Name, output.Type, output.Uom, r.VersionNumber, r.IsActive, r.IsUsed,
             r.YieldQty, r.Notes, lines, versions, r.CreatedAt, r.CreatedBy, users.Of(r.CreatedBy), r.UpdatedAt, users.Of(r.UpdatedBy), r.Version,
-            r.FactoryId, factory?.Code, factory?.Name);
+            r.FactoryId, factory?.Code, factory?.Name, output.Presentation);
     }
 
     public async Task<RecipeCostsDto> CostsAsync(Guid id, Guid locationId, CancellationToken ct = default)

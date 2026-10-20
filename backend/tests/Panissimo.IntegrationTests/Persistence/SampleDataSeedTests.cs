@@ -40,6 +40,7 @@ public class SampleDataSeedTests(ApiFactory factory)
             var warehouses = await db.Locations.AsNoTracking().Where(l => l.Code.StartsWith("PLANTA-")).ToListAsync();
             Assert.Equal(["PLANTA-INS", "PLANTA-MP", "PLANTA-PT"], warehouses.Select(w => w.Code).Order());
             Assert.True(warehouses.Single(w => w.Code == "PLANTA-MP").Supplies(ItemType.RawMaterial));
+            Assert.True(warehouses.Single(w => w.Code == "PLANTA-PT").Supplies(ItemType.FinishedGood)); // RN-119
             Assert.Equal(LocationType.Factory, (await db.Locations.SingleAsync(l => l.Code == "FABRICA-PT")).Type);
             Assert.Equal(LocationType.Branch, (await db.Locations.SingleAsync(l => l.Code == "SUC-001")).Type);
 

@@ -308,7 +308,10 @@
             "code": "PLANTA-PT",
             "name": "Producto terminado",
             "type": "Warehouse",
-            "parent": "PLANTA"
+            "parent": "PLANTA",
+            "suppliesTypes": [
+                "FinishedGood"
+            ]
         },
         {
             "code": "FABRICA-PT",

@@ -25,11 +25,12 @@ import { Location, LocationsApi } from '../data-access/catalog-api';
 type LocationType = ApiEnum<'LocationType'>;
 type ItemType = ApiEnum<'ItemType'>;
 
-/** RN-111: the component types a sub-warehouse may supply to production by default. */
+/** RN-111: the component types a sub-warehouse may supply to production by default (finished: bulk to pack, RN-119). */
 const SUPPLY_TYPE_OPTIONS: { value: ItemType; label: string }[] = [
   { value: 'RawMaterial', label: 'Materia prima' },
   { value: 'Supply', label: 'Insumo' },
   { value: 'SemiFinished', label: 'Semiterminado' },
+  { value: 'FinishedGood', label: 'Producto terminado' },
 ];
 
 /** /catalogos/ubicaciones (frontend §7.2): plants, branches and sub-warehouses; name and address editable. */

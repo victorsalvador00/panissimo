@@ -206,7 +206,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 **Recipe**
 - Encabezado: `OutputItemId` (`SemiFinished` o `FinishedGood`), `Version`, `IsActive`, `YieldQty` (en unidad base del producto), `Notes`, `FactoryId` (fábrica donde se produce, RN-49).
 - Líneas (`RecipeLine`): `ComponentItemId`, `Quantity` (por `YieldQty`, en unidad base del componente), `WastePct` (0–100, 2 decimales).
-- Los componentes pueden ser `RawMaterial`, `Supply` (ej. bolsa y etiqueta del empaquetado) o `SemiFinished`. Un `FinishedGood` no es componente (D-04). Un producto no puede ser su propio componente ni repetir componentes.
+- Los componentes pueden ser `RawMaterial`, `Supply` (ej. bolsa y etiqueta del empaquetado) o `SemiFinished`; un `FinishedGood` solo es componente cuando es **a granel** y va en un **empaquetado** (RN-119; un empaquetado nunca es componente). Un producto no puede ser su propio componente ni repetir componentes.
 
 **ProductionOrder**
 - Encabezado: `Folio`, `LocationId` (Plant), `RecipeId` (versión exacta), `OutputItemId`, `PlannedQty`, `ScheduledDate`, `Shift` (opcional), `Source` (`Manual | Plan | Import`), `ImportId` (opcional), `Notes`.
@@ -363,6 +363,11 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 - **RN-65 (sin reversa)**: un cierre registrado no se edita ni se cancela; se corrige con un ajuste de inventario.
 - **RN-66 (concurrencia)**: los cierres de una misma OP se serializan (bloqueo de la fila y `version`). Dos cierres simultáneos → uno se registra y el otro recibe 409.
 - **RN-67 (semiterminados)**: la explosión es de **un nivel**. Si falta un semiterminado, se produce con su propia OP. El plan (RN-70) y el requerimiento de materia prima (RN-50) lo marcan "por producir" y permiten generar esa OP (D-04).
+- **RN-119 (empaquetado desde granel)**: la receta de un `FinishedGood` `Packaged` acepta como componentes, además de materia prima, insumos (bolsa, etiqueta) y semiterminados, **cualquier** `FinishedGood` `Bulk` activo. La regla depende de la presentación del producto, no de la fábrica (RN-49: la fábrica es dónde, no qué). Un granel no lleva granel ni empaquetado y un empaquetado nunca es componente, así que no hay ciclos.
+  - Al capturar una receta nueva de un empaquetado con `BulkItemId`, la pantalla propone ese granel en el primer renglón vacío (se puede cambiar o agregar otros).
+  - El granel se trata como un semiterminado: una OP abierta del empaquetado es demanda de "OP padre" del granel en el plan (RN-70), con su propia OP (un nivel, RN-67).
+  - Su origen por omisión es el subalmacén que surte `FinishedGood` (RN-111): el seed y la migración `PackagedFromBulk` se lo asignan a `PLANTA-PT` (o al `-PT` de cada planta) si nadie más lo surte. Reserva al liberar (RN-110), FEFO y costo promedio al cerrar (RN-64), y la trazabilidad liga el lote empaquetado con el lote de granel consumido.
+  - Decidido con el usuario el 2026-10-20 (propuesta A, por presentación; cualquier granel, con el ligado propuesto primero).
 
 ### Plan de producción
 
@@ -550,7 +555,7 @@ Cada decisión tenía una **propuesta**; las reglas de la sección 5 se escribie
 | D-01 | ¿Cuántas sucursales hay? ¿Hay un CEDIS o almacén de terminado separado de la planta? | Una sola planta, con **subalmacenes** (catálogo editable, alta y baja lógica; arranque: Materias primas, Insumos/empaque, Semiterminados, Producto terminado). Cada subalmacén lleva **existencia, kardex y conteo propios**. Los procesos usan su subalmacén directo (recepción → MP/insumos; cierre de OP consume de MP/semiterminados y deja el producto en semiterminados/terminado; despachos salen de terminado) y hay **vale interno** para movimientos manuales entre subalmacenes. Sucursales desde el CSV de semilla (lista pendiente) | Decidida, **cambia** la propuesta | B-02, B-26 |
 | D-02 | ¿Lote por cierre parcial o un solo lote por OP? | Un lote por cierre | Confirmada | B-12 |
 | D-03 | ¿Tolerancia de sobreproducción y motivos de faltante? | Tolerancia 10 % configurable pero **solo informativa**: no bloquea el cierre; el cierre que la excede queda marcado. Motivos sin cambio | Decidida, **cambia** la propuesta | B-12, B-27 |
-| D-04 | ¿Los semiterminados se producen con su propia OP o en cascada? | Su propia OP (un nivel), con generación asistida desde el plan | Confirmada | B-20, B-21 |
+| D-04 | ¿Los semiterminados se producen con su propia OP o en cascada? | Su propia OP (un nivel), con generación asistida desde el plan. El 2026-10-20 el terminado a granel pasó a ser componente del empaquetado con la misma regla (RN-119) | Confirmada | B-20, B-21 |
 | D-05 | ¿El empaquetado es un SKU distinto? ¿Quién pide qué presentación? | SKU distinto con su receta. **Sucursales y clientes pueden pedir granel y empaquetado** (sucursales también insumos); nunca semiterminados ni materias primas | Decidida, **cambia** la propuesta | B-05, B-17, B-18, B-27 |
 | D-06 | ¿Precios por cliente en pedido y remisión? | Opcionales e informativos (sin CFDI ni cobranza) | Confirmada | B-18 |
 | D-07 | ¿El Excel de OP sale de la Matriz Maestra? ¿Con qué SKU? | Plantilla propia; cada artículo tiene **un solo SKU** (el código de Paníssimo), **obligatorio y único** en el catálogo, y la importación de OP lo identifica por él (columna `sku`). El 2026-10-18 el usuario eliminó el SKU interno separado: su valor pasó a ser el SKU (migración `RemoveInternalSku`) | Decidida, **cambia** la propuesta | B-13, B-27 |

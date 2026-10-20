@@ -1121,3 +1121,10 @@
 - **Pruebas:** `RecipeTests` unitarias (matriz de RN-119), `PackagedRecipeTests` de integración (granel en granel y empaquetado en empaquetado → 400; empaquetado con granel y bolsa; la OP del empaquetado toma el granel de `-PT` y genera demanda "OP padre" en el plan; el cierre mueve granel y bolsa a $25), `RecipeTests` de integración actualizada (antes esperaba el rechazo), `SampleDataSeedTests` (`PLANTA-PT` surte terminado) y `recipe-rules.spec`. Revisado en Chrome: al elegir PT-021-BOMBA-EMP se propone PT-021-BOMBA y el buscador lista solo terminados a granel.
 - **Observación (sin cambio):** en una planta **sin fábrica**, el cierre no toma por omisión el origen del renglón (RN-111): consume del subalmacén que se elija en el cierre. Con fábrica (como `PLANTA` hoy) consume de la fábrica.
 
+### Corrección: generar OP desde el plan con demanda de OP padre (2026-10-20)
+
+- **Reporte del usuario:** "Generar OP" fallaba con el renglón de PT-021-BOMBA (granel), cuya demanda viene de la OP del empaquetado (OP-000009).
+- **Causa:** la pantalla mandaba como `demandLineIds` todas las líneas de demanda del renglón, también la de la OP padre; el backend solo liga líneas de pedido (RN-72) y rechazaba la solicitud con "Una línea de pedido indicada … ya no está pendiente". Pasaba igual con cualquier semiterminado demandado por otra OP desde el plan.
+- **Corrección:** el backend ignora las líneas de OP padre que lleguen en `demandLineIds` y la pantalla ya no las manda. Prueba: `ProductionPlanTests.Open_parent_orders_are_demand_for_their_semi_finished_component` genera ahora enviando las líneas del renglón.
+- **Observación (sin cambio):** el registro de peticiones escribe "responded 500" para estos errores aunque la respuesta real es 400, porque `UseSerilogRequestLogging` va después de `UseExceptionHandler`.
+

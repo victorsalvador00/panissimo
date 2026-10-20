@@ -110,9 +110,10 @@ public class ProductionPlanTests(ApiFactory factory)
         var breadRow = plan.Rows.Single(r => r.ItemId == bread.Id);
         Assert.Equal((100m, 0m), (breadRow.OpenOrders, breadRow.SuggestedQty));
 
-        // A parent order is not an order line: generating links nothing.
+        // A parent order is not an order line: generating links nothing, even when the row sends it (RN-72).
         var generated = await OkAsync<GenerateProductionPlanResult>(admin.PostJsonAsync("/api/v1/production-plan/generate",
-            new GenerateProductionPlanRequest(plant, [new GeneratePlanLineRequest(dough.Id, doughRow.Date, null, 50, null)])));
+            new GenerateProductionPlanRequest(plant, [new GeneratePlanLineRequest(dough.Id, doughRow.Date, null, 50,
+                doughRow.DemandLines.Select(d => d.LineId).ToList())])));
         Assert.Equal(0, generated.Orders.Single().LinkedLines);
     }
 

@@ -228,7 +228,10 @@ export class PlanPage {
             date: c.row.date,
             shift: c.shift.value,
             quantity: c.quantity.value!,
-            demandLineIds: c.row.demandLines.map((d) => d.lineId),
+            // RN-72: only order lines are linked; a parent OP is shown but never linked.
+            demandLineIds: c.row.demandLines
+              .filter((d) => d.type !== 'ParentOrder')
+              .map((d) => d.lineId),
           })),
         }),
       );

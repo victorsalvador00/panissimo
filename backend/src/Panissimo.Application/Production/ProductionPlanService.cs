@@ -240,12 +240,15 @@ public sealed class ProductionPlanService(
         foreach (var id in itemIds.Where(id => !skus.ContainsKey(id)))
             throw new NotFoundException("el artículo", id);
 
-        // Pending order lines that may be linked (parent OPs are never linked).
+        // Pending order lines that may be linked; parent OPs are never linked (RN-72), so the plan row may send them and
+        // they are skipped.
         var lastDate = request.Lines.Max(l => l.Date);
         var demandLines = new List<PlanDemand>();
+        var parentLineIds = new HashSet<Guid>();
         foreach (var source in demandSources)
-            demandLines.AddRange((await source.LoadAsync(request.LocationId, lastDate, ct))
-                .Where(d => d.Type != DemandType.ParentOrder && itemIds.Contains(d.ItemId)));
+            foreach (var demand in (await source.LoadAsync(request.LocationId, lastDate, ct)).Where(d => itemIds.Contains(d.ItemId)))
+                if (demand.Type == DemandType.ParentOrder) parentLineIds.Add(demand.SourceLineId);
+                else demandLines.Add(demand);
         var demandById = demandLines.ToDictionary(d => d.SourceLineId);
 
         // RN-71: one OP per product, date and shift.
@@ -256,7 +259,9 @@ public sealed class ProductionPlanService(
             {
                 g.Key,
                 Quantity = g.Sum(l => l.Quantity),
-                DemandIds = g.Any(l => l.DemandLineIds is not null) ? g.SelectMany(l => l.DemandLineIds ?? []).Distinct().ToList() : null,
+                DemandIds = g.Any(l => l.DemandLineIds is not null)
+                    ? g.SelectMany(l => l.DemandLineIds ?? []).Where(id => !parentLineIds.Contains(id)).Distinct().ToList()
+                    : null,
             })
             .ToList();
 

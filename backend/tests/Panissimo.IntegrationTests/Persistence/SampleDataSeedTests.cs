@@ -51,7 +51,14 @@ public class SampleDataSeedTests(ApiFactory factory)
             Assert.Equal((1, 20m, 8), (recipe.VersionNumber, recipe.YieldQty, recipe.Lines.Count));
             Assert.Equal((await db.Locations.SingleAsync(l => l.Code == "FABRICA-PT")).Id, recipe.FactoryId);
 
-            Assert.Equal(9, await db.SupplierItems.CountAsync());
+            // The user's catalogs of 2026-10-20: 20 items, 10 factories and the recipes of the bomb and its semi-finished goods.
+            Assert.Equal(20, await db.Items.CountAsync());
+            Assert.Equal(10, await db.Locations.CountAsync(l => l.Type == LocationType.Factory));
+            Assert.Equal(6, await db.Recipes.CountAsync());
+            var dough = await db.Items.AsNoTracking().SingleAsync(i => i.Sku == "SE-001");
+            Assert.Equal((await db.Locations.SingleAsync(l => l.Code == "FB-MASAS")).Id,
+                (await db.Recipes.AsNoTracking().SingleAsync(r => r.OutputItemId == dough.Id)).FactoryId);
+            Assert.Equal(14, await db.SupplierItems.CountAsync());
             Assert.Single(await db.CustomerDeliveryPoints.ToListAsync());
             Assert.Equal(5, await db.Vehicles.CountAsync(v => v.Plate.StartsWith("PRB-")));
             Assert.Equal(5, await db.Drivers.CountAsync(d => d.Name.EndsWith("(prueba)")));

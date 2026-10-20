@@ -4,127 +4,227 @@
             "sku": "IN-001",
             "name": "Agua",
             "type": "Supply",
-            "baseUom": "l",
-            "taxRate": 0.0000,
             "category": "Abarrotes",
+            "baseUom": "l",
             "tracksLots": false,
-            "storageCondition": "Ambient"
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
         },
         {
             "sku": "IN-002",
             "name": "Bolsa Empaquetado",
             "type": "Supply",
-            "baseUom": "pza",
-            "taxRate": 0.0000,
             "category": "Abarrotes",
-            "tracksLots": false,
+            "baseUom": "pza",
             "purchaseUom": "paq",
+            "purchaseToBaseFactor": 100.0,
+            "tracksLots": false,
             "storageCondition": "Ambient",
-            "purchaseToBaseFactor": 100.0000
+            "taxRate": 0.0
         },
         {
             "sku": "MP-001",
             "name": "Harina de trigo",
             "type": "RawMaterial",
-            "baseUom": "kg",
-            "taxRate": 0.0000,
             "category": "Harinas",
-            "tracksLots": true,
+            "baseUom": "kg",
             "purchaseUom": "bulto",
+            "purchaseToBaseFactor": 25.0,
+            "tracksLots": true,
             "shelfLifeDays": 180,
             "storageCondition": "Ambient",
-            "purchaseToBaseFactor": 25.0000
+            "taxRate": 0.0
         },
         {
             "sku": "MP-002",
             "name": "Sal",
             "type": "RawMaterial",
-            "baseUom": "kg",
-            "taxRate": 0.0000,
             "category": "Abarrotes",
+            "baseUom": "kg",
             "tracksLots": false,
-            "storageCondition": "Ambient"
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
         },
         {
             "sku": "MP-003",
             "name": "Azucar de segunda",
             "type": "RawMaterial",
-            "baseUom": "kg",
-            "taxRate": 0.0000,
             "category": "Azucares",
+            "baseUom": "kg",
             "tracksLots": true,
-            "storageCondition": "Ambient"
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
         },
         {
             "sku": "MP-004",
             "name": "Levadura fresca",
             "type": "RawMaterial",
-            "baseUom": "kg",
-            "taxRate": 0.0000,
             "category": "Levaduras",
+            "baseUom": "kg",
             "tracksLots": true,
             "shelfLifeDays": 30,
-            "storageCondition": "Refrigerated"
+            "storageCondition": "Refrigerated",
+            "taxRate": 0.0
         },
         {
             "sku": "MP-005",
             "name": "Margarina danes",
             "type": "RawMaterial",
-            "baseUom": "kg",
-            "taxRate": 0.0000,
             "category": "Grasas",
+            "baseUom": "kg",
             "tracksLots": true,
-            "storageCondition": "Refrigerated"
+            "storageCondition": "Refrigerated",
+            "taxRate": 0.0
         },
         {
             "sku": "MP-006",
             "name": "Huevo",
             "type": "RawMaterial",
-            "baseUom": "l",
-            "taxRate": 0.0000,
             "category": "Huevo",
+            "baseUom": "l",
             "tracksLots": true,
-            "storageCondition": "Ambient"
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
         },
         {
             "sku": "MP-007",
             "name": "Esencia de vainilla",
             "type": "RawMaterial",
-            "baseUom": "l",
-            "taxRate": 0.0000,
             "category": "Saborizantes",
+            "baseUom": "l",
             "tracksLots": true,
-            "storageCondition": "Ambient"
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
+        },
+        {
+            "sku": "MP-008",
+            "name": "Pluspan",
+            "type": "RawMaterial",
+            "category": "Abarrotes",
+            "baseUom": "kg",
+            "tracksLots": true,
+            "storageCondition": "Ambient",
+            "taxRate": 0.16
+        },
+        {
+            "sku": "MP-009",
+            "name": "Mantequilla liquida",
+            "type": "RawMaterial",
+            "category": "Grasas",
+            "baseUom": "l",
+            "tracksLots": true,
+            "storageCondition": "Refrigerated",
+            "taxRate": 0.0
+        },
+        {
+            "sku": "MP-010",
+            "name": "Propionato de sodio",
+            "type": "RawMaterial",
+            "category": "Abarrotes",
+            "baseUom": "kg",
+            "tracksLots": true,
+            "storageCondition": "Ambient",
+            "taxRate": 0.16
+        },
+        {
+            "sku": "MP-011",
+            "name": "Manteca vegetal",
+            "type": "RawMaterial",
+            "category": "Grasas",
+            "baseUom": "kg",
+            "tracksLots": true,
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
+        },
+        {
+            "sku": "MP-012",
+            "name": "Azucar glass",
+            "type": "RawMaterial",
+            "category": "Azucares",
+            "baseUom": "kg",
+            "tracksLots": true,
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
         },
         {
             "sku": "PT-020-DONA",
             "name": "Dona a granel",
             "type": "FinishedGood",
-            "baseUom": "pza",
-            "taxRate": 0.0000,
             "category": "Reposteria",
-            "tracksLots": true,
+            "baseUom": "pza",
             "purchaseUom": "pza",
-            "presentation": "Bulk",
+            "purchaseToBaseFactor": 1.0,
+            "tracksLots": true,
             "shelfLifeDays": 2,
-            "unitWeightGrams": 110.00,
             "storageCondition": "Refrigerated",
-            "purchaseToBaseFactor": 1.0000
+            "taxRate": 0.0,
+            "presentation": "Bulk",
+            "unitWeightGrams": 110.0
         },
         {
             "sku": "PT-020-DONA-EMP",
             "name": "Dona a granel empaquetado",
             "type": "FinishedGood",
-            "baseUom": "pza",
-            "bulkSku": "PT-020-DONA",
-            "taxRate": 0.0000,
             "category": "Reposteria",
-            "tracksLots": true,
+            "baseUom": "pza",
             "purchaseUom": "pza",
-            "presentation": "Packaged",
+            "purchaseToBaseFactor": 1.0,
+            "tracksLots": true,
             "shelfLifeDays": 2,
             "storageCondition": "Refrigerated",
-            "purchaseToBaseFactor": 1.0000
+            "taxRate": 0.0,
+            "presentation": "Packaged",
+            "bulkSku": "PT-020-DONA"
+        },
+        {
+            "sku": "PT-021-BOMBA",
+            "name": "Bomba a Granel",
+            "type": "FinishedGood",
+            "category": "Reposteria",
+            "baseUom": "pza",
+            "purchaseUom": "pza",
+            "purchaseToBaseFactor": 1.0,
+            "tracksLots": true,
+            "shelfLifeDays": 2,
+            "storageCondition": "Refrigerated",
+            "taxRate": 0.0,
+            "presentation": "Bulk",
+            "unitWeightGrams": 86.0
+        },
+        {
+            "sku": "PT-021-BOMBA-EMP",
+            "name": "Bomba a Granel empaquetado",
+            "type": "FinishedGood",
+            "category": "Reposteria",
+            "baseUom": "pza",
+            "tracksLots": true,
+            "shelfLifeDays": 2,
+            "storageCondition": "Refrigerated",
+            "taxRate": 0.0,
+            "presentation": "Packaged",
+            "bulkSku": "PT-021-BOMBA",
+            "unitsPerPackage": 1,
+            "unitWeightGrams": 87.0
+        },
+        {
+            "sku": "SE-001",
+            "name": "Bizcocho mantequilla",
+            "type": "SemiFinished",
+            "category": "Reposteria",
+            "baseUom": "kg",
+            "tracksLots": true,
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
+        },
+        {
+            "sku": "SE-002",
+            "name": "Pasta para bomba",
+            "type": "SemiFinished",
+            "category": "Reposteria",
+            "baseUom": "kg",
+            "tracksLots": true,
+            "storageCondition": "Ambient",
+            "taxRate": 0.0
         }
     ],
     "drivers": [
@@ -151,104 +251,217 @@
     ],
     "recipes": [
         {
+            "outputSku": "PT-020-DONA",
+            "yieldQty": 20.0,
+            "factory": "FABRICA-PT",
             "lines": [
                 {
                     "sku": "IN-001",
-                    "quantity": 0.1500,
-                    "wastePct": 0.00
+                    "quantity": 0.15,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-001",
-                    "quantity": 1.0000,
-                    "wastePct": 0.00
+                    "quantity": 1.0,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-002",
-                    "quantity": 0.0120,
-                    "wastePct": 0.00
+                    "quantity": 0.012,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-003",
-                    "quantity": 0.2000,
-                    "wastePct": 0.00
+                    "quantity": 0.2,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-004",
-                    "quantity": 0.0150,
-                    "wastePct": 0.00
+                    "quantity": 0.015,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-005",
-                    "quantity": 0.1000,
-                    "wastePct": 0.00
+                    "quantity": 0.1,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-006",
-                    "quantity": 0.3000,
-                    "wastePct": 0.00
+                    "quantity": 0.3,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-007",
-                    "quantity": 0.0170,
-                    "wastePct": 0.00
+                    "quantity": 0.017,
+                    "wastePct": 0.0
                 }
-            ],
-            "factory": "FABRICA-PT",
-            "yieldQty": 20.0000,
-            "outputSku": "PT-020-DONA"
+            ]
         },
         {
             "lines": [
                 {
                     "sku": "IN-001",
-                    "quantity": 0.1500,
-                    "wastePct": 0.00
+                    "quantity": 0.15,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "IN-002",
-                    "quantity": 20.0000,
-                    "wastePct": 0.00
+                    "quantity": 20.0,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-001",
-                    "quantity": 1.0000,
-                    "wastePct": 0.00
+                    "quantity": 1.0,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-002",
-                    "quantity": 0.0120,
-                    "wastePct": 0.00
+                    "quantity": 0.012,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-003",
-                    "quantity": 0.2000,
-                    "wastePct": 0.00
+                    "quantity": 0.2,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-004",
-                    "quantity": 0.0150,
-                    "wastePct": 0.00
+                    "quantity": 0.015,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-005",
-                    "quantity": 0.1000,
-                    "wastePct": 0.00
+                    "quantity": 0.1,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-006",
-                    "quantity": 0.3000,
-                    "wastePct": 0.00
+                    "quantity": 0.3,
+                    "wastePct": 0.0
                 },
                 {
                     "sku": "MP-007",
-                    "quantity": 0.0170,
-                    "wastePct": 0.00
+                    "quantity": 0.017,
+                    "wastePct": 0.0
                 }
             ],
             "notes": "Version Empaquetada de Dona",
             "factory": "FABRICA-PT",
-            "yieldQty": 20.0000,
+            "yieldQty": 20.0,
             "outputSku": "PT-020-DONA-EMP"
+        },
+        {
+            "outputSku": "PT-021-BOMBA",
+            "yieldQty": 1.0,
+            "factory": "FB-HORNOS",
+            "lines": [
+                {
+                    "sku": "SE-001",
+                    "quantity": 0.055,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "SE-002",
+                    "quantity": 0.03,
+                    "wastePct": 0.0
+                }
+            ]
+        },
+        {
+            "outputSku": "PT-021-BOMBA-EMP",
+            "yieldQty": 1.0,
+            "factory": "FB-EMPAQUE",
+            "lines": [
+                {
+                    "sku": "IN-002",
+                    "quantity": 1.0,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "PT-021-BOMBA",
+                    "quantity": 1.0,
+                    "wastePct": 0.0
+                }
+            ]
+        },
+        {
+            "outputSku": "SE-001",
+            "yieldQty": 125.12,
+            "factory": "FB-MASAS",
+            "lines": [
+                {
+                    "sku": "IN-001",
+                    "quantity": 11.5,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-001",
+                    "quantity": 60.0,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-002",
+                    "quantity": 0.72,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-003",
+                    "quantity": 18.0,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-004",
+                    "quantity": 1.8,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-005",
+                    "quantity": 15.0,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-006",
+                    "quantity": 16.2,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-008",
+                    "quantity": 0.6,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-009",
+                    "quantity": 1.0,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-010",
+                    "quantity": 0.5,
+                    "wastePct": 0.0
+                }
+            ]
+        },
+        {
+            "outputSku": "SE-002",
+            "yieldQty": 2.5,
+            "factory": "FB-BIZCOCHO",
+            "lines": [
+                {
+                    "sku": "MP-001",
+                    "quantity": 1.0,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-011",
+                    "quantity": 0.75,
+                    "wastePct": 0.0
+                },
+                {
+                    "sku": "MP-012",
+                    "quantity": 0.75,
+                    "wastePct": 0.0
+                }
+            ]
         }
     ],
     "vehicles": [
@@ -326,6 +539,54 @@
             "parent": "PLANTA"
         },
         {
+            "code": "FB-BIZCOCHO",
+            "name": "Bizcocho",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FB-COCINA",
+            "name": "Cocina",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FB-EMPAQUE",
+            "name": "Empaque",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FB-HORNOS",
+            "name": "Hornos",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FB-MASAS",
+            "name": "Masas",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FB-PAN-SAL",
+            "name": "Pan de Sal",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FB-PASTELERIA",
+            "name": "Pasteleria",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
+            "code": "FB-RONDO",
+            "name": "Rondo",
+            "type": "Factory",
+            "parent": "PLANTA"
+        },
+        {
             "code": "SUC-001",
             "name": "Sucursal 1",
             "type": "Branch",
@@ -334,77 +595,107 @@
     ],
     "suppliers": [
         {
+            "taxId": "APV9003173C9",
             "name": "ABARROTES VERACRUZ",
+            "contactName": "2292365451",
             "email": "ABARROTESV@GMAIL.COM",
+            "paymentTermsDays": 15,
             "items": [
                 {
                     "sku": "IN-002",
-                    "price": 100.0000,
                     "supplierSku": "IN-002-PRV",
+                    "price": 100.0,
                     "leadTimeDays": 15
                 },
                 {
                     "sku": "MP-002",
-                    "price": 100.0000,
                     "supplierSku": "MP-002-PRV",
+                    "price": 100.0,
                     "leadTimeDays": 15
                 },
                 {
                     "sku": "MP-006",
-                    "price": 100.0000,
                     "supplierSku": "MP-006-PRV",
-                    "leadTimeDays": 15
-                }
-            ],
-            "taxId": "APV9003173C9",
-            "contactName": "2292365451",
-            "paymentTermsDays": 15
-        },
-        {
-            "name": "Materias Primas Veracruz",
-            "email": "mprimas@gmail.com",
-            "items": [
-                {
-                    "sku": "IN-002",
-                    "price": 100.0000,
-                    "isActive": false,
-                    "supplierSku": "IN-002-PRV",
+                    "price": 100.0,
                     "leadTimeDays": 15
                 },
                 {
+                    "sku": "MP-008",
+                    "supplierSku": "MP-008-PRV",
+                    "price": 100.0,
+                    "leadTimeDays": 15
+                },
+                {
+                    "sku": "MP-010",
+                    "supplierSku": "MP-010-PRV",
+                    "price": 100.0,
+                    "leadTimeDays": 15
+                }
+            ]
+        },
+        {
+            "taxId": "EKU9003173C9",
+            "name": "Materias Primas Veracruz",
+            "contactName": "2294567898",
+            "email": "mprimas@gmail.com",
+            "paymentTermsDays": 20,
+            "items": [
+                {
+                    "sku": "IN-002",
+                    "supplierSku": "IN-002-PRV",
+                    "price": 100.0,
+                    "leadTimeDays": 15,
+                    "isActive": false
+                },
+                {
                     "sku": "MP-001",
-                    "price": 100.0000,
                     "supplierSku": "MP-001-PRV",
+                    "price": 100.0,
                     "leadTimeDays": 7
                 },
                 {
                     "sku": "MP-003",
-                    "price": 100.0000,
                     "supplierSku": "MP-003-PRV",
+                    "price": 100.0,
                     "leadTimeDays": 7
                 },
                 {
                     "sku": "MP-004",
-                    "price": 100.0000,
                     "supplierSku": "MP-004-PRV",
+                    "price": 100.0,
                     "leadTimeDays": 7
                 },
                 {
                     "sku": "MP-005",
-                    "price": 100.0000,
                     "supplierSku": "MP-005-PRV",
+                    "price": 100.0,
                     "leadTimeDays": 7
                 },
                 {
                     "sku": "MP-007",
-                    "price": 100.0000,
                     "supplierSku": "MP-007-PRV",
+                    "price": 100.0,
                     "leadTimeDays": 7
+                },
+                {
+                    "sku": "MP-009",
+                    "supplierSku": "MP-009-PRV",
+                    "price": 100.0,
+                    "leadTimeDays": 15
+                },
+                {
+                    "sku": "MP-011",
+                    "supplierSku": "MP-011-PRV",
+                    "price": 100.0,
+                    "leadTimeDays": 15
+                },
+                {
+                    "sku": "MP-012",
+                    "supplierSku": "MP-012-PRV",
+                    "price": 100.0,
+                    "leadTimeDays": 15
                 }
-            ],
-            "taxId": "EKU9003173C9",
-            "contactName": "2294567898",
-            "paymentTermsDays": 20
+            ]
         }
     ],
     "categories": [

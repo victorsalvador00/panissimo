@@ -110,7 +110,7 @@ backend/
   - Permisos y roles (dominio §6), identificados por `system_key`.
   - Usuario administrador con credenciales de variables de entorno.
   - `AppSetting` con sus valores por defecto (dominio §4.8).
-  - **Catálogos base de desarrollo y demo** (`PAN__Seed__SampleDataFile`, `deploy/seed/sample-data.json`; vacío en producción): subalmacenes y fábricas de la planta, sucursal, categorías, artículos, recetas (v1), proveedores con sus artículos, clientes con puntos de entrega, vehículos y choferes. Solo inserta lo que falta (por código, SKU, RFC, placa o nombre) y nunca sobrescribe; con el archivo, los subalmacenes de la planta salen de él y no de los cuatro por omisión. Las E2E trabajan sobre estos registros y no crean catálogos.
+  - **Catálogos base de desarrollo y demo** (`PAN__Seed__SampleDataFile`, `deploy/seed/sample-data.json`; vacío en producción): subalmacenes y fábricas de la planta, sucursal, categorías, artículos, recetas (v1), proveedores con sus artículos, clientes con puntos de entrega, vehículos y choferes. Solo inserta lo que falta (por código, SKU, RFC, placa o nombre) y nunca sobrescribe; con el archivo, los subalmacenes de la planta salen de él y no de los cuatro por omisión. Las E2E trabajan sobre estos registros y no crean catálogos. Su contenido son los catálogos del usuario al 2026-10-20 (10 fábricas, 20 artículos, 6 recetas con su fábrica); las unidades vienen de la semilla del sistema.
 
 ## 5. Motor de inventario (núcleo crítico)
 

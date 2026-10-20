@@ -318,6 +318,36 @@ public class WarehouseProcessTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_planned_lot_cannot_be_asked_for_beyond_its_stock_at_the_origin()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var site = await PlantAsync(admin);
+        var bread = await factory.CreateItemAsync("BOMBA", ItemType.FinishedGood, "pza", tracksLots: true, shelfLifeDays: 3);
+        await factory.AddStockAsync(site.Pt.Id, bread.Id, 50, 2m, "L-50", Today.AddDays(3));
+        var lot = (await admin.GetJsonAsync<List<LotStockDto>>($"/api/v1/stock/{site.Pt.Id}/{bread.Id}/lots"))!.Single(l => l.LotId is not null);
+
+        // 100 of a lot with 50 (also split in two lines) is refused; 50 is fine.
+        var tooMuch = await admin.PostJsonAsync("/api/v1/internal-transfers",
+            new CreateInternalTransferRequest(site.Pt.Id, site.Semi.Id, null, [new TransferLineRequest(bread.Id, lot.LotId, 100)]));
+        Assert.Equal(HttpStatusCode.BadRequest, tooMuch.StatusCode);
+        Assert.Contains("El lote L-50 solo tiene 50 en el origen y se piden 100.", await tooMuch.Content.ReadAsStringAsync());
+        var split = await admin.PostJsonAsync("/api/v1/internal-transfers", new CreateInternalTransferRequest(site.Pt.Id, site.Semi.Id, null,
+            [new TransferLineRequest(bread.Id, lot.LotId, 30), new TransferLineRequest(bread.Id, lot.LotId, 30)]));
+        Assert.Equal(HttpStatusCode.BadRequest, split.StatusCode);
+        var voucher = await OkAsync<TransferDto>(admin.PostJsonAsync("/api/v1/internal-transfers",
+            new CreateInternalTransferRequest(site.Pt.Id, site.Semi.Id, null, [new TransferLineRequest(bread.Id, lot.LotId, 50)])));
+
+        // Editing the draft follows the same rule; a transfer to a branch counts the plant with its sub-warehouses.
+        var edit = await admin.PutJsonAsync($"/api/v1/internal-transfers/{voucher.Id}",
+            new UpdateTransferRequest(voucher.Version, site.Semi.Id, null, [new TransferLineRequest(bread.Id, lot.LotId, 51)]));
+        Assert.Equal(HttpStatusCode.BadRequest, edit.StatusCode);
+        var branch = await factory.LocationIdAsync("SUC-01");
+        var transfer = await admin.PostJsonAsync("/api/v1/transfers",
+            new CreateTransferRequest(site.Plant.Id, branch, null, [new TransferLineRequest(bread.Id, lot.LotId, 60)]));
+        Assert.Contains("El lote L-50 solo tiene 50 en el origen y se piden 60.", await transfer.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task A_transfer_leaves_a_plant_warehouse_and_enters_a_branch_warehouse()
     {
         var admin = await factory.LoginAsAdminAsync();

@@ -31,7 +31,7 @@ import { ItemLookupApi } from '../../../shared/data-access/item-lookup';
 import { controlError } from '../../../shared/forms/control-error';
 import { FormErrors } from '../../../shared/forms/form-errors';
 import { InternalTransfersApi, Transfer } from '../../logistics/data-access/logistics-api';
-import { LotSelect } from '../ui/lot-select';
+import { LotLimits, LotSelect } from '../ui/lot-select';
 import { stockWarehouses } from '../ui/stock-warehouses';
 
 type VoucherLine = FormGroup<{
@@ -136,6 +136,7 @@ type VoucherLine = FormGroup<{
                     [locationId]="fromId"
                     [itemId]="item.id"
                     [unit]="item.baseUomCode"
+                    (limit)="lotLimits.set(line, $event)"
                   />
                 } @else if (!item.tracksLots) {
                   <span class="muted">Sin lotes.</span>
@@ -177,6 +178,7 @@ export class VoucherFormPage {
   protected readonly saving = signal(false);
   protected readonly voucher = signal<Transfer | null>(null);
 
+  protected readonly lotLimits = new LotLimits();
   protected readonly lines = new FormArray<VoucherLine>([], minLinesValidator(1));
   protected readonly form = new FormGroup({
     fromWarehouseId: new FormControl<string | null>(null, Validators.required),
@@ -276,7 +278,10 @@ export class VoucherFormPage {
   private createLine(): VoucherLine {
     return new FormGroup({
       item: new FormControl<ItemOption | null>(null, Validators.required),
-      quantity: new FormControl<number | null>(null, Validators.required),
+      quantity: new FormControl<number | null>(null, [
+        Validators.required,
+        this.lotLimits.validator,
+      ]),
       lotId: new FormControl<string | null>(null),
     });
   }

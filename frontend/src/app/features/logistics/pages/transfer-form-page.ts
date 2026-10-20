@@ -31,7 +31,7 @@ import { QtyInput } from '../../../shared/components/qty-input/qty-input';
 import { ItemLookupApi } from '../../../shared/data-access/item-lookup';
 import { controlError } from '../../../shared/forms/control-error';
 import { FormErrors } from '../../../shared/forms/form-errors';
-import { LotSelect } from '../../inventory/ui/lot-select';
+import { LotLimits, LotSelect } from '../../inventory/ui/lot-select';
 import { DestinationsApi, Transfer, TransfersApi } from '../data-access/logistics-api';
 import { transferDestinations } from '../ui/transfer-rules';
 
@@ -156,6 +156,7 @@ const SHIPPABLE_TYPES: readonly ApiEnum<'ItemType'>[] = ['FinishedGood', 'Supply
                       [locationId]="origin.id"
                       [itemId]="item.id"
                       [unit]="item.baseUomCode"
+                      (limit)="lotLimits.set(line, $event)"
                     />
                   } @else {
                     <span class="muted">Sin lotes.</span>
@@ -217,6 +218,7 @@ export class TransferFormPage {
     return origin ? transferDestinations(origin, this.locations.value(), this.special()) : [];
   });
 
+  protected readonly lotLimits = new LotLimits();
   protected readonly lines = new FormArray<TransferLineForm>([], minLinesValidator(1));
   protected readonly form = new FormGroup({
     toLocationId: new FormControl<string | null>(null, Validators.required),
@@ -304,7 +306,10 @@ export class TransferFormPage {
   private createLine(): TransferLineForm {
     return new FormGroup({
       item: new FormControl<ItemOption | null>(null, Validators.required),
-      quantity: new FormControl<number | null>(null, Validators.required),
+      quantity: new FormControl<number | null>(null, [
+        Validators.required,
+        this.lotLimits.validator,
+      ]),
       lotId: new FormControl<string | null>(null),
     });
   }

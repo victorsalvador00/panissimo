@@ -417,6 +417,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   - El pedido se cancela solo en `Draft` o `Submitted`.
   - **Sugerido por mín/máx**: proyectado = existencia + en tránsito hacia la sucursal + pedidos enviados o aprobados sin despachar; si proyectado ≤ mínimo, se sugiere máximo − proyectado.
 - **RN-21 (despacho)**: registra `TransferOut` en el origen (lote planeado, lotes elegidos o FEFO). El traspaso queda en tránsito.
+- **RN-21b (lote planeado)**: al crear o editar un traspaso o un vale interno, lo pedido de un lote planeado (sumando sus líneas) no puede pasar de su existencia en el origen (con sus subalmacenes); 400 con el lote y su existencia. La pantalla lo marca en la cantidad al elegir el lote. Decidido con el usuario el 2026-10-20.
 - **RN-22 (recepción)**:
   - El destino captura `ReceivedQty` por línea (0 a lo enviado) y se registra `TransferIn` por lo recibido, con los mismos lotes y costo.
   - Lo que no llegó (`ShippedQty − ReceivedQty − RejectedQty`, RN-116) requiere `DiscrepancyReason` y deja el traspaso `ReceivedWithDiscrepancies`; ese faltante es pérdida en tránsito y se reporta.

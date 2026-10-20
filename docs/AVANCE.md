@@ -1141,3 +1141,10 @@
 - **Frontend:** `plan-rules.groupPlan` ordena en cada fecha las fábricas sin nada por producir primero (después por nombre, "Sin fábrica" al final) y, dentro de cada fábrica, los renglones cubiertos (`isCovered`: por producir 0) antes que los pendientes, luego por SKU. `frontend.md` §7.4.1.
 - **Pruebas:** `plan-rules.spec` (caso del 21 de octubre: Hornos, Bizcocho, Masas). Frontend 206 unitarias y `ng lint` en verde. Revisado en Chrome.
 
+### RN-21b: la cantidad no pasa de la existencia del lote planeado (2026-10-20)
+
+- **Pedido del usuario:** en un vale interno no permitir una cantidad mayor que la del lote planeado elegido (100 pza con el lote OP-000017-01 de 50).
+- **Backend:** `TransferService.ValidateLinesAsync` suma lo pedido por lote planeado y lo compara con su existencia en el origen (con sus subalmacenes): 400 "El lote … solo tiene … en el origen y se piden …". Aplica a vales internos y traspasos, al crear y al editar el borrador. `dominio.md` RN-21b.
+- **Frontend:** `app-lot-select` emite `(limit)` con la existencia del lote elegido y `LotLimits` valida la cantidad de esa línea ("El lote … solo tiene 50 pza en el origen."), en el formulario de vales internos y en el de traspasos.
+- **Pruebas:** `WarehouseProcessTests.A_planned_lot_cannot_be_asked_for_beyond_its_stock_at_the_origin` (100 y 30 + 30 de un lote de 50 → 400; 50 se guarda; editar a 51 → 400; traspaso a sucursal de 60 → 400) y `lot-select.spec`. Backend 319 unitarias y 180 de integración en verde (+1 omitida); frontend 208 unitarias y `ng lint` en verde. Sin revisión en Chrome: la sesión del navegador había expirado.
+

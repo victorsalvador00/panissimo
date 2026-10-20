@@ -457,7 +457,7 @@ public sealed class TransferService(
                 "Un vale interno va entre dos subalmacenes de la misma planta o sucursal (RN-47).");
         if (from.Id == to.Id)
             throw new BusinessRuleException("transfer_same_location", "El origen y el destino deben ser distintos.");
-        await ValidateLinesAsync(lines, ct);
+        await ValidateLinesAsync(lines, from.Id, ct);
     }
 
     private async Task ValidatePlanAsync(Guid fromId, Guid toId, IReadOnlyList<TransferLineRequest> lines, CancellationToken ct)
@@ -476,10 +476,10 @@ public sealed class TransferService(
         if (notShippable.Count > 0)
             throw new BusinessRuleException("transfer_item_not_allowed",
                 $"Un traspaso lleva productos terminados (granel o empaquetado) e insumos; no materias primas ni semiterminados: {string.Join(", ", notShippable)} (RN-115).");
-        await ValidateLinesAsync(lines, ct);
+        await ValidateLinesAsync(lines, from.Id, ct);
     }
 
-    private async Task ValidateLinesAsync(IReadOnlyList<TransferLineRequest> lines, CancellationToken ct)
+    private async Task ValidateLinesAsync(IReadOnlyList<TransferLineRequest> lines, Guid fromId, CancellationToken ct)
     {
 
         var itemIds = lines.Select(l => l.ItemId).Distinct().ToList();
@@ -506,6 +506,23 @@ public sealed class TransferService(
             errors.Add("Un lote indicado no pertenece a su artículo.");
         if (errors.Count > 0)
             throw new RequestValidationException(new Dictionary<string, string[]> { ["lines"] = [.. errors.Distinct()] });
+
+        // A planned lot cannot be asked for beyond its stock at the origin (with its sub-warehouses).
+        if (lotIds.Count == 0)
+            return;
+        var origin = await InventoryLocations.WithWarehousesAsync(db, fromId, ct);
+        var onHand = await db.StockBalances.AsNoTracking()
+            .Where(b => b.LotId != null && lotIds.Contains(b.LotId.Value) && origin.Contains(b.LocationId))
+            .GroupBy(b => b.LotId!.Value).Select(g => new { g.Key, Qty = g.Sum(b => b.Quantity) })
+            .ToDictionaryAsync(x => x.Key, x => x.Qty, ct);
+        var numbers = await db.Lots.AsNoTracking().Where(l => lotIds.Contains(l.Id)).ToDictionaryAsync(l => l.Id, l => l.LotNumber, ct);
+        var over = lines.Where(l => l.LotId is not null).GroupBy(l => l.LotId!.Value)
+            .Select(g => (Lot: g.Key, Asked: g.Sum(l => l.Quantity), Has: onHand.GetValueOrDefault(g.Key)))
+            .Where(x => x.Asked > x.Has)
+            .Select(x => $"El lote {numbers[x.Lot]} solo tiene {x.Has:0.####} en el origen y se piden {x.Asked:0.####}.")
+            .ToList();
+        if (over.Count > 0)
+            throw new RequestValidationException(new Dictionary<string, string[]> { ["lines"] = [.. over] });
     }
 
     private async Task<Location> EnsureActiveAsync(Guid locationId, CancellationToken ct)

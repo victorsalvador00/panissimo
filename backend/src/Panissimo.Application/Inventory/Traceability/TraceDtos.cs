@@ -143,6 +143,8 @@ public sealed record TraceNodeDto
     // Lot
     public Guid? LotId { get; init; }
     public string? LotNumber { get; init; }
+    /// <summary>RN-117: the supplier's lot of a received lot.</summary>
+    public string? SupplierLotNumber { get; init; }
     public DateOnly? ExpirationDate { get; init; }
     public DateTimeOffset? CreatedAt { get; init; }
     /// <summary>Lots produced: their unit cost (production.view).</summary>

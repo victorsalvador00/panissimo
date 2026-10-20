@@ -16,7 +16,8 @@ public sealed class TraceabilityQueries(IAppDbContext db, IUserDirectory userDir
 {
     public async Task<IReadOnlyList<TraceLot>> LotsAsync(IReadOnlyCollection<Guid> lotIds, CancellationToken ct) =>
         await db.Lots.AsNoTracking().Where(l => lotIds.Contains(l.Id))
-            .Select(l => new TraceLot(l.Id, l.ItemId, l.LotNumber, l.ExpirationDate, l.CreatedFromDocType, l.CreatedFromDocId, l.CreatedAt))
+            .Select(l => new TraceLot(l.Id, l.ItemId, l.LotNumber, l.ExpirationDate, l.CreatedFromDocType, l.CreatedFromDocId, l.CreatedAt,
+                l.SupplierLotNumber))
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<TraceItem>> ItemsAsync(IReadOnlyCollection<Guid> itemIds, CancellationToken ct) =>

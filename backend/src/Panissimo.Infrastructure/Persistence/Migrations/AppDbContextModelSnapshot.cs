@@ -909,6 +909,11 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("lot_number");
 
+                    b.Property<string>("SupplierLotNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("supplier_lot_number");
+
                     b.HasKey("Id")
                         .HasName("pk_lot");
 

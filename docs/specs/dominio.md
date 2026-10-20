@@ -173,7 +173,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
 
 ### 4.3 Inventario
 
-**Lot**: `ItemId`, `LotNumber`, `ExpirationDate` (opcional), `CreatedFromDocType`, `CreatedFromDocId`. Único por `(ItemId, LotNumber)`. Un lote existente no admite otra caducidad.
+**Lot**: `ItemId`, `LotNumber`, `ExpirationDate` (opcional), `SupplierLotNumber` (opcional, solo lotes de compra, RN-117), `CreatedFromDocType`, `CreatedFromDocId`. Único por `(ItemId, LotNumber)`. Un lote existente no admite otra caducidad.
 
 **StockBalance**: `LocationId`, `ItemId`, `LotId` (nullable), `Quantity`. Llave única `(LocationId, ItemId, LotId)`.
 
@@ -457,6 +457,7 @@ El código (clases, tablas, endpoints) va en **inglés**; la interfaz de usuario
   - Una OC con saldo se cierra manualmente con **motivo** (`Closed`, `CloseReason`, solo desde `PartiallyReceived`).
   - Una OC se cancela solo en `Draft`, `PendingApproval` o `Approved` sin nada recibido.
 - **RN-33**: la recepción registra `PurchaseReceipt` con costo base = `UnitPrice / PurchaseToBaseFactor` (sin IVA). Solo se reciben OC `Approved` o `PartiallyReceived`. Entrega solo en la Planta.
+- **RN-117 (lote de compra)**: el lote de cada renglón recibido de un artículo con lotes lo **genera el sistema** al registrar la recepción; no se captura. Formato `{SKU sin guiones ni otros separadores, en mayúsculas}-{fecha de negocio de la recepción DDMMAA}-{NN}`, donde `NN` es el consecutivo de ese artículo en ese día, siempre con 2 dígitos (`01`, `02`…; pasa a 3 después de `99`). Ej.: `MP-001` recibido el 20/10/2026 → `MP001-201026-01`; la segunda recepción del día → `MP001-201026-02`. Cada renglón (también dos del mismo artículo en una recepción, o dos recepciones simultáneas) recibe su propio consecutivo; un lote capturado a mano con ese prefijo pero sin número al final no cuenta. El SKU se corta a 39 caracteres para que el lote quepa en 50. Se captura opcional el **lote del proveedor** (`SupplierLotNumber`, informativo: reclamos y retiros), visible en la recepción y en la trazabilidad. Decidido con el usuario el 2026-10-20 (SKU en lugar de iniciales, DDMMAA, consecutivo siempre, lote del proveedor aparte).
 - **RN-34 (requisiciones)**:
   - Solo la Planta; `NeededBy` no pasada; cantidades en unidad de compra. Un artículo puede repetirse (ej. con otro proveedor); cada renglón repetido lleva una **nota** que explica por qué.
   - Una línea sin proveedor toma el **preferido**; un proveedor indicado debe estar activo y vender el artículo. Enviar exige proveedor en todas las líneas.

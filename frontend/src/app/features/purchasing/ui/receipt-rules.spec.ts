@@ -1,4 +1,4 @@
-import { checkReceipt, receiptTotal, receivableNow } from './receipt-rules';
+import { checkReceipt, receiptTotal, receivableNow, receiptLotPrefix } from './receipt-rules';
 
 // 100 ordered with 5 % tolerance (105), 40 already received.
 const line = { quantity: 100, receivedQty: 40, pendingQty: 60, maxReceivableQty: 105 };
@@ -18,5 +18,12 @@ describe('goods receipt rules (RN-32)', () => {
 
   it('adds the lots of a line', () => {
     expect(receiptTotal([10.1, 20.2, null])).toBe(30.3);
+  });
+});
+
+describe('receipt lot prefix (RN-117)', () => {
+  it('is the SKU without separators and the date as DDMMYY', () => {
+    expect(receiptLotPrefix('MP-001', new Date(2026, 9, 20))).toBe('MP001-201026-');
+    expect(receiptLotPrefix('mp.001_a', new Date(2026, 0, 5))).toBe('MP001A-050126-');
   });
 });

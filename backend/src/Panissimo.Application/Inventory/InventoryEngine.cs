@@ -41,4 +41,12 @@ public interface ILotRegistry
     /// </summary>
     Task<Lot> GetOrCreateAsync(Guid itemId, string lotNumber, DateOnly? expirationDate,
         string sourceDocType, Guid sourceDocId, CancellationToken ct);
+
+    /// <summary>
+    /// RN-117: creates (not saved yet) the next lot of the item whose number starts with <paramref name="prefix"/>
+    /// (<see cref="Domain.Purchasing.PurchaseLotNumber"/>). Takes the (item, prefix) transaction lock, so two documents
+    /// at the same time get consecutive numbers. Expiration as in <see cref="GetOrCreateAsync"/> for a new lot.
+    /// </summary>
+    Task<Lot> CreateNextAsync(Guid itemId, string prefix, DateOnly? expirationDate, string? supplierLotNumber,
+        string sourceDocType, Guid sourceDocId, CancellationToken ct);
 }

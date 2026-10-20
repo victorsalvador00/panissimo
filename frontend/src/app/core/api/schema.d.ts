@@ -15523,13 +15523,13 @@ export interface components {
      *         {
      *           "poLineId": "0199a1b2-0000-7000-8000-0000000000c1",
      *           "quantity": 30,
-     *           "lotNumber": "L2610-A",
+     *           "supplierLotNumber": "L2610-A",
      *           "expirationDate": "2027-04-30"
      *         },
      *         {
      *           "poLineId": "0199a1b2-0000-7000-8000-0000000000c1",
      *           "quantity": 10,
-     *           "lotNumber": "L2610-B",
+     *           "supplierLotNumber": null,
      *           "expirationDate": null
      *         }
      *       ]
@@ -16616,13 +16616,14 @@ export interface components {
       lotNumber: null | string;
       /** Format: date */
       expirationDate: null | string;
+      supplierLotNumber?: null | string;
     };
     GoodsReceiptLineRequest: {
       /** Format: uuid */
       poLineId: string;
       /** Format: double */
       quantity: number;
-      lotNumber: null | string;
+      supplierLotNumber: null | string;
       /** Format: date */
       expirationDate: null | string;
       /** Format: uuid */
@@ -18692,6 +18693,7 @@ export interface components {
       /** Format: uuid */
       lotId?: null | string;
       lotNumber?: null | string;
+      supplierLotNumber?: null | string;
       /** Format: date */
       expirationDate?: null | string;
       /** Format: date-time */

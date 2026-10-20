@@ -346,7 +346,7 @@ public sealed class TraceGraphBuilder(ITraceDataSource source)
             {
                 Id = LotId(lot.Id), Type = TraceNodeType.Lot, Label = $"{lot.LotNumber} · {item.Name}", LotId = lot.Id,
                 LotNumber = lot.LotNumber, ItemId = item.Id, Sku = item.Sku, ItemName = item.Name, ItemType = item.Type, BaseUom = item.BaseUom,
-                ExpirationDate = lot.ExpirationDate, CreatedAt = lot.CreatedAt,
+                SupplierLotNumber = lot.SupplierLotNumber, ExpirationDate = lot.ExpirationDate, CreatedAt = lot.CreatedAt,
                 UnitCost = producedBy is not null && _options.ProductionCosts ? producedBy.UnitCost : null,
             };
         }

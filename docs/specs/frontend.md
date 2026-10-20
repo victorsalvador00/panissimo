@@ -267,7 +267,7 @@ El archivo se guarda en memoria del componente para reenviarlo en el alta (el se
 | `/compras/requerimiento` | Requerimiento de materia prima: horizonte; por comprar, por producir y cubiertos; **Crear requisición sugerida** | [purchasing.view] o [production.view] |
 | `/compras/ordenes` | Pestañas Todas, **Por aprobar**, Por recibir; búsqueda por folio o proveedor | [purchasing.view] |
 | `/compras/ordenes/nueva`, `/:id` | Proveedor (fijo al guardar), entrega, fecha esperada; líneas del catálogo del proveedor con precio editable, IVA y totales en vivo (mismo redondeo que el backend); acciones Enviar, Aprobar, Rechazar, Cancelar, Cerrar con saldo, Recibir; requisición de origen por línea | [purchasing.view]; editar [purchasing.po.manage] |
-| ★ `/compras/recepciones/nueva?oc=` | Tarjeta por línea con saldo, lote y caducidad, **"Otro lote"**, factura; aviso si excede lo pendiente; barra fija con costo | [purchasing.receive] |
+| ★ `/compras/recepciones/nueva?oc=` | Tarjeta por línea con saldo; en artículos con lote, el lote que asignará el sistema (`MP001-201026-##`, RN-117), **lote del proveedor** opcional y caducidad, **"Otro lote"**, factura; aviso si excede lo pendiente; barra fija con costo | [purchasing.receive] |
 | `/compras/recepciones`, `/:id` | Historial y detalle | [purchasing.view] |
 
 ### 7.8 Administración

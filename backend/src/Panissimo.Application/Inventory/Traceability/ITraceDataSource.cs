@@ -9,7 +9,7 @@ using Panissimo.Domain.Sales;
 namespace Panissimo.Application.Inventory.Traceability;
 
 public sealed record TraceLot(Guid Id, Guid ItemId, string LotNumber, DateOnly? ExpirationDate, string CreatedFromDocType,
-    Guid CreatedFromDocId, DateTimeOffset CreatedAt);
+    Guid CreatedFromDocId, DateTimeOffset CreatedAt, string? SupplierLotNumber = null);
 
 public sealed record TraceItem(Guid Id, string Sku, string Name, ItemType Type, string BaseUom, string PurchaseUom, bool TracksLots);
 

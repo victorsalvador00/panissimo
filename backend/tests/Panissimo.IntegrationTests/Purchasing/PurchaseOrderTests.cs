@@ -107,13 +107,18 @@ public class PurchaseOrderTests(ApiFactory factory)
         Assert.Equal((PurchaseOrderStatus.PartiallyReceived, 264m, 20.5m, 5412m),
             (first.PurchaseOrderStatus, first.Lines.Single().BaseQuantity, first.Lines.Single().UnitCostBase, first.TotalCost));
         Assert.Equal(264m, await factory.StockAsync(plant, flour.Id));
+        // RN-117: the lot is generated from the SKU and the receipt date; the supplier's stays aside.
+        var prefix = PurchaseLotNumber.Prefix(flour.Sku, ApiFactory.Today);
+        Assert.Equal((prefix + "01", "L-A"), (first.Lines.Single().LotNumber, first.Lines.Single().SupplierLotNumber));
 
-        // Final receipt in two lots; L-B gets the default expiration (today + shelf life).
+        // Final receipt in two lots the same day (02 and 03); the second without supplier lot and with the default expiration.
         order = (await ReloadAsync(admin, order))!;
         Assert.Equal(4m, order.Lines.Single().PendingQty);
         var final = await ReceivedAsync(admin, order,
-            new GoodsReceiptLineRequest(line.Id, 3, "L-B", null), new GoodsReceiptLineRequest(line.Id, 1, "L-C", null));
+            new GoodsReceiptLineRequest(line.Id, 3, "L-B", null), new GoodsReceiptLineRequest(line.Id, 1, null, null));
         Assert.Equal(PurchaseOrderStatus.Received, final.PurchaseOrderStatus);
+        Assert.Equal([(prefix + "02", "L-B"), (prefix + "03", null)],
+            final.Lines.Select(l => (l.LotNumber!, l.SupplierLotNumber)).OrderBy(l => l.Item1));
         Assert.All(final.Lines, l => Assert.NotNull(l.ExpirationDate));
         Assert.Equal(440m, await factory.StockAsync(plant, flour.Id));
 
@@ -237,11 +242,10 @@ public class PurchaseOrderTests(ApiFactory factory)
         var approved = await ApprovedOrderAsync(admin, supplier.Id, new PurchaseOrderLineRequest(null, sugar.Id, 1, null));
         Assert.Equal(PurchaseOrderStatus.Cancelled, (await ActAsync(admin, approved, "cancel")).Status);
 
-        // Lots: required for yeast, not allowed for sugar.
+        // Lots: generated for yeast (RN-117); sugar does not track lots, so no supplier lot.
         var order = await ApprovedOrderAsync(admin, supplier.Id,
             new PurchaseOrderLineRequest(null, sugar.Id, 10, null), new PurchaseOrderLineRequest(null, yeast.Id, 5, null));
         var (sugarLine, yeastLine) = (order.Lines[0], order.Lines[1]);
-        Assert.Equal(HttpStatusCode.BadRequest, (await ReceiveAsync(admin, order, new GoodsReceiptLineRequest(yeastLine.Id, 5, null, null))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await ReceiveAsync(admin, order, new GoodsReceiptLineRequest(sugarLine.Id, 5, "L1", null))).StatusCode);
 
         // Partially received: no cancel, close with balance, then nothing else is received.
@@ -259,6 +263,25 @@ public class PurchaseOrderTests(ApiFactory factory)
 
         var toReceive = await admin.GetJsonAsync<PagedResult<PurchaseOrderListItemDto>>($"/api/v1/purchase-orders?pendingReceipt=true&supplierId={supplier.Id}");
         Assert.Empty(toReceive!.Items);
+    }
+
+    /// <summary>RN-117: two receipts of the same item at the same time get consecutive lots (the lock serializes them).</summary>
+    [Fact]
+    public async Task Simultaneous_receipts_of_an_item_get_consecutive_lots()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var yeast = await factory.CreateItemAsync("LEV", tracksLots: true);
+        var supplier = await SupplierSellingAsync(admin, (yeast.Id, 90m));
+        var orders = new[]
+        {
+            await ApprovedOrderAsync(admin, supplier.Id, new PurchaseOrderLineRequest(null, yeast.Id, 2, null)),
+            await ApprovedOrderAsync(admin, supplier.Id, new PurchaseOrderLineRequest(null, yeast.Id, 3, null)),
+        };
+
+        var receipts = await Task.WhenAll(orders.Select(o => ReceivedAsync(admin, o, new GoodsReceiptLineRequest(o.Lines[0].Id, 1, null, null))));
+
+        var prefix = PurchaseLotNumber.Prefix(yeast.Sku, ApiFactory.Today);
+        Assert.Equal([prefix + "01", prefix + "02"], receipts.Select(r => r.Lines.Single().LotNumber!).Order());
     }
 
     [Fact]

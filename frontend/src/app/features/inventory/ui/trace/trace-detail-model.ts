@@ -315,6 +315,7 @@ function receiptDetail(card: TraceCard, { graph, layout, nodes }: Ctx): DetailMo
           value: receipt.purchaseQty ? formatQty(receipt.purchaseQty, receipt.purchaseUom) : '—',
         },
         { label: 'Lote', value: lot?.lotNumber ?? '—' },
+        { label: 'Lote del proveedor', value: lot?.supplierLotNumber ?? '—' },
         { label: 'Caducidad', value: lot?.expirationDate ? shortDate(lot.expirationDate) : '—' },
       ],
     });

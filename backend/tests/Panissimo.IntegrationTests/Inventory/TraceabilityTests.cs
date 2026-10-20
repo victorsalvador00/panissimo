@@ -12,6 +12,7 @@ using Panissimo.Domain.Catalog;
 using Panissimo.Domain.Logistics;
 using Panissimo.Domain.Organization;
 using Panissimo.Domain.Production;
+using Panissimo.Domain.Purchasing;
 using Panissimo.Domain.Security;
 using Panissimo.Infrastructure.Persistence;
 using Panissimo.IntegrationTests.Infrastructure;
@@ -49,23 +50,17 @@ public class TraceabilityTests(ApiFactory factory)
         string.Concat(Enumerable.Range(0, 3).Select(_ => (char)('A' + Random.Shared.Next(26)))) + "980312"
         + string.Concat(Enumerable.Range(0, 3).Select(_ => (char)('A' + Random.Shared.Next(26))));
 
-    private async Task<Guid> LotAsync(Guid itemId, string number)
-    {
-        await using var scope = factory.CreateScope();
-        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Lots
-            .Where(l => l.ItemId == itemId && l.LotNumber == number).Select(l => l.Id).SingleAsync();
-    }
-
-    private static async Task<PurchaseOrderDto> ReceivedOrderAsync(HttpClient admin, Guid supplier, Guid plant, Guid itemId, decimal qty,
-        decimal price, string lot, DateOnly expiration)
+    /// <summary>The order received in one line; the lot is generated (RN-117) and <paramref name="supplierLot"/> is the supplier's.</summary>
+    private static async Task<(PurchaseOrderDto Order, GoodsReceiptLineDto Line)> ReceivedOrderAsync(HttpClient admin, Guid supplier,
+        Guid plant, Guid itemId, decimal qty, decimal price, string supplierLot, DateOnly expiration)
     {
         var order = await OkAsync<PurchaseOrderDto>(admin.PostJsonAsync("/api/v1/purchase-orders",
             new CreatePurchaseOrderRequest(supplier, plant, Today, null, [new PurchaseOrderLineRequest(null, itemId, qty, price)])));
         order = await OkAsync<PurchaseOrderDto>(admin.PostJsonAsync($"/api/v1/purchase-orders/{order.Id}/submit", new VersionRequest(order.Version)));
         order = await OkAsync<PurchaseOrderDto>(admin.PostJsonAsync($"/api/v1/purchase-orders/{order.Id}/approve", new VersionRequest(order.Version)));
-        await OkAsync<GoodsReceiptDto>(admin.PostJsonAsync("/api/v1/goods-receipts", new CreateGoodsReceiptRequest(order.Id, order.Version, "A-1182",
-            null, [new GoodsReceiptLineRequest(order.Lines[0].Id, qty, lot, expiration)])));
-        return order;
+        var receipt = await OkAsync<GoodsReceiptDto>(admin.PostJsonAsync("/api/v1/goods-receipts", new CreateGoodsReceiptRequest(order.Id,
+            order.Version, "A-1182", null, [new GoodsReceiptLineRequest(order.Lines[0].Id, qty, supplierLot, expiration)])));
+        return (order, receipt.Lines.Single());
     }
 
     private static async Task<TransferDto> SentAsync(HttpClient admin, Guid from, Guid to, Guid itemId, decimal qty)
@@ -104,9 +99,9 @@ public class TraceabilityTests(ApiFactory factory)
             await OkAsync<SupplierItemDto>(admin.PostJsonAsync($"/api/v1/suppliers/{supplier.Id}/items", new CreateSupplierItemRequest(item.Id, null, price, 2, true)));
 
         // 62 kg of the oldest flour: FEFO takes all of it in the first close.
-        var oldOrder = await ReceivedOrderAsync(admin, harinas.Id, plant, flour.Id, 62, 9.5m, "HT-2609-C", Today.AddDays(70));
-        var newOrder = await ReceivedOrderAsync(admin, harinas.Id, plant, flour.Id, 1760, 9.8m, "HT-2610-A", Today.AddDays(90));
-        var sugarOrder = await ReceivedOrderAsync(admin, abarrotes.Id, plant, sugar.Id, 10, 650m, "AZ-2509", Today.AddDays(300)); // 10 bultos = 500 kg
+        var (oldOrder, oldLine) = await ReceivedOrderAsync(admin, harinas.Id, plant, flour.Id, 62, 9.5m, "HT-2609-C", Today.AddDays(70));
+        var (newOrder, newLine) = await ReceivedOrderAsync(admin, harinas.Id, plant, flour.Id, 1760, 9.8m, "HT-2610-A", Today.AddDays(90));
+        var (sugarOrder, _) = await ReceivedOrderAsync(admin, abarrotes.Id, plant, sugar.Id, 10, 650m, "AZ-2509", Today.AddDays(300)); // 10 bultos = 500 kg
 
         await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bread.Id, 1800, null,
             [new RecipeLineRequest(flour.Id, 90.1m, 0), new RecipeLineRequest(sugar.Id, 2.66m, 0), new RecipeLineRequest(water.Id, 45.05m, 0)])));
@@ -151,7 +146,7 @@ public class TraceabilityTests(ApiFactory factory)
             new DispatchCustomerShipmentRequest(shipment.Version, ApiFactory.VehicleId, ApiFactory.DriverId, "Marta", null)));
 
         return _scenario = new Scenario(plant, suc1, suc2, suc3, suc3Code, flour, sugar, water, bread, oldOrder, newOrder, sugarOrder,
-            await LotAsync(flour.Id, "HT-2609-C"), await LotAsync(flour.Id, "HT-2610-A"), c2.Order, c1.Close.OutputLotNumber!,
+            oldLine.LotId!.Value, newLine.LotId!.Value, c2.Order, c1.Close.OutputLotNumber!,
             c2.Close.OutputLotNumber!, tr1, tr2, tr3, shipment, packaged);
     }
 
@@ -194,6 +189,7 @@ public class TraceabilityTests(ApiFactory factory)
         var s = await ScenarioAsync(admin);
 
         var fromLot = await GraphAsync(admin, TraceSourceType.Lot, s.OldFlourLot, TraceDirection.Forward);
+        Assert.Equal("HT-2609-C", fromLot.Nodes.Single(n => n.Type == TraceNodeType.Lot && n.LotId == s.OldFlourLot).SupplierLotNumber);
 
         var transfers = fromLot.Nodes.Where(n => n.Type == TraceNodeType.Transfer).Select(n => n.Folio).Order().ToList();
         Assert.Equal([s.Tr1.Folio, s.Tr2.Folio], transfers);
@@ -274,8 +270,10 @@ public class TraceabilityTests(ApiFactory factory)
         var byFolio = await OkAsync<List<TraceSourceDto>>(admin.GetAsync($"/api/v1/traceability/sources/lookup?q={s.Order.Folio}"));
         Assert.Contains(byFolio, x => x.Type == TraceSourceType.ProductionOrder && x.Id == s.Order.Id);
         Assert.Contains(byFolio, x => x.Type == TraceSourceType.Lot && x.Label.StartsWith(s.Lot1, StringComparison.Ordinal));
-        var lots = await OkAsync<List<TraceLotLookupDto>>(admin.GetAsync($"/api/v1/traceability/lots/lookup?q=HT-26&itemId={s.Flour.Id}"));
-        Assert.Equal(["HT-2609-C", "HT-2610-A"], lots.Select(l => l.LotNumber).Order());
+        // RN-117: both flour receipts were the same day, so their lots are -01 and -02.
+        var prefix = PurchaseLotNumber.Prefix(s.Flour.Sku, Today);
+        var lots = await OkAsync<List<TraceLotLookupDto>>(admin.GetAsync($"/api/v1/traceability/lots/lookup?q={prefix}&itemId={s.Flour.Id}"));
+        Assert.Equal([prefix + "01", prefix + "02"], lots.Select(l => l.LotNumber).Order());
 
         // Errors.
         Assert.Equal(HttpStatusCode.NotFound, (await admin.GetAsync($"/api/v1/traceability/graph?sourceType=Lot&sourceId={Guid.NewGuid()}")).StatusCode);

@@ -1075,3 +1075,15 @@
 - **Pruebas:** backend 307 unitarias y 174 de integración en verde (+1 omitida). El resumen y el tablero se prueban con una planta y fábrica propias; la importación prueba que la columna `area` vieja da aviso. Frontend 199 unitarias, `ng lint`, `icons:check` y build en verde; E2E 06, 07, 08, 17, 18 y 24 en verde. `prettier --check` sigue marcando 34 archivos con CRLF que no se tocaron (pendiente anotado del `.gitattributes`).
 - **Datos:** en la BD local se perdieron las áreas de las OP y de los artículos (decidido). El contenedor `api` se reinició: el hot reload de `dotnet watch` falló con el cambio de records.
 
+### RN-117: el lote de compra lo genera el sistema (2026-10-20)
+
+- **Pedido del usuario:** al recibir una OC, el lote de los artículos que lo manejan lo genera el sistema: iniciales del producto, guion, fecha DDMMAA y un consecutivo si se recibe más de una vez el mismo día. Se le propusieron mejoras y decidió: **SKU** sin separadores en lugar de iniciales, fecha **DDMMAA**, consecutivo **siempre** con 2 dígitos y guardar aparte el **lote del proveedor** (opcional). Resultado: `MP001-201026-01`. `dominio.md` RN-117 y entidad `Lot`, `backend.md` y `frontend.md`.
+- **Backend:**
+  - `PurchaseLotNumber` (dominio): prefijo, formato, consecutivo siguiente (ignora lotes con el prefijo sin número; pasa a 3 dígitos después de 99; SKU cortado a 39 para caber en 50).
+  - `Lot.SupplierLotNumber` (migración `AddSupplierLotNumber`, aplicada en la BD local).
+  - `ILotRegistry.CreateNextAsync`: candado por (artículo, prefijo) y cuenta también los lotes aún no guardados del mismo documento.
+  - Recepción: `GoodsReceiptLineRequest.LotNumber` → `SupplierLotNumber`; ya no se exige lote; la fecha es la de negocio; un artículo sin lotes rechaza lote del proveedor y caducidad. `GoodsReceiptLineDto.SupplierLotNumber`. Ya no se valida "líneas repetidas con el mismo lote" (cada renglón es un lote nuevo). Ejemplo OpenAPI actualizado.
+  - Trazabilidad: el nodo de lote trae `SupplierLotNumber`.
+- **Frontend:** en la recepción el campo es "Lote del proveedor" con la pista "Lote: MP001-201026-## (lo asigna el sistema)" (`receiptLotPrefix`); el detalle muestra "proveedor …" junto al lote; la ficha de la recepción en trazabilidad, "Lote del proveedor".
+- **Pruebas:** backend 315 unitarias (`PurchaseLotNumberTests`) y 175 de integración en verde (+1 omitida): lotes 01/02/03 en recepciones del mismo día, dos recepciones simultáneas con consecutivos distintos, el lote del proveedor en la recepción y en el grafo. Frontend 200 unitarias y `ng lint` en verde; E2E 24 en verde con el lote generado.
+- **No cambia:** los lotes capturados en ajustes y conteos siguen siendo a mano (fuera del pedido).

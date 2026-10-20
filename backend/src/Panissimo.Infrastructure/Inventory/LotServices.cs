@@ -3,6 +3,7 @@ using Panissimo.Application.Common;
 using Panissimo.Application.Inventory;
 using Panissimo.Domain.Common;
 using Panissimo.Domain.Inventory;
+using Panissimo.Domain.Purchasing;
 using Panissimo.Infrastructure.Persistence;
 
 namespace Panissimo.Infrastructure.Inventory;
@@ -48,12 +49,7 @@ public sealed class LotRegistry(AppDbContext db, IClock clock, ITransactionLocks
 
         if (lot is null)
         {
-            // RN-05: without a captured expiration, a new lot expires ShelfLifeDays after the business date.
-            if (expirationDate is null
-                && await db.Items.Where(i => i.Id == itemId).Select(i => i.ShelfLifeDays).SingleOrDefaultAsync(ct) is { } shelfLife)
-                expirationDate = clock.BusinessDate().AddDays(shelfLife);
-
-            lot = new Lot(itemId, number, expirationDate, sourceDocType, sourceDocId, clock.UtcNow);
+            lot = new Lot(itemId, number, await NewLotExpirationAsync(itemId, expirationDate, ct), sourceDocType, sourceDocId, clock.UtcNow);
             db.Lots.Add(lot);
             return lot;
         }
@@ -64,4 +60,25 @@ public sealed class LotRegistry(AppDbContext db, IClock clock, ITransactionLocks
                 $"El lote {number} ya existe con caducidad {lot.ExpirationDate:dd/MM/yyyy}; no puede registrarse con otra fecha.");
         return lot;
     }
+
+    public async Task<Lot> CreateNextAsync(Guid itemId, string prefix, DateOnly? expirationDate, string? supplierLotNumber,
+        string sourceDocType, Guid sourceDocId, CancellationToken ct)
+    {
+        await locks.AcquireAsync(TransactionLockScopes.Lot, $"{itemId}:{prefix}", ct);
+        // The lots of this document not saved yet count too: two lines of the same item get 01 and 02.
+        var existing = await db.Lots.Where(l => l.ItemId == itemId && l.LotNumber.StartsWith(prefix)).Select(l => l.LotNumber).ToListAsync(ct);
+        existing.AddRange(db.Lots.Local.Where(l => l.ItemId == itemId && l.LotNumber.StartsWith(prefix, StringComparison.Ordinal)).Select(l => l.LotNumber));
+
+        var lot = new Lot(itemId, PurchaseLotNumber.Next(prefix, existing), await NewLotExpirationAsync(itemId, expirationDate, ct),
+            sourceDocType, sourceDocId, clock.UtcNow, supplierLotNumber);
+        db.Lots.Add(lot);
+        return lot;
+    }
+
+    /// <summary>RN-05: without a captured expiration, a new lot expires ShelfLifeDays after the business date.</summary>
+    private async Task<DateOnly?> NewLotExpirationAsync(Guid itemId, DateOnly? expirationDate, CancellationToken ct) =>
+        expirationDate is null
+        && await db.Items.Where(i => i.Id == itemId).Select(i => i.ShelfLifeDays).SingleOrDefaultAsync(ct) is { } shelfLife
+            ? clock.BusinessDate().AddDays(shelfLife)
+            : expirationDate;
 }

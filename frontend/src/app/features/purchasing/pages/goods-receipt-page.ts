@@ -33,11 +33,11 @@ import {
   PurchaseOrdersApi,
   GoodsReceiptsApi,
 } from '../data-access/purchasing-api';
-import { checkReceipt, receiptTotal, receivableNow } from '../ui/receipt-rules';
+import { checkReceipt, receiptLotPrefix, receiptTotal, receivableNow } from '../ui/receipt-rules';
 
 type LotEntry = FormGroup<{
   quantity: FormControl<number | null>;
-  lotNumber: FormControl<string>;
+  supplierLotNumber: FormControl<string>;
   expirationDate: FormControl<Date | null>;
 }>;
 
@@ -48,7 +48,8 @@ interface ReceiptLine {
 
 /**
  * ★ /compras/recepciones/nueva?oc= (frontend §7.6, RN-32, RN-33), designed for the phone at the dock: a card per line
- * with its balance, filled with what is pending; lot and expiry for lot items and **"Otro lote"** to split the line;
+ * with its balance, filled with what is pending; for lot items the lot the system will generate (RN-117), the supplier's
+ * lot and the expiry, and **"Otro lote"** to split the line;
  * the supplier's invoice; a warning when it goes over the pending (allowed up to the tolerance, never above); the
  * sub-warehouse it enters; fixed bar with the cost; confirmation.
  */
@@ -137,9 +138,9 @@ interface ReceiptLine {
                   />
                   @if (r.line.tracksLots) {
                     <mat-form-field class="lot">
-                      <mat-label>Lote</mat-label>
-                      <input matInput formControlName="lotNumber" autocomplete="off" />
-                      <mat-hint>Vacío: el sistema le asigna uno.</mat-hint>
+                      <mat-label>Lote del proveedor</mat-label>
+                      <input matInput formControlName="supplierLotNumber" autocomplete="off" />
+                      <mat-hint>Lote: {{ lotPrefix(r) }}## (lo asigna el sistema)</mat-hint>
                     </mat-form-field>
                     <mat-form-field class="lot">
                       <mat-label>Caducidad</mat-label>
@@ -431,7 +432,7 @@ export class GoodsReceiptPage {
         .map((e) => ({
           poLineId: r.line.id,
           quantity: e.quantity!,
-          lotNumber: r.line.tracksLots ? e.lotNumber.trim() || null : null,
+          supplierLotNumber: r.line.tracksLots ? e.supplierLotNumber.trim() || null : null,
           expirationDate: r.line.tracksLots ? toIsoDate(e.expirationDate) : null,
         })),
     );
@@ -458,6 +459,11 @@ export class GoodsReceiptPage {
     }
   }
 
+  /** RN-117: what the generated lot starts with; the sequence of the day comes from the backend. */
+  protected lotPrefix(r: ReceiptLine): string {
+    return receiptLotPrefix(r.line.sku, new Date());
+  }
+
   private totalOf(r: ReceiptLine): number {
     return receiptTotal(r.entries.controls.map((e) => e.controls.quantity.value));
   }
@@ -465,7 +471,10 @@ export class GoodsReceiptPage {
   private entry(quantity: number | null): LotEntry {
     const entry: LotEntry = new FormGroup({
       quantity: new FormControl<number | null>(quantity),
-      lotNumber: new FormControl('', { nonNullable: true, validators: Validators.maxLength(50) }),
+      supplierLotNumber: new FormControl('', {
+        nonNullable: true,
+        validators: Validators.maxLength(50),
+      }),
       expirationDate: new FormControl<Date | null>(null),
     });
     entry.valueChanges.subscribe(() => this.edits.update((n) => n + 1));

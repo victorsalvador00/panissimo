@@ -14,7 +14,8 @@ internal sealed class LotConfiguration : IEntityTypeConfiguration<Lot>
     public void Configure(EntityTypeBuilder<Lot> builder)
     {
         builder.ToTable("lot", "inventory");
-        builder.Property(l => l.LotNumber).HasMaxLength(50);
+        builder.Property(l => l.LotNumber).HasMaxLength(Lot.LotNumberMaxLength);
+        builder.Property(l => l.SupplierLotNumber).HasMaxLength(Lot.LotNumberMaxLength);
         builder.Property(l => l.CreatedFromDocType).HasMaxLength(30);
         builder.HasIndex(l => new { l.ItemId, l.LotNumber }).IsUnique();
         builder.HasIndex(l => new { l.ItemId, l.ExpirationDate });

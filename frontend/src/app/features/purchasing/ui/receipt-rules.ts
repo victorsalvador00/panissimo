@@ -32,3 +32,17 @@ export function checkReceipt(line: ReceivableLine, total: number): ReceiptCheck 
 export function receiptTotal(quantities: readonly (number | null)[]): number {
   return round(quantities.reduce<number>((sum, q) => sum + (q ?? 0), 0));
 }
+
+/**
+ * RN-117: the start of the lot the system will give a receipt line, `{SKU without separators}-{DDMMYY}-`; the backend
+ * appends the sequence of the day (01, 02…) when it registers the receipt.
+ */
+export function receiptLotPrefix(sku: string, receivedOn: Date): string {
+  const compact = sku
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 39);
+  const two = (n: number) => String(n).padStart(2, '0');
+  const date = `${two(receivedOn.getDate())}${two(receivedOn.getMonth() + 1)}${two(receivedOn.getFullYear() % 100)}`;
+  return `${compact}-${date}-`;
+}

@@ -1,7 +1,7 @@
 import type { PlanRow } from '../data-access/production-api';
-import { groupPlan, offMultiple, planKey } from './plan-rules';
+import { groupPlan, isCovered, offMultiple, planKey } from './plan-rules';
 
-function row(sku: string, date: string, factoryName: string | null): PlanRow {
+function row(sku: string, date: string, factoryName: string | null, suggestedQty = 0): PlanRow {
   return {
     itemId: sku,
     sku,
@@ -22,7 +22,7 @@ function row(sku: string, date: string, factoryName: string | null): PlanRow {
     totalDemand: 0,
     stock: 0,
     openOrders: 0,
-    suggestedQty: 0,
+    suggestedQty,
     demandLines: [],
   };
 }
@@ -38,6 +38,19 @@ describe('plan rules (frontend §7.4.1)', () => {
     expect(groups.map((g) => g.date)).toEqual(['2026-10-18', '2026-10-19']);
     expect(groups[0].factories.map((f) => f.factoryName)).toEqual(['Fábrica 1', 'Sin fábrica']);
     expect(groups[0].factories[0].rows.map((r) => r.sku)).toEqual(['A2', 'C']);
+  });
+
+  it('covered rows and factories go first, the ones to produce (with checkbox) after', () => {
+    const [day] = groupPlan([
+      row('SE-002', '2026-10-21', 'Bizcocho', 3),
+      row('PT-021', '2026-10-21', 'Hornos'),
+      row('SE-001', '2026-10-21', 'Masas', 5),
+      row('A', '2026-10-21', 'Bizcocho'),
+    ]);
+    expect(day.factories.map((f) => f.factoryName)).toEqual(['Hornos', 'Bizcocho', 'Masas']);
+    expect(day.factories[1].rows.map((r) => r.sku)).toEqual(['A', 'SE-002']);
+    expect(isCovered(row('X', '2026-10-21', null, 0))).toBe(true);
+    expect(isCovered(row('X', '2026-10-21', null, 1))).toBe(false);
   });
 
   it('a row is a product on a date', () => {

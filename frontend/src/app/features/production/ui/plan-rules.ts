@@ -12,9 +12,15 @@ export interface PlanDateGroup {
 
 const NO_FACTORY = 'Sin fábrica';
 
+/** A row already covered by stock or open OPs: nothing to generate (no checkbox). */
+export function isCovered(row: Pick<PlanRow, 'suggestedQty'>): boolean {
+  return row.suggestedQty <= 0;
+}
+
 /**
- * frontend §7.4.1: the plan grouped by date and then by the factory of the active recipe (RN-49; rows without one
- * last), SKU inside each factory.
+ * frontend §7.4.1: the plan grouped by date and then by the factory of the active recipe (RN-49). What is already
+ * covered goes first and what is still to be produced (with its checkbox) after: factories with nothing to produce
+ * first, then by name (rows without factory last); inside each factory, covered rows first, then by SKU.
  */
 export function groupPlan(rows: readonly PlanRow[]): PlanDateGroup[] {
   const byDate = new Map<string, PlanRow[]>();
@@ -25,11 +31,18 @@ export function groupPlan(rows: readonly PlanRow[]): PlanDateGroup[] {
       const factory = row.factoryName ?? NO_FACTORY;
       byFactory.set(factory, [...(byFactory.get(factory) ?? []), row]);
     }
+    const pending = (rows: PlanRow[]) => (rows.some((r) => !isCovered(r)) ? 1 : 0);
     const factories = [...byFactory.entries()]
-      .sort(([a], [b]) => (a === NO_FACTORY ? 1 : b === NO_FACTORY ? -1 : a.localeCompare(b)))
+      .sort(
+        ([a, aRows], [b, bRows]) =>
+          pending(aRows) - pending(bRows) ||
+          (a === NO_FACTORY ? 1 : b === NO_FACTORY ? -1 : a.localeCompare(b)),
+      )
       .map(([factoryName, factoryRows]) => ({
         factoryName,
-        rows: factoryRows.sort((x, y) => x.sku.localeCompare(y.sku)),
+        rows: factoryRows.sort(
+          (x, y) => Number(isCovered(y)) - Number(isCovered(x)) || x.sku.localeCompare(y.sku),
+        ),
       }));
     return { date, factories };
   });

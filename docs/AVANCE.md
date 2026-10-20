@@ -1135,3 +1135,9 @@
 - **Frontend:** el selector de origen ya listaba lo que manda la API; el aviso de la OP explica que lo que ya está en la fábrica solo se reserva.
 - **Pruebas:** `WarehouseProcessTests.Produced_components_come_from_their_factory_and_the_recipe_factory_needs_no_voucher` (opciones y omisiones, 400 si una materia prima viene de una fábrica, vales de MP y de la otra fábrica, reserva en la propia fábrica que bloquea un vale manual, se consume a la mitad en el cierre parcial y queda en 0 con el final). Backend 319 unitarias y 179 de integración en verde (+1 omitida); frontend 205 unitarias y `ng lint` en verde. Revisado en Chrome con OP-000014: SE-001 propone FB-MASAS (6 kg libres) y SE-002 FB-BIZCOCHO (3 kg), y la lista incluye las fábricas.
 
+### Plan: primero lo cubierto, después lo por generar (2026-10-20)
+
+- **Pedido del usuario:** en cada fecha del plan, poner primero los renglones que ya tienen su OP (borradores u OP abiertas que los cubren) y después los que siguen como solicitud con su casilla.
+- **Frontend:** `plan-rules.groupPlan` ordena en cada fecha las fábricas sin nada por producir primero (después por nombre, "Sin fábrica" al final) y, dentro de cada fábrica, los renglones cubiertos (`isCovered`: por producir 0) antes que los pendientes, luego por SKU. `frontend.md` §7.4.1.
+- **Pruebas:** `plan-rules.spec` (caso del 21 de octubre: Hornos, Bizcocho, Masas). Frontend 206 unitarias y `ng lint` en verde. Revisado en Chrome.
+

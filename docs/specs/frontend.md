@@ -201,7 +201,7 @@ Rutas en español. Entre corchetes, el permiso mínimo. ★ = diseño móvil o t
 #### 7.4.1 Plan de producción
 
 - Encabezado: Planta, rango de fechas (hoy + `production.plan_default_days`), fábrica (si la planta tiene) y búsqueda.
-- Tabla (`app-plan-table`) agrupada por **fecha** y luego por **fábrica** de la receta activa: foto, SKU, producto, tipo y presentación, demanda (sucursales, clientes, stock, OP padre), existencia, OP pendientes y **por producir** (resaltado si > 0). Al expandir: líneas de pedido que lo originan (folio con enlace, sucursal o cliente, fecha, cantidad).
+- Tabla (`app-plan-table`) agrupada por **fecha** y luego por **fábrica** de la receta activa; en cada fecha van primero las fábricas y renglones ya cubiertos (por producir 0, sin casilla) y después los que faltan por generar (con casilla), luego por nombre de fábrica (sin fábrica al final) y SKU: foto, SKU, producto, tipo y presentación, demanda (sucursales, clientes, stock, OP padre), existencia, OP pendientes y **por producir** (resaltado si > 0). Al expandir: líneas de pedido que lo originan (folio con enlace, sucursal o cliente, fecha, cantidad).
 - Selección de renglones con sugerido > 0; cantidad editable (prellenada con el sugerido; múltiplo como pista, no como bloqueo) y turno opcional.
 - **"Generar OP (n)"** ([production.orders.manage]): confirmación con producto / fecha / fábrica / cantidad → diálogo con los folios creados y "Ver órdenes del día".
 - Vacío: "No hay nada por producir en este rango".

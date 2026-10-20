@@ -33,7 +33,7 @@ nano seed/locations.csv   # sucursales: codigo,nombre,direccion
 
 docker compose build                    # api, web y migrate
 docker compose run --rm migrate         # crea el esquema
-docker compose run --rm api --seed      # solo la primera vez: unidades, Planta, sucursales, áreas, roles, admin, parámetros
+docker compose run --rm api --seed      # solo la primera vez: unidades, Planta, sucursales, roles, admin, parámetros
 docker compose up -d
 docker compose ps                       # api y web en "running"
 curl -fsS https://$PAN_DOMAIN/health/ready   # "Healthy"

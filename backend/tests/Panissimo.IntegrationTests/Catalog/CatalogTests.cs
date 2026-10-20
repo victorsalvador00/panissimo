@@ -215,6 +215,25 @@ public class CatalogTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, (await PostCsvAsync(client, "sku\nX")).StatusCode);
     }
 
+    [Fact]
+    public async Task Csv_of_an_older_template_ignores_the_columns_it_does_not_know()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var refs = await RefsAsync(admin);
+        var sku = Unique("BIZ");
+        // `area` is the column of the removed production areas.
+        var csv = $"""
+            sku,nombre,tipo,categoria,unidad_base,area,multiplo_op
+            {sku},Bizcocho mantequilla,semiterminado,{refs.CategoryName},kg,BIZ-DIA,
+            """;
+
+        var response = await PostCsvAsync(admin, csv);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, (await response.Content.ReadJsonAsync<ItemImportResult>())!.Created);
+        Assert.Equal(sku, Assert.Single((await admin.GetJsonAsync<List<ItemLookupDto>>($"/api/v1/items/lookup?q={sku}"))!).Sku);
+    }
+
     private static Task<HttpResponseMessage> PostCsvAsync(HttpClient client, string csv)
     {
         var file = new ByteArrayContent(Encoding.UTF8.GetBytes(csv));

@@ -53,7 +53,7 @@ export interface RecordDialogData<T> {
 }
 
 /**
- * Dialog of a small catalog record (location, category, unit, area), built from its fields (frontend §7.2). Resolves
+ * Dialog of a small catalog record (location, category, unit), built from its fields (frontend §7.2). Resolves
  * with the saved record, or undefined when cancelled.
  */
 @Component({

@@ -37,7 +37,6 @@ const ROUTES: readonly string[] = [
   '/produccion/cierres',
   '/produccion/importar',
   '/produccion/importaciones',
-  '/produccion/areas',
   '/logistica/pedidos',
   '/logistica/pedidos/nuevo',
   '/logistica/traspasos',

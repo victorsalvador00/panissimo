@@ -32,7 +32,7 @@ Revisión con un año de producción de la Planta, medida por la API y con los p
 | Plan de producción (7 días) | 25 | 24 | 1000 |
 | Existencias de la planta | 9 | 8 | 300 |
 | Lista de cierres | 97 | 28 | 300 |
-| Resumen de producción del año por área | 656 | 94 | 1000 |
+| Resumen de producción del año por área (hoy por fábrica) | 656 | 94 | 1000 |
 | Tablero de la planta | 33 | 33 | 1000 |
 
 ## Hallazgos y cambios

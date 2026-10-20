@@ -250,8 +250,8 @@ public sealed class ItemImportService(IAppDbContext db, ICsvReader reader) : IIt
         var errors = new List<ImportError>();
         foreach (var missing in Columns.Required.Except(document.Headers))
             errors.Add(new ImportError(1, missing, $"Falta la columna obligatoria '{missing}'."));
-        foreach (var unknown in document.Headers.Except(Columns.All))
-            errors.Add(new ImportError(1, unknown, $"La columna '{unknown}' no se reconoce. Columnas válidas: {string.Join(", ", Columns.All)}."));
+        // Unknown columns are ignored (the screen warns about them before uploading): a file of an older template, with
+        // the `area` column of the removed production areas, still imports.
         foreach (var duplicate in document.Headers.GroupBy(h => h).Where(g => g.Count() > 1))
             errors.Add(new ImportError(1, duplicate.Key, $"La columna '{duplicate.Key}' está repetida."));
 

@@ -1103,5 +1103,6 @@
 - **Backend:** fuera `Lot.SupplierLotNumber` (migración `RemoveSupplierLotNumber`; en la BD local solo tenía los dos lotes de una corrida de la E2E 24), `GoodsReceiptLineRequest` queda `(poLineId, quantity, expirationDate?, warehouseId?)`, el DTO de la línea, el parámetro de `ILotRegistry.CreateNextAsync`, el nodo de trazabilidad y el ejemplo OpenAPI. Un artículo sin lotes rechaza la caducidad.
 - **Frontend:** la tarjeta de la recepción muestra "Lote" de solo lectura con el lote previsto (`MP006-201026-##`) y "Lo asigna el sistema al registrar."; fuera el dato del proveedor en el detalle y en la ficha de trazabilidad.
 - **Pruebas:** backend 315 unitarias y 176 de integración en verde (+1 omitida); frontend 204 unitarias, `ng lint` y build en verde; E2E 24 en verde. Revisado en Chrome con OC-000007.
+- **Restos de las áreas (mismo día):** la importación de artículos ya no rechaza columnas desconocidas: las ignora, como avisa la pantalla, y así una plantilla vieja con la columna `area` se importa (`CatalogTests.Csv_of_an_older_template_ignores_the_columns_it_does_not_know`). Fuera `/produccion/areas` de la E2E 23 y las menciones de áreas en `deploy/README.md`, un comentario y una prueba del lector CSV. La etiqueta "Área de producción" de la bitácora se conserva para leer los registros viejos.
 
 

@@ -253,8 +253,8 @@ public static class OpenApiSetup
         [typeof(ClosePurchaseOrderRequest)] = """{ "version": 1234, "reason": "El proveedor no surtirá el saldo" }""",
         [typeof(CreateGoodsReceiptRequest)] = """
             { "purchaseOrderId": "0199a1b2-0000-7000-8000-0000000000b9", "poVersion": 1234, "supplierInvoiceNumber": "A-15873", "notes": null,
-              "lines": [ { "poLineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 30, "supplierLotNumber": "L2610-A", "expirationDate": "2027-04-30" },
-                         { "poLineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 10, "supplierLotNumber": null, "expirationDate": null } ] }
+              "lines": [ { "poLineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 30, "expirationDate": "2027-04-30" },
+                         { "poLineId": "0199a1b2-0000-7000-8000-0000000000c1", "quantity": 10, "expirationDate": null } ] }
             """,
         [typeof(ConvertRequisitionsRequest)] = """
             { "requisitionIds": ["0199a1b2-0000-7000-8000-0000000000b1", "0199a1b2-0000-7000-8000-0000000000b2"] }

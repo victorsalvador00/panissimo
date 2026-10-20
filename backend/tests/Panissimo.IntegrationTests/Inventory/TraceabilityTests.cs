@@ -50,16 +50,16 @@ public class TraceabilityTests(ApiFactory factory)
         string.Concat(Enumerable.Range(0, 3).Select(_ => (char)('A' + Random.Shared.Next(26)))) + "980312"
         + string.Concat(Enumerable.Range(0, 3).Select(_ => (char)('A' + Random.Shared.Next(26))));
 
-    /// <summary>The order received in one line; the lot is generated (RN-117) and <paramref name="supplierLot"/> is the supplier's.</summary>
+    /// <summary>The order received in one line; the lot is generated (RN-117).</summary>
     private static async Task<(PurchaseOrderDto Order, GoodsReceiptLineDto Line)> ReceivedOrderAsync(HttpClient admin, Guid supplier,
-        Guid plant, Guid itemId, decimal qty, decimal price, string supplierLot, DateOnly expiration)
+        Guid plant, Guid itemId, decimal qty, decimal price, DateOnly expiration)
     {
         var order = await OkAsync<PurchaseOrderDto>(admin.PostJsonAsync("/api/v1/purchase-orders",
             new CreatePurchaseOrderRequest(supplier, plant, Today, null, [new PurchaseOrderLineRequest(null, itemId, qty, price)])));
         order = await OkAsync<PurchaseOrderDto>(admin.PostJsonAsync($"/api/v1/purchase-orders/{order.Id}/submit", new VersionRequest(order.Version)));
         order = await OkAsync<PurchaseOrderDto>(admin.PostJsonAsync($"/api/v1/purchase-orders/{order.Id}/approve", new VersionRequest(order.Version)));
         var receipt = await OkAsync<GoodsReceiptDto>(admin.PostJsonAsync("/api/v1/goods-receipts", new CreateGoodsReceiptRequest(order.Id,
-            order.Version, "A-1182", null, [new GoodsReceiptLineRequest(order.Lines[0].Id, qty, supplierLot, expiration)])));
+            order.Version, "A-1182", null, [new GoodsReceiptLineRequest(order.Lines[0].Id, qty, expiration)])));
         return (order, receipt.Lines.Single());
     }
 
@@ -99,9 +99,9 @@ public class TraceabilityTests(ApiFactory factory)
             await OkAsync<SupplierItemDto>(admin.PostJsonAsync($"/api/v1/suppliers/{supplier.Id}/items", new CreateSupplierItemRequest(item.Id, null, price, 2, true)));
 
         // 62 kg of the oldest flour: FEFO takes all of it in the first close.
-        var (oldOrder, oldLine) = await ReceivedOrderAsync(admin, harinas.Id, plant, flour.Id, 62, 9.5m, "HT-2609-C", Today.AddDays(70));
-        var (newOrder, newLine) = await ReceivedOrderAsync(admin, harinas.Id, plant, flour.Id, 1760, 9.8m, "HT-2610-A", Today.AddDays(90));
-        var (sugarOrder, _) = await ReceivedOrderAsync(admin, abarrotes.Id, plant, sugar.Id, 10, 650m, "AZ-2509", Today.AddDays(300)); // 10 bultos = 500 kg
+        var (oldOrder, oldLine) = await ReceivedOrderAsync(admin, harinas.Id, plant, flour.Id, 62, 9.5m, Today.AddDays(70));
+        var (newOrder, newLine) = await ReceivedOrderAsync(admin, harinas.Id, plant, flour.Id, 1760, 9.8m, Today.AddDays(90));
+        var (sugarOrder, _) = await ReceivedOrderAsync(admin, abarrotes.Id, plant, sugar.Id, 10, 650m, Today.AddDays(300)); // 10 bultos = 500 kg
 
         await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bread.Id, 1800, null,
             [new RecipeLineRequest(flour.Id, 90.1m, 0), new RecipeLineRequest(sugar.Id, 2.66m, 0), new RecipeLineRequest(water.Id, 45.05m, 0)])));
@@ -189,7 +189,6 @@ public class TraceabilityTests(ApiFactory factory)
         var s = await ScenarioAsync(admin);
 
         var fromLot = await GraphAsync(admin, TraceSourceType.Lot, s.OldFlourLot, TraceDirection.Forward);
-        Assert.Equal("HT-2609-C", fromLot.Nodes.Single(n => n.Type == TraceNodeType.Lot && n.LotId == s.OldFlourLot).SupplierLotNumber);
 
         var transfers = fromLot.Nodes.Where(n => n.Type == TraceNodeType.Transfer).Select(n => n.Folio).Order().ToList();
         Assert.Equal([s.Tr1.Folio, s.Tr2.Folio], transfers);

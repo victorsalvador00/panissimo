@@ -103,22 +103,22 @@ public class PurchaseOrderTests(ApiFactory factory)
         line = order.Lines.Single();
 
         // Partial receipt: 6 bultos = 264 kg at 902 / 44 = 20.5 per kg.
-        var first = await ReceivedAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 6, "L-A", new DateOnly(2027, 1, 31)));
+        var first = await ReceivedAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 6, new DateOnly(2027, 1, 31)));
         Assert.Equal((PurchaseOrderStatus.PartiallyReceived, 264m, 20.5m, 5412m),
             (first.PurchaseOrderStatus, first.Lines.Single().BaseQuantity, first.Lines.Single().UnitCostBase, first.TotalCost));
         Assert.Equal(264m, await factory.StockAsync(plant, flour.Id));
-        // RN-117: the lot is generated from the SKU and the receipt date; the supplier's stays aside.
+        // RN-117: the lot is generated from the SKU and the receipt date.
         var prefix = PurchaseLotNumber.Prefix(flour.Sku, ApiFactory.Today);
-        Assert.Equal((prefix + "01", "L-A"), (first.Lines.Single().LotNumber, first.Lines.Single().SupplierLotNumber));
+        Assert.Equal(prefix + "01", first.Lines.Single().LotNumber);
 
-        // Final receipt in two lots the same day (02 and 03); the second without supplier lot and with the default expiration.
+        // Final receipt in two lots the same day (02 and 03), with the default expiration (today + shelf life).
         order = (await ReloadAsync(admin, order))!;
         Assert.Equal(4m, order.Lines.Single().PendingQty);
         var final = await ReceivedAsync(admin, order,
-            new GoodsReceiptLineRequest(line.Id, 3, "L-B", null), new GoodsReceiptLineRequest(line.Id, 1, null, null));
+            new GoodsReceiptLineRequest(line.Id, 3, null), new GoodsReceiptLineRequest(line.Id, 1, null));
         Assert.Equal(PurchaseOrderStatus.Received, final.PurchaseOrderStatus);
-        Assert.Equal([(prefix + "02", "L-B"), (prefix + "03", null)],
-            final.Lines.Select(l => (l.LotNumber!, l.SupplierLotNumber)).OrderBy(l => l.Item1));
+        Assert.Equal([prefix + "02", prefix + "03"],
+            final.Lines.Select(l => l.LotNumber!).Order());
         Assert.All(final.Lines, l => Assert.NotNull(l.ExpirationDate));
         Assert.Equal(440m, await factory.StockAsync(plant, flour.Id));
 
@@ -180,18 +180,18 @@ public class PurchaseOrderTests(ApiFactory factory)
         var line = order.Lines.Single();
 
         // Default tolerance 0 %.
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await ReceiveAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 10.5m, null, null))).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await ReceiveAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 10.5m, null))).StatusCode);
 
         var previous = await factory.SetSettingAsync(AppSettingKeys.ReceiptTolerancePct, 10);
         try
         {
             order = (await ReloadAsync(admin, order))!;
             Assert.Equal(11m, order.Lines.Single().MaxReceivableQty);
-            var receipt = await ReceivedAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 11, null, null));
+            var receipt = await ReceivedAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 11, null));
             Assert.Equal(PurchaseOrderStatus.Received, receipt.PurchaseOrderStatus);
 
             order = (await ReloadAsync(admin, order))!;
-            var more = await ReceiveAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 0.1m, null, null));
+            var more = await ReceiveAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 0.1m, null));
             Assert.Equal(HttpStatusCode.UnprocessableEntity, more.StatusCode); // a received order takes no more
         }
         finally
@@ -211,7 +211,7 @@ public class PurchaseOrderTests(ApiFactory factory)
         var line = order.Lines.Single();
 
         var responses = await Task.WhenAll(Enumerable.Range(0, 2).Select(_ =>
-            ReceiveAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 4, null, null))));
+            ReceiveAsync(admin, order, new GoodsReceiptLineRequest(line.Id, 4, null))));
 
         Assert.Equal([HttpStatusCode.Created, HttpStatusCode.Conflict], responses.Select(r => r.StatusCode).Order());
         Assert.Equal(4m, await factory.StockAsync(await factory.LocationIdAsync("PLANTA"), sugar.Id));
@@ -238,18 +238,18 @@ public class PurchaseOrderTests(ApiFactory factory)
         // Approved without receipts: cancellable. Drafts are not receivable.
         var draft = await CreateOrderAsync(admin, supplier.Id, new PurchaseOrderLineRequest(null, sugar.Id, 1, null));
         Assert.Equal(HttpStatusCode.UnprocessableEntity,
-            (await ReceiveAsync(admin, draft, new GoodsReceiptLineRequest(draft.Lines[0].Id, 1, null, null))).StatusCode);
+            (await ReceiveAsync(admin, draft, new GoodsReceiptLineRequest(draft.Lines[0].Id, 1, null))).StatusCode);
         var approved = await ApprovedOrderAsync(admin, supplier.Id, new PurchaseOrderLineRequest(null, sugar.Id, 1, null));
         Assert.Equal(PurchaseOrderStatus.Cancelled, (await ActAsync(admin, approved, "cancel")).Status);
 
-        // Lots: generated for yeast (RN-117); sugar does not track lots, so no supplier lot.
+        // Lots: generated for yeast (RN-117); sugar does not track lots, so no expiration.
         var order = await ApprovedOrderAsync(admin, supplier.Id,
             new PurchaseOrderLineRequest(null, sugar.Id, 10, null), new PurchaseOrderLineRequest(null, yeast.Id, 5, null));
         var (sugarLine, yeastLine) = (order.Lines[0], order.Lines[1]);
-        Assert.Equal(HttpStatusCode.BadRequest, (await ReceiveAsync(admin, order, new GoodsReceiptLineRequest(sugarLine.Id, 5, "L1", null))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await ReceiveAsync(admin, order, new GoodsReceiptLineRequest(sugarLine.Id, 5, InAWeek))).StatusCode);
 
         // Partially received: no cancel, close with balance, then nothing else is received.
-        await ReceivedAsync(admin, order, new GoodsReceiptLineRequest(sugarLine.Id, 10, null, null));
+        await ReceivedAsync(admin, order, new GoodsReceiptLineRequest(sugarLine.Id, 10, null));
         order = (await ReloadAsync(admin, order))!;
         Assert.Equal(PurchaseOrderStatus.PartiallyReceived, order.Status);
         await ActAsync(admin, order, "cancel", HttpStatusCode.UnprocessableEntity);
@@ -259,7 +259,7 @@ public class PurchaseOrderTests(ApiFactory factory)
             new ClosePurchaseOrderRequest(order.Version, "El proveedor no surte la levadura"))).Content.ReadJsonAsync<PurchaseOrderDto>())!;
         Assert.Equal((PurchaseOrderStatus.Closed, "El proveedor no surte la levadura"), (closed.Status, closed.CloseReason));
         Assert.Equal(HttpStatusCode.UnprocessableEntity,
-            (await ReceiveAsync(admin, closed, new GoodsReceiptLineRequest(yeastLine.Id, 5, "L1", null))).StatusCode);
+            (await ReceiveAsync(admin, closed, new GoodsReceiptLineRequest(yeastLine.Id, 5, null))).StatusCode);
 
         var toReceive = await admin.GetJsonAsync<PagedResult<PurchaseOrderListItemDto>>($"/api/v1/purchase-orders?pendingReceipt=true&supplierId={supplier.Id}");
         Assert.Empty(toReceive!.Items);
@@ -278,7 +278,7 @@ public class PurchaseOrderTests(ApiFactory factory)
             await ApprovedOrderAsync(admin, supplier.Id, new PurchaseOrderLineRequest(null, yeast.Id, 3, null)),
         };
 
-        var receipts = await Task.WhenAll(orders.Select(o => ReceivedAsync(admin, o, new GoodsReceiptLineRequest(o.Lines[0].Id, 1, null, null))));
+        var receipts = await Task.WhenAll(orders.Select(o => ReceivedAsync(admin, o, new GoodsReceiptLineRequest(o.Lines[0].Id, 1, null))));
 
         var prefix = PurchaseLotNumber.Prefix(yeast.Sku, ApiFactory.Today);
         Assert.Equal([prefix + "01", prefix + "02"], receipts.Select(r => r.Lines.Single().LotNumber!).Order());
@@ -300,7 +300,7 @@ public class PurchaseOrderTests(ApiFactory factory)
             await factory.LocationIdAsync("PLANTA"), InAWeek, null, [new PurchaseOrderLineRequest(null, sugar.Id, 1, null)]));
         Assert.Equal(HttpStatusCode.Forbidden, create.StatusCode);
         await ActAsync(warehouse, order, "approve", HttpStatusCode.Forbidden);
-        await ReceivedAsync(warehouse, order, new GoodsReceiptLineRequest(order.Lines[0].Id, 2, null, null));
+        await ReceivedAsync(warehouse, order, new GoodsReceiptLineRequest(order.Lines[0].Id, 2, null));
 
         var branchEmail = ApiFactory.UniqueEmail("sucursal");
         await factory.CreateUserAsync(branchEmail, ["branch_manager"], ["SUC-01"]);

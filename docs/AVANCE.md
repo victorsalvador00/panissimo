@@ -1096,3 +1096,12 @@
 - **Pruebas:** backend 315 unitarias y 176 de integración en verde (+1 omitida; `PendingTasksTests`: planta y usuario propios, cada conteo sube y baja con su documento, null sin permiso, 403 sin ninguno de los permisos y fuera del alcance). Frontend 204 unitarias (`pending-tasks.spec`), `ng lint` y build en verde. Revisado en Chrome con un vale en borrador (VI-000010, cancelado después): globo en "Vales internos", en el menú de íconos y en la sección plegada; desaparece al cancelar.
 - **Interacciones entre pruebas corregidas:** la planta de `PendingTasksTests` usa el prefijo `PLT…` (como las demás), porque el pedido de cliente toma la primera planta activa por código (`CustomerOrderService`) y una planta `P…` quedaba antes que `PLANTA`; y `SeedTests` cuenta solo los roles del sistema (`SystemKey`), porque otras pruebas crean roles propios.
 - **Pendiente para decidir:** con más de una planta activa, el pedido de cliente elige la primera por orden alfabético de código y no `PLANTA`. Hoy hay una sola planta; si llegan a ser varias, conviene preferir `PLANTA` como hace la importación de OP.
+
+### RN-117: sin lote del proveedor (2026-10-20)
+
+- **Pedido del usuario:** quitar el campo "Lote del proveedor" de la recepción y dejar solo el lote que asigna el sistema.
+- **Backend:** fuera `Lot.SupplierLotNumber` (migración `RemoveSupplierLotNumber`; en la BD local solo tenía los dos lotes de una corrida de la E2E 24), `GoodsReceiptLineRequest` queda `(poLineId, quantity, expirationDate?, warehouseId?)`, el DTO de la línea, el parámetro de `ILotRegistry.CreateNextAsync`, el nodo de trazabilidad y el ejemplo OpenAPI. Un artículo sin lotes rechaza la caducidad.
+- **Frontend:** la tarjeta de la recepción muestra "Lote" de solo lectura con el lote previsto (`MP006-201026-##`) y "Lo asigna el sistema al registrar."; fuera el dato del proveedor en el detalle y en la ficha de trazabilidad.
+- **Pruebas:** backend 315 unitarias y 176 de integración en verde (+1 omitida); frontend 204 unitarias, `ng lint` y build en verde; E2E 24 en verde. Revisado en Chrome con OC-000007.
+
+

@@ -54,8 +54,8 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
     await api.addStock(c.warehouse, c.sku, c.quantity, 10, c.lot ? 'E2E-24' : null);
 
   const run = Date.now().toString(36).toUpperCase();
-  /** RN-117: the lot is generated; `supplierLot` is the supplier's. Returns the order folio and the lot. */
-  const receive = async (supplierLot: string, expiration: string) => {
+  /** RN-117: the lot is generated. Returns the order folio and the lot. */
+  const receive = async (expiration: string) => {
     let po = await api.post<{
       id: string;
       folio: string;
@@ -80,7 +80,6 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
         {
           poLineId: po.lines[0].id,
           quantity: 1,
-          supplierLotNumber: supplierLot,
           expirationDate: expiration,
         },
       ],
@@ -88,8 +87,8 @@ async function buildScenario(api: AdminApi): Promise<Scenario> {
     });
     return { folio: po.folio, lot: receipt.lines[0].lotNumber };
   };
-  const { folio: oldOrderFolio, lot: oldLot } = await receive(`TZ-${run}-A`, day(2));
-  await receive(`TZ-${run}-B`, day(3));
+  const { folio: oldOrderFolio, lot: oldLot } = await receive(day(2));
+  await receive(day(3));
 
   let order = await api.post<{ id: string; folio: string; version: number }>('production-orders', {
     locationId: plant,

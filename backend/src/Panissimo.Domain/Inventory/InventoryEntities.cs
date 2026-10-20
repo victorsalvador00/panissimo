@@ -42,8 +42,7 @@ public class Lot : Entity
 {
     private Lot() { }
 
-    public Lot(Guid itemId, string lotNumber, DateOnly? expirationDate, string createdFromDocType, Guid createdFromDocId, DateTimeOffset createdAt,
-        string? supplierLotNumber = null)
+    public Lot(Guid itemId, string lotNumber, DateOnly? expirationDate, string createdFromDocType, Guid createdFromDocId, DateTimeOffset createdAt)
     {
         if (string.IsNullOrWhiteSpace(lotNumber))
             throw new BusinessRuleException("lot_number_required", "El número de lote es obligatorio.");
@@ -53,7 +52,6 @@ public class Lot : Entity
         CreatedFromDocType = createdFromDocType;
         CreatedFromDocId = createdFromDocId;
         CreatedAt = createdAt;
-        SupplierLotNumber = string.IsNullOrWhiteSpace(supplierLotNumber) ? null : supplierLotNumber.Trim();
     }
 
     public const int LotNumberMaxLength = 50;
@@ -61,8 +59,6 @@ public class Lot : Entity
     public Guid ItemId { get; private set; }
     public string LotNumber { get; private set; } = null!;
 
-    /// <summary>RN-117: the supplier's own lot of a received lot, for claims and recalls. Informative.</summary>
-    public string? SupplierLotNumber { get; private set; }
     public DateOnly? ExpirationDate { get; private set; }
     public string CreatedFromDocType { get; private set; } = null!;
     public Guid CreatedFromDocId { get; private set; }

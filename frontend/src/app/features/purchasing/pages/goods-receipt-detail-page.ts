@@ -84,9 +84,6 @@ import { TraceLink } from '../../inventory/ui/trace/trace-link';
                     @if (line.expirationDate) {
                       <span class="muted">· {{ line.expirationDate | date: 'dd/MM/yyyy' }}</span>
                     }
-                    @if (line.supplierLotNumber) {
-                      <span class="muted">· proveedor {{ line.supplierLotNumber }}</span>
-                    }
                   </td>
                   <td class="end">{{ line.unitCostBase | mxn }} / {{ line.baseUomCode }}</td>
                   <td class="end">{{ line.lineCost | mxn }}</td>

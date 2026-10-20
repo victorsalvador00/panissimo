@@ -69,15 +69,15 @@ public class WarehouseProcessTests(ApiFactory factory)
 
         // Without a warehouse, or with another location's, nothing is received.
         var missing = await admin.PostJsonAsync("/api/v1/goods-receipts", new CreateGoodsReceiptRequest(order.Id, order.Version, null, null,
-            [new GoodsReceiptLineRequest(flourLine.Id, 10, null, null)]));
+            [new GoodsReceiptLineRequest(flourLine.Id, 10, null)]));
         Assert.Contains("warehouse_required", await missing.Content.ReadAsStringAsync());
         var other = await PlantAsync(admin);
         var foreign = await admin.PostJsonAsync("/api/v1/goods-receipts", new CreateGoodsReceiptRequest(order.Id, order.Version, null, null,
-            [new GoodsReceiptLineRequest(flourLine.Id, 10, null, null)], other.Mp.Id));
+            [new GoodsReceiptLineRequest(flourLine.Id, 10, null)], other.Mp.Id));
         Assert.Contains("warehouse_not_of_location", await foreign.Content.ReadAsStringAsync());
 
         var receipt = await OkAsync<GoodsReceiptDto>(admin.PostJsonAsync("/api/v1/goods-receipts", new CreateGoodsReceiptRequest(order.Id,
-            order.Version, "F-1", null, [new GoodsReceiptLineRequest(flourLine.Id, 10, null, null), new GoodsReceiptLineRequest(bagLine.Id, 50, null, null, site.Ins.Id)],
+            order.Version, "F-1", null, [new GoodsReceiptLineRequest(flourLine.Id, 10, null), new GoodsReceiptLineRequest(bagLine.Id, 50, null, site.Ins.Id)],
             site.Mp.Id)));
         Assert.Equal([site.Mp.Code, site.Ins.Code], receipt.Lines.OrderBy(l => l.ItemId == bags.Id).Select(l => l.LocationCode));
         Assert.Equal((10m, 50m, 0m), (await factory.StockAsync(site.Mp.Id, flour.Id), await factory.StockAsync(site.Ins.Id, bags.Id),

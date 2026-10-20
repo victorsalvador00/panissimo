@@ -140,7 +140,7 @@ public sealed record MovementRequest(
 
 **Lotes:**
 - `ILotAllocator.AllocateAsync(locationId, itemId, qty, ct)` devuelve `[(LotId, Qty)]` por FEFO, excluye vencidos (RN-05) y lanza `InsufficientStockException` si no alcanza.
-- `ILotRegistry.GetOrCreateAsync(itemId, lotNumber, expiration, sourceDoc)` toma el candado por `(artículo, lote)`, reutiliza el lote existente (rechaza una caducidad distinta) o lo crea. Exige transacción. `ILotRegistry.CreateNextAsync(itemId, prefijo, expiration, supplierLot, sourceDoc)` crea el siguiente lote consecutivo del prefijo (RN-117) con el candado por `(artículo, prefijo)`.
+- `ILotRegistry.GetOrCreateAsync(itemId, lotNumber, expiration, sourceDoc)` toma el candado por `(artículo, lote)`, reutiliza el lote existente (rechaza una caducidad distinta) o lo crea. Exige transacción. `ILotRegistry.CreateNextAsync(itemId, prefijo, expiration, sourceDoc)` crea el siguiente lote consecutivo del prefijo (RN-117) con el candado por `(artículo, prefijo)`.
 
 **Transacciones:** cada caso de uso que mueve inventario abre `BeginTransactionAsync(IsolationLevel.ReadCommitted)`, hace los cambios de documento más `PostAsync`, `SaveChangesAsync` y `CommitAsync`. Si algo falla, no queda nada registrado.
 
@@ -332,7 +332,7 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 | GET / POST / PUT | `/purchase-orders`, `/purchase-orders/{id}` — filtro `pendingReceipt=true` | [purchasing.view] / [purchasing.po.manage] |
 | POST | `/purchase-orders/{id}/submit`, `/cancel`, `/close` | [purchasing.po.manage] |
 | POST | `/purchase-orders/{id}/approve`, `/reject` | [purchasing.po.approve] |
-| GET / POST | `/goods-receipts`, `/goods-receipts/{id}` — POST `{ purchaseOrderId, poVersion, supplierInvoiceNumber?, lines: [{ poLineId, quantity, supplierLotNumber?, expirationDate?, warehouseId? }] }` — el lote lo genera el sistema (RN-117) | [purchasing.view] / [purchasing.receive] |
+| GET / POST | `/goods-receipts`, `/goods-receipts/{id}` — POST `{ purchaseOrderId, poVersion, supplierInvoiceNumber?, lines: [{ poLineId, quantity, expirationDate?, warehouseId? }] }` — el lote lo genera el sistema (RN-117) | [purchasing.view] / [purchasing.receive] |
 
 **Seguridad, configuración y tablero**
 

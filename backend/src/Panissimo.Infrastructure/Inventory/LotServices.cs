@@ -61,8 +61,7 @@ public sealed class LotRegistry(AppDbContext db, IClock clock, ITransactionLocks
         return lot;
     }
 
-    public async Task<Lot> CreateNextAsync(Guid itemId, string prefix, DateOnly? expirationDate, string? supplierLotNumber,
-        string sourceDocType, Guid sourceDocId, CancellationToken ct)
+    public async Task<Lot> CreateNextAsync(Guid itemId, string prefix, DateOnly? expirationDate, string sourceDocType, Guid sourceDocId, CancellationToken ct)
     {
         await locks.AcquireAsync(TransactionLockScopes.Lot, $"{itemId}:{prefix}", ct);
         // The lots of this document not saved yet count too: two lines of the same item get 01 and 02.
@@ -70,7 +69,7 @@ public sealed class LotRegistry(AppDbContext db, IClock clock, ITransactionLocks
         existing.AddRange(db.Lots.Local.Where(l => l.ItemId == itemId && l.LotNumber.StartsWith(prefix, StringComparison.Ordinal)).Select(l => l.LotNumber));
 
         var lot = new Lot(itemId, PurchaseLotNumber.Next(prefix, existing), await NewLotExpirationAsync(itemId, expirationDate, ct),
-            sourceDocType, sourceDocId, clock.UtcNow, supplierLotNumber);
+            sourceDocType, sourceDocId, clock.UtcNow);
         db.Lots.Add(lot);
         return lot;
     }

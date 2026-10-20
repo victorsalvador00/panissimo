@@ -47,6 +47,5 @@ public interface ILotRegistry
     /// (<see cref="Domain.Purchasing.PurchaseLotNumber"/>). Takes the (item, prefix) transaction lock, so two documents
     /// at the same time get consecutive numbers. Expiration as in <see cref="GetOrCreateAsync"/> for a new lot.
     /// </summary>
-    Task<Lot> CreateNextAsync(Guid itemId, string prefix, DateOnly? expirationDate, string? supplierLotNumber,
-        string sourceDocType, Guid sourceDocId, CancellationToken ct);
+    Task<Lot> CreateNextAsync(Guid itemId, string prefix, DateOnly? expirationDate, string sourceDocType, Guid sourceDocId, CancellationToken ct);
 }

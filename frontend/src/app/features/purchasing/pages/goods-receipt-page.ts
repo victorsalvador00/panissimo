@@ -37,7 +37,6 @@ import { checkReceipt, receiptLotPrefix, receiptTotal, receivableNow } from '../
 
 type LotEntry = FormGroup<{
   quantity: FormControl<number | null>;
-  supplierLotNumber: FormControl<string>;
   expirationDate: FormControl<Date | null>;
 }>;
 
@@ -48,8 +47,8 @@ interface ReceiptLine {
 
 /**
  * ★ /compras/recepciones/nueva?oc= (frontend §7.6, RN-32, RN-33), designed for the phone at the dock: a card per line
- * with its balance, filled with what is pending; for lot items the lot the system will generate (RN-117), the supplier's
- * lot and the expiry, and **"Otro lote"** to split the line;
+ * with its balance, filled with what is pending; for lot items the lot the system will generate (RN-117) and the expiry,
+ * and **"Otro lote"** to split the line;
  * the supplier's invoice; a warning when it goes over the pending (allowed up to the tolerance, never above); the
  * sub-warehouse it enters; fixed bar with the cost; confirmation.
  */
@@ -138,9 +137,9 @@ interface ReceiptLine {
                   />
                   @if (r.line.tracksLots) {
                     <mat-form-field class="lot">
-                      <mat-label>Lote del proveedor</mat-label>
-                      <input matInput formControlName="supplierLotNumber" autocomplete="off" />
-                      <mat-hint>Lote: {{ lotPrefix(r) }}## (lo asigna el sistema)</mat-hint>
+                      <mat-label>Lote</mat-label>
+                      <input matInput readonly [value]="lotPrefix(r) + '##'" tabindex="-1" />
+                      <mat-hint>Lo asigna el sistema al registrar.</mat-hint>
                     </mat-form-field>
                     <mat-form-field class="lot">
                       <mat-label>Caducidad</mat-label>
@@ -432,7 +431,6 @@ export class GoodsReceiptPage {
         .map((e) => ({
           poLineId: r.line.id,
           quantity: e.quantity!,
-          supplierLotNumber: r.line.tracksLots ? e.supplierLotNumber.trim() || null : null,
           expirationDate: r.line.tracksLots ? toIsoDate(e.expirationDate) : null,
         })),
     );
@@ -471,10 +469,6 @@ export class GoodsReceiptPage {
   private entry(quantity: number | null): LotEntry {
     const entry: LotEntry = new FormGroup({
       quantity: new FormControl<number | null>(quantity),
-      supplierLotNumber: new FormControl('', {
-        nonNullable: true,
-        validators: Validators.maxLength(50),
-      }),
       expirationDate: new FormControl<Date | null>(null),
     });
     entry.valueChanges.subscribe(() => this.edits.update((n) => n + 1));

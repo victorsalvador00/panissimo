@@ -93,7 +93,8 @@
           } @else {
             <p class="muted">
               Al liberar se reserva cada componente en su origen y se genera un vale de ingredientes
-              por origen hacia {{ recipe.value()?.factoryCode ?? 'la fábrica' }}.
+              por origen hacia {{ recipe.value()?.factoryCode ?? 'la fábrica' }}; lo que ya está en
+              esa fábrica solo se reserva y lo consumen los cierres.
             </p>
           }
         } @else if (e.canProduce === false) {

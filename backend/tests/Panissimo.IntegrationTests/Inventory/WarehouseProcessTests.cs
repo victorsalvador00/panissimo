@@ -245,6 +245,79 @@ public class WarehouseProcessTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task Produced_components_come_from_their_factory_and_the_recipe_factory_needs_no_voucher()
+    {
+        var admin = await factory.LoginAsAdminAsync();
+        var site = await PlantAsync(admin);
+        var ovens = await LocationAsync(admin, new CreateLocationRequest($"{site.Plant.Code}-HOR", "Hornos", LocationType.Factory, null, site.Plant.Id));
+        var semis = await LocationAsync(admin, new CreateLocationRequest($"{site.Plant.Code}-SEM", "Semiterminados", LocationType.Factory, null, site.Plant.Id));
+        await OkAsync<LocationDto>(admin.PutJsonAsync($"/api/v1/locations/{site.Mp.Id}",
+            new UpdateLocationRequest(site.Mp.Version, site.Mp.Name, null, true, [ItemType.RawMaterial])));
+
+        // The dough is produced at Semiterminados, the filling at Hornos (where the bread is produced too).
+        var flour = await factory.CreateItemAsync("HAR");
+        var dough = await factory.CreateItemAsync("MASA", ItemType.SemiFinished);
+        var filling = await factory.CreateItemAsync("RELL", ItemType.SemiFinished);
+        var bread = await factory.CreateItemAsync("BOMBA", ItemType.FinishedGood, "pza");
+        await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes",
+            new CreateRecipeRequest(dough.Id, 1, null, [new RecipeLineRequest(flour.Id, 1, 0)], semis.Id)));
+        await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes",
+            new CreateRecipeRequest(filling.Id, 1, null, [new RecipeLineRequest(flour.Id, 1, 0)], ovens.Id)));
+        var recipe = await OkAsync<RecipeDto>(admin.PostJsonAsync("/api/v1/recipes", new CreateRecipeRequest(bread.Id, 100, null,
+            [new RecipeLineRequest(flour.Id, 5, 0), new RecipeLineRequest(dough.Id, 2, 0), new RecipeLineRequest(filling.Id, 3, 0)], ovens.Id)));
+        await factory.AddStockAsync(site.Mp.Id, flour.Id, 50, 18m);
+        await factory.AddStockAsync(semis.Id, dough.Id, 10, 30m);
+        await factory.AddStockAsync(ovens.Id, filling.Id, 10, 40m);
+
+        // RN-111: a produced component may come from a factory and defaults to its recipe's; a raw material may not.
+        var sources = (await admin.GetJsonAsync<List<ComponentSourceOptionDto>>(
+            $"/api/v1/production-orders/component-sources?locationId={site.Plant.Id}&recipeId={recipe.Id}"))!;
+        Assert.Contains(sources, s => s.ComponentItemId == dough.Id && s.LocationId == semis.Id && s.IsDefault && s.Free == 10);
+        Assert.Contains(sources, s => s.ComponentItemId == filling.Id && s.LocationId == ovens.Id && s.IsDefault);
+        Assert.Contains(sources, s => s.ComponentItemId == dough.Id && s.LocationId == site.Semi.Id && !s.IsDefault);
+        Assert.DoesNotContain(sources, s => s.ComponentItemId == flour.Id && (s.LocationId == ovens.Id || s.LocationId == semis.Id));
+        var flourFromFactory = await admin.PostJsonAsync("/api/v1/production-orders", new CreateProductionOrderRequest(site.Plant.Id, bread.Id,
+            200, Today, null, null, [new ComponentSourceRequest(flour.Id, ovens.Id)]));
+        Assert.Equal(HttpStatusCode.BadRequest, flourFromFactory.StatusCode);
+
+        var order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync("/api/v1/production-orders",
+            new CreateProductionOrderRequest(site.Plant.Id, bread.Id, 200, Today, null, null)));
+        Assert.Equal((semis.Id, ovens.Id), (order.Lines.Single(l => l.ComponentItemId == dough.Id).SourceLocationId!.Value,
+            order.Lines.Single(l => l.ComponentItemId == filling.Id).SourceLocationId!.Value));
+
+        // Releasing: vouchers from Materias primas and from the Semiterminados factory; the filling is reserved at Hornos.
+        order = await OkAsync<ProductionOrderDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/release", new VersionRequest(order.Version)));
+        Assert.Equal([site.Mp.Code, semis.Code], order.Vouchers!.Select(v => v.FromLocationCode).Order());
+        async Task<decimal> ReservedFillingAsync() =>
+            (await admin.GetJsonAsync<PagedResult<StockLevelDto>>(
+                $"/api/v1/stock?locationId={site.Plant.Id}&rowLocationId={ovens.Id}&itemId={filling.Id}"))!.Items.Single().Reserved;
+        Assert.Equal(6m, await ReservedFillingAsync());
+        var manual = await OkAsync<TransferDto>(admin.PostJsonAsync("/api/v1/internal-transfers",
+            new CreateInternalTransferRequest(ovens.Id, site.Pt.Id, null, [new TransferLineRequest(filling.Id, null, 8)])));
+        var refused = await admin.PostJsonAsync($"/api/v1/internal-transfers/{manual.Id}/dispatch", new DispatchInternalTransferRequest(manual.Version, null));
+        Assert.Contains("stock_reserved", await refused.Content.ReadAsStringAsync());
+
+        // The vouchers bring flour and dough to Hornos (the dough factory to factory).
+        foreach (var summary in order.Vouchers!)
+        {
+            var voucher = await OkAsync<TransferDto>(admin.PostJsonAsync($"/api/v1/internal-transfers/{summary.Id}/dispatch",
+                new DispatchInternalTransferRequest((await admin.GetJsonAsync<TransferDto>($"/api/v1/internal-transfers/{summary.Id}"))!.Version, null)));
+            await OkAsync<TransferDto>(admin.PostJsonAsync($"/api/v1/internal-transfers/{voucher.Id}/receive", new ReceiveTransferRequest(voucher.Version,
+                [new ReceiveLineRequest(voucher.Lines.Single().Id, voucher.Lines.Single().ShippedQty, null, null)])));
+        }
+        Assert.Equal((6m, 4m), (await factory.StockAsync(semis.Id, dough.Id), await factory.StockAsync(ovens.Id, dough.Id)));
+
+        // Each close consumes its own reservation at Hornos: half after the partial close, none after the final one.
+        order = (await admin.GetJsonAsync<ProductionOrderDto>($"/api/v1/production-orders/{order.Id}"))!;
+        var partial = await OkAsync<ProductionCloseResultDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/closes",
+            new CreateProductionCloseRequest(order.Version, ProductionCloseKind.Partial, 100, null, null, null, null, null)));
+        Assert.Equal((3m, 7m), (await ReservedFillingAsync(), await factory.StockAsync(ovens.Id, filling.Id)));
+        await OkAsync<ProductionCloseResultDto>(admin.PostJsonAsync($"/api/v1/production-orders/{order.Id}/closes",
+            new CreateProductionCloseRequest(partial.Order.Version, ProductionCloseKind.Final, 100, null, null, null, null, null)));
+        Assert.Equal((0m, 4m), (await ReservedFillingAsync(), await factory.StockAsync(ovens.Id, filling.Id)));
+    }
+
+    [Fact]
     public async Task A_transfer_leaves_a_plant_warehouse_and_enters_a_branch_warehouse()
     {
         var admin = await factory.LoginAsAdminAsync();

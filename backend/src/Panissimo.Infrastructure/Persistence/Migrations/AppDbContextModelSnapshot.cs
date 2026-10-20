@@ -1127,7 +1127,7 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,4)")
                         .HasColumnName("quantity");
 
-                    b.Property<Guid>("TransferId")
+                    b.Property<Guid?>("TransferId")
                         .HasColumnType("uuid")
                         .HasColumnName("transfer_id");
 
@@ -4322,7 +4322,6 @@ namespace Panissimo.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("TransferId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
                         .HasConstraintName("fk_stock_reservation_transfers_transfer_id");
                 });
 

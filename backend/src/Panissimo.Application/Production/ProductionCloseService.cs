@@ -212,11 +212,24 @@ public sealed class ProductionCloseService(
         await db.SaveChangesAsync(ct);
 
         var folio = await folios.NextAsync(DocType.ProductionClose, ct);
+        // RN-111: what was reserved at the recipe's factory itself (no voucher) is what this close consumes; the reservation
+        // goes before the exit is checked and keeps only what is still to be consumed (none after the final close).
+        var floorReservations = await db.StockReservations
+            .Where(r => r.ProductionOrderId == order.Id && r.TransferId == null).ToListAsync(ct);
+        db.StockReservations.RemoveRange(floorReservations);
         var requests = consumption.SelectMany(c => c.Lots.Count > 0
                 ? c.Lots.Select(l => Consume(c.LocationId!.Value, c.ComponentItemId, l.LotId, l.Qty))
                 : c.ActualQty > 0 ? [Consume(c.LocationId!.Value, c.ComponentItemId, null, c.ActualQty)] : [])
             .ToList();
         var movements = await posting.PostAsync(requests, ct);
+        if (request.Kind != ProductionCloseKind.Final)
+            foreach (var held in floorReservations)
+            {
+                var left = held.Quantity - consumption.Where(c => c.ComponentItemId == held.ItemId && c.LocationId == held.LocationId)
+                    .Sum(c => c.ActualQty);
+                if (left > 0)
+                    db.StockReservations.Add(new StockReservation(held.LocationId, held.ItemId, left, order.Id, null, held.CreatedAt));
+            }
 
         // Lots and cost actually taken: FEFO may have split a line among several lots.
         var closeLines = consumption.Select(c =>

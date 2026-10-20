@@ -302,11 +302,12 @@ public sealed class ProductionOrderService(
                            join u in db.UnitsOfMeasure on i.BaseUomId equals u.Id
                            where componentIds.Contains(i.Id)
                            select new { i.Id, i.Sku, IsPiece = u.Code == UnitOfMeasure.PieceCode, Uom = u.Code }).ToDictionaryAsync(i => i.Id, ct);
-        var withoutSource = order.Lines.Where(l => l.SourceLocationId is not { } s || !sources.IsWarehouseOf(order.LocationId, s))
+        var withoutSource = order.Lines
+            .Where(l => l.SourceLocationId is not { } s || !sources.IsSourceOf(order.LocationId, l.ComponentItemId, s))
             .Select(l => items[l.ComponentItemId].Sku).Order().ToList();
         if (withoutSource.Count > 0)
             throw new BusinessRuleException("production_source_required",
-                $"Elige el subalmacén de origen activo de {string.Join(", ", withoutSource)} antes de liberar la orden (RN-111).");
+                $"Elige el origen activo de {string.Join(", ", withoutSource)} antes de liberar la orden (RN-111).");
 
         // RN-110: what is asked for (whole pieces) must be free at its origin; the rows stay locked until commit.
         var needs = order.Lines.Where(l => l.TheoreticalQty > 0)
@@ -325,9 +326,12 @@ public sealed class ProductionOrderService(
                     $"{items[s.ItemId].Sku} en {codes[s.LocationId]} necesita {s.Needed:0.####} {items[s.ItemId].Uom} y hay {s.Free:0.####} libres")) + ".");
         }
 
-        // RN-112: one ingredients voucher per origin, to the recipe's factory; each line reserved until it is sent.
+        // RN-112: one ingredients voucher per origin, to the recipe's factory; each line reserved until it is sent. What is
+        // already at the recipe's factory needs no voucher: it stays reserved until the closes consume it (RN-111).
         var now = clock.UtcNow;
-        foreach (var group in needs.GroupBy(n => n.LocationId).OrderBy(g => g.Key))
+        db.StockReservations.AddRange(needs.Where(n => n.LocationId == floor.Id)
+            .Select(n => new StockReservation(n.LocationId, n.ItemId, n.Needed, order.Id, null, now)));
+        foreach (var group in needs.Where(n => n.LocationId != floor.Id).GroupBy(n => n.LocationId).OrderBy(g => g.Key))
         {
             var voucher = Transfer.ForProductionOrder(await folios.NextAsync(DocType.InternalTransfer, ct), group.Key, floor.Id, order.Id, order.Folio,
                 group.Select(n => new TransferLineInput(n.ItemId, null, n.Needed)).ToList());
@@ -359,10 +363,10 @@ public sealed class ProductionOrderService(
                      ?? throw new NotFoundException("la receta", recipeId);
         var componentIds = recipe.Lines.Select(l => l.ComponentItemId).ToList();
         var sources = await ComponentSources.LoadAsync(db, [locationId], componentIds, ct);
-        var warehouses = sources.WarehousesOf(locationId).ToList();
-        var free = await FreeStockAsync(warehouses.SelectMany(w => componentIds.Select(c => (w.Id, c))).ToList(), null, ct);
-        return componentIds.SelectMany(component => warehouses.Select(w => new ComponentSourceOptionDto(component, w.Id, w.Code, w.Name,
-                free.GetValueOrDefault((w.Id, component)), sources.DefaultFor(locationId, component) == w.Id)))
+        var options = componentIds.SelectMany(c => sources.OptionsFor(locationId, c).Select(l => (Component: c, Location: l))).ToList();
+        var free = await FreeStockAsync(options.Select(o => (o.Location.Id, o.Component)).ToList(), null, ct);
+        return options.Select(o => new ComponentSourceOptionDto(o.Component, o.Location.Id, o.Location.Code, o.Location.Name,
+                free.GetValueOrDefault((o.Location.Id, o.Component)), sources.DefaultFor(locationId, o.Component) == o.Location.Id))
             .ToList();
     }
 

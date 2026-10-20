@@ -10,7 +10,7 @@ public class StockReservation : Entity
 {
     private StockReservation() { }
 
-    public StockReservation(Guid locationId, Guid itemId, decimal quantity, Guid productionOrderId, Guid transferId, DateTimeOffset createdAt)
+    public StockReservation(Guid locationId, Guid itemId, decimal quantity, Guid productionOrderId, Guid? transferId, DateTimeOffset createdAt)
     {
         if (quantity <= 0 || InventoryMath.Round(quantity) != quantity)
             throw new BusinessRuleException("invalid_quantity", "La cantidad reservada debe ser mayor que cero, con máximo 4 decimales.");
@@ -27,8 +27,11 @@ public class StockReservation : Entity
     public decimal Quantity { get; private set; }
     public Guid ProductionOrderId { get; private set; }
 
-    /// <summary>The ingredients voucher that will take it out.</summary>
-    public Guid TransferId { get; private set; }
+    /// <summary>
+    /// The ingredients voucher that will take it out; null when the component is already at the recipe's factory and the
+    /// order's closes consume it there (RN-111).
+    /// </summary>
+    public Guid? TransferId { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
 }

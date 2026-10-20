@@ -1,14 +1,24 @@
 <mat-toolbar class="topbar">
   <button
     mat-icon-button
+    class="menu-button"
     (click)="toggleMenu(drawer)"
     [attr.aria-label]="
-      isHandset() ? 'Abrir menú' : showCollapsed() ? 'Expandir menú' : 'Contraer menú'
+      isHandset()
+        ? 'Abrir menú' + (pendingTotal() > 0 ? ', ' + pendingTotal() + ' pendientes' : '')
+        : showCollapsed()
+          ? 'Expandir menú'
+          : 'Contraer menú'
     "
     [attr.aria-expanded]="isHandset() ? drawer.opened : !showCollapsed()"
     aria-controls="pan-sidebar"
   >
     <mat-icon>menu</mat-icon>
+    @if (isHandset() && !drawer.opened && pendingTotal() > 0) {
+      <span class="pan-badge pan-badge-corner" aria-hidden="true">{{
+        badgeText(pendingTotal())
+      }}</span>
+    }
   </button>
   <a class="brand" routerLink="/" aria-label="SGO Paníssimo, inicio">
     <img class="brand-logo" src="brand/logo-bar.webp" alt="" width="110" height="48" />
@@ -86,6 +96,11 @@
               (click)="toggleSection(section.label)"
             >
               <span class="nav-section-label">{{ section.label }}</span>
+              @if (!open && sectionBadge(section) > 0) {
+                <span class="pan-badge" [attr.aria-label]="sectionBadge(section) + ' pendientes'">{{
+                  badgeText(sectionBadge(section))
+                }}</span>
+              }
               @if (!open && section.label === activeSection()) {
                 <span class="nav-section-dot" aria-hidden="true"></span>
               }
@@ -98,6 +113,7 @@
         <div class="nav-group" [id]="'pan-nav-group-' + s" [class.open]="open" [inert]="!open">
           <ul>
             @for (item of section.items; track item.route; let i = $index) {
+              @let badge = badges().get(item.route);
               <li [style.--pan-nav-i]="i">
                 <a
                   class="pan-nav-item"
@@ -105,15 +121,24 @@
                   routerLinkActive="active"
                   ariaCurrentWhenActive="page"
                   [routerLinkActiveOptions]="{ exact: item.route === '/' }"
-                  [matTooltip]="item.label"
+                  [matTooltip]="badge ? item.label + ': ' + badge.detail : item.label"
                   matTooltipPosition="right"
-                  [matTooltipDisabled]="!showCollapsed()"
-                  [attr.aria-label]="showCollapsed() ? item.label : null"
+                  [matTooltipDisabled]="!showCollapsed() && !badge"
+                  [attr.aria-label]="
+                    showCollapsed() || badge
+                      ? item.label + (badge ? ', ' + badge.detail : '')
+                      : null
+                  "
                   (click)="closeOnPhone(drawer)"
                 >
                   <span class="pan-nav-icon"
-                    ><mat-icon aria-hidden="true">{{ item.icon }}</mat-icon></span
-                  >
+                    ><mat-icon aria-hidden="true">{{ item.icon }}</mat-icon>
+                    @if (badge) {
+                      <span class="pan-badge pan-badge-corner" aria-hidden="true">{{
+                        badgeText(badge.count)
+                      }}</span>
+                    }
+                  </span>
                   <span class="pan-nav-label">{{ item.label }}</span>
                 </a>
               </li>

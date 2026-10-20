@@ -13433,6 +13433,73 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/my-tasks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Cuántos documentos esperan al usuario, contados como la pestaña de su lista: OC por aprobar
+     *     (purchasing.po.approve) y por recibir (purchasing.receive); OP por producir y en proceso (production.orders.close);
+     *     vales internos por enviar y en tránsito (inventory.internal_transfers), estos de locationId y sus subalmacenes. Cada
+     *     conteo llega en null sin su permiso. Las órdenes cubren todo el alcance del usuario.
+     */
+    get: {
+      parameters: {
+        query?: {
+          locationId?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description OK */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['PendingTasksDto'];
+            'application/json': components['schemas']['PendingTasksDto'];
+            'text/json': components['schemas']['PendingTasksDto'];
+          };
+        };
+        /** @description Unauthorized */
+        401: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+        /** @description Forbidden */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'text/plain': components['schemas']['ProblemDetails'];
+            'application/json': components['schemas']['ProblemDetails'];
+            'text/json': components['schemas']['ProblemDetails'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/units-of-measure': {
     parameters: {
       query?: never;
@@ -17280,6 +17347,20 @@ export interface components {
       pageSize: number;
       /** Format: int32 */
       total: number;
+    };
+    PendingTasksDto: {
+      /** Format: int32 */
+      purchaseOrdersToApprove: null | number;
+      /** Format: int32 */
+      purchaseOrdersToReceive: null | number;
+      /** Format: int32 */
+      productionOrdersToProduce: null | number;
+      /** Format: int32 */
+      productionOrdersInProgress: null | number;
+      /** Format: int32 */
+      vouchersToSend: null | number;
+      /** Format: int32 */
+      vouchersToReceive: null | number;
     };
     PermissionDto: {
       code: string;

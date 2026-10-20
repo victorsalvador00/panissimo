@@ -15,6 +15,7 @@ import { authInterceptor } from './core/auth/auth.interceptor';
 import { AuthService } from './core/auth/auth.service';
 import { apiBaseInterceptor } from './core/http/api-base.interceptor';
 import { errorInterceptor } from './core/http/error.interceptor';
+import { pendingTasksInterceptor } from './core/tasks/pending-tasks.interceptor';
 import { ThemeService } from './core/theme/theme.service';
 
 // es-MX: $1,234.56 and dd/MM/yyyy (frontend §4.2).
@@ -27,7 +28,12 @@ export const appConfig: ApplicationConfig = {
     // Order: the URL gets its /api/v1 prefix, then the bearer; the notices see the final error.
     provideHttpClient(
       withFetch(),
-      withInterceptors([apiBaseInterceptor, authInterceptor, errorInterceptor]),
+      withInterceptors([
+        apiBaseInterceptor,
+        authInterceptor,
+        errorInterceptor,
+        pendingTasksInterceptor,
+      ]),
     ),
     { provide: LOCALE_ID, useValue: 'es-MX' },
     provideAppInitializer(() => {

@@ -82,6 +82,8 @@
     background-color 0.2s ease,
     color 0.2s ease;
 
+  position: relative;
+
   .mat-icon {
     transform: skewX(12deg);
   }
@@ -119,5 +121,52 @@
 
   .pan-nav-label {
     display: none;
+  }
+}
+
+// RN-118: red badge with the number of pending documents, like the phone apps.
+.pan-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--pan-badge-bg);
+  color: var(--pan-badge-fg);
+  font:
+    700 11px/1 system-ui,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  animation: pan-badge-in 0.2s ease-out;
+}
+
+// On the corner of an icon, with a ring of the background behind it so it reads over the icon.
+.pan-badge-corner {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  box-shadow: 0 0 0 2px var(--pan-badge-ring, var(--pan-sidebar-bg));
+  pointer-events: none;
+}
+
+// The icon block is skewed: the badge stays upright.
+.pan-nav-icon .pan-badge-corner {
+  transform: skewX(12deg);
+}
+
+@keyframes pan-badge-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pan-badge {
+    animation: none;
   }
 }

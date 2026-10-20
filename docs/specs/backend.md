@@ -254,6 +254,7 @@ Todos requieren autenticación excepto `auth`. Entre corchetes, el permiso reque
 | GET | `/stock/{locationId}/{itemId}/lots` | [inventory.view] |
 | GET | `/movements?locationId&itemId&type&from&to` — kardex paginado con saldo corrido | [inventory.view] |
 | GET | `/alerts?locationId` — bajo mínimo y lotes por caducar | [inventory.view] |
+| GET | `/my-tasks?locationId` — pendientes para los globos del menú (RN-118); cada conteo en null sin su permiso | [purchasing.po.approve] o [purchasing.receive] o [production.orders.close] o [inventory.internal_transfers] |
 | GET / POST | `/adjustments`, `/adjustments/{id}` | [inventory.view] / [inventory.adjust] |
 | GET / POST / PUT | `/physical-counts`, `/physical-counts/{id}` — PUT guarda líneas contadas (autoguardado con `version`) | [inventory.view] / [inventory.count] |
 | POST | `/physical-counts/{id}/start`, `/close`, `/cancel`, `/lines` (agregar artículo) | [inventory.count] |

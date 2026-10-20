@@ -129,6 +129,7 @@ public static class DependencyInjection
         services.AddScoped<IMaterialRequirementService, MaterialRequirementService>();
         services.AddScoped<IProductionSummaryService, ProductionSummaryService>();
         services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IPendingTasksService, PendingTasksService>();
         services.AddScoped<IItemPhotoService, ItemPhotoService>();
         services.AddScoped<ITraceDataSource, TraceabilityQueries>();
         services.AddScoped<ITraceabilityService, TraceabilityService>();

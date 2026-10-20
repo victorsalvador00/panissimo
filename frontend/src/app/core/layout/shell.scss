@@ -15,6 +15,17 @@
   box-shadow: var(--pan-glow);
 }
 
+// RN-118: on the phone, the menu button shows everything pending while the drawer is closed.
+.menu-button {
+  position: relative;
+
+  .pan-badge-corner {
+    --pan-badge-ring: var(--pan-topbar-bg);
+    top: 2px;
+    right: 0;
+  }
+}
+
 .brand {
   display: inline-flex;
   align-items: center;

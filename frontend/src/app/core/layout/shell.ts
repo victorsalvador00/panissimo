@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   signal,
@@ -21,6 +22,8 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter, map } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { LocationContextService } from '../context/location-context.service';
+import { badgeText } from '../tasks/pending-tasks';
+import { PendingTasksService } from '../tasks/pending-tasks.service';
 import { ThemeMenu } from '../theme/theme-menu';
 import { NavSection, visibleNavigation } from './navigation';
 
@@ -31,7 +34,8 @@ const closedSectionsKey = 'pan.sidebar.closed';
  * App shell (frontend §4.1): top bar (menu button, brand, active location, user menu with profile, theme and sign
  * out) and the sidebar with the menu filtered by permissions. The sidebar collapses on desktop (remembered per
  * device) and is a drawer on phones. Each section folds on its own (remembered per device); the section of the
- * current page opens on navigation, and a folded one shows a dot when it holds the current page.
+ * current page opens on navigation, and a folded one shows a dot when it holds the current page. Items with pending
+ * documents carry a red badge with the count (RN-118); a folded section adds up its items' badges.
  */
 @Component({
   selector: 'app-shell',
@@ -59,6 +63,10 @@ export class Shell {
 
   protected readonly user = this.auth.user;
   protected readonly navigation = computed(() => visibleNavigation((p) => this.auth.can(p)));
+  private readonly tasks = inject(PendingTasksService);
+  protected readonly badges = this.tasks.badges;
+  protected readonly pendingTotal = this.tasks.total;
+  protected readonly badgeText = badgeText;
   protected readonly isHandset = toSignal(
     inject(BreakpointObserver)
       .observe('(max-width: 767.98px)')
@@ -82,12 +90,21 @@ export class Shell {
   protected readonly activeSection = computed(() => sectionOf(this.navigation(), this.url()));
 
   constructor() {
+    this.tasks.watch(inject(DestroyRef));
     // Navigating into a folded section opens it.
     effect(() => {
       const section = this.activeSection();
       if (section && untracked(this.closedSections).has(section))
         untracked(() => this.toggleSection(section));
     });
+  }
+
+  /** RN-118: what the items of a folded section have waiting. */
+  protected sectionBadge(section: NavSection): number {
+    return section.items.reduce(
+      (sum, item) => sum + (this.badges().get(item.route)?.count ?? 0),
+      0,
+    );
   }
 
   /** The icon-only sidebar has no section headers: every item stays reachable. */

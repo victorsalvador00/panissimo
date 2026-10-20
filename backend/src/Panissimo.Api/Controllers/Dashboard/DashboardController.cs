@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Panissimo.Api.Auth;
 using Panissimo.Application.Dashboard;
+using Panissimo.Domain.Security;
 
 namespace Panissimo.Api.Controllers.Dashboard;
 
@@ -21,4 +23,25 @@ public sealed class DashboardController(IDashboardService dashboard) : Controlle
     /// </summary>
     [HttpGet]
     public Task<DashboardDto> Get([FromQuery] Guid? locationId, CancellationToken ct) => dashboard.GetAsync(locationId, ct);
+}
+
+/// <summary>Pendientes del usuario para los globos del menú (RN-118).</summary>
+[ApiController]
+[Route("my-tasks")]
+[Tags("Tablero")]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+public sealed class PendingTasksController(IPendingTasksService tasks) : ControllerBase
+{
+    /// <summary>
+    /// Cuántos documentos esperan al usuario, contados como la pestaña de su lista: OC por aprobar
+    /// (purchasing.po.approve) y por recibir (purchasing.receive); OP por producir y en proceso (production.orders.close);
+    /// vales internos por enviar y en tránsito (inventory.internal_transfers), estos de locationId y sus subalmacenes. Cada
+    /// conteo llega en null sin su permiso. Las órdenes cubren todo el alcance del usuario.
+    /// </summary>
+    [HttpGet]
+    [RequirePermission(Permissions.PurchasingPoApprove, Permissions.PurchasingReceive, Permissions.ProductionOrdersClose,
+        Permissions.InventoryInternalTransfers)]
+    [ProducesResponseType<PendingTasksDto>(StatusCodes.Status200OK)]
+    public Task<PendingTasksDto> Get([FromQuery] Guid? locationId, CancellationToken ct) => tasks.GetAsync(locationId, ct);
 }

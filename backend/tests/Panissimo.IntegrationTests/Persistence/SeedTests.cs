@@ -49,7 +49,8 @@ public class SeedTests(ApiFactory factory)
         await using var scope = factory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var roles = await db.Roles.AsNoTracking().ToListAsync();
+        // Other tests of the collection add roles of their own: only the system ones count.
+        var roles = await db.Roles.AsNoTracking().Where(r => r.SystemKey != null).ToListAsync();
         Assert.Equal(10, roles.Count);
         foreach (var definition in SystemRoles.All)
         {

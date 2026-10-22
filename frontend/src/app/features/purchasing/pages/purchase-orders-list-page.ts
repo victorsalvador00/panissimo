@@ -23,6 +23,7 @@ import { CellDef, DataTable } from '../../../shared/components/data-table/data-t
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ListQuery } from '../../../shared/data-access/list-query';
+import { COUNT_QUERY, tabCounts } from '../../../shared/data-access/tab-counts';
 import { MxnPipe } from '../../../shared/pipes/pipes';
 import { PurchaseOrdersApi } from '../data-access/purchasing-api';
 
@@ -75,6 +76,10 @@ const TABS: readonly { value: Tab; label: string }[] = [
           [active]="current() === option.value"
         >
           {{ option.label }}
+          @let count = counts.value()[option.value];
+          @if (count !== undefined) {
+            <span class="tab-count">{{ count }}</span>
+          }
         </a>
       }
     </nav>
@@ -167,6 +172,11 @@ export class PurchaseOrdersListPage {
     params: () => ({ query: this.query(), tab: this.current(), q: this.q() }),
     stream: ({ params }) => this.api.list({ ...params.query, q: params.q }, { tab: params.tab }),
   });
+  protected readonly counts = tabCounts(
+    ['ToApprove', 'ToReceive'] as const,
+    () => ({ q: this.q() }),
+    (tab, { q }) => this.api.list({ ...COUNT_QUERY, q }, { tab }),
+  );
   protected readonly rows = computed(() =>
     this.orders.hasValue() ? this.orders.value().items : [],
   );

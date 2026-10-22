@@ -23,6 +23,7 @@ import { CellDef, DataTable } from '../../../shared/components/data-table/data-t
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ListQuery } from '../../../shared/data-access/list-query';
+import { COUNT_QUERY, tabCounts } from '../../../shared/data-access/tab-counts';
 import { BranchOrdersApi, DestinationsApi } from '../data-access/logistics-api';
 
 type Tab = NonNullable<ApiEnum<'BranchOrderTab'>>;
@@ -72,6 +73,10 @@ const TABS: readonly { value: Tab; label: string }[] = [
             [active]="current() === option.value"
           >
             {{ option.label }}
+            @let count = counts.value()[option.value];
+            @if (count !== undefined) {
+              <span class="tab-count">{{ count }}</span>
+            }
           </a>
         }
       </nav>
@@ -182,6 +187,12 @@ export class BranchOrdersListPage {
         ? of({ items: [], page: 1, pageSize: params.query.pageSize, total: 0 })
         : this.api.list(params.query, { tab: params.tab, locationId: params.locationId }),
   });
+  /** Only whoever approves sees the tabs. */
+  protected readonly counts = tabCounts(
+    ['ToApprove'] as const,
+    () => (this.canApprove ? { locationId: this.branchFilter() } : undefined),
+    (tab, { locationId }) => this.api.list(COUNT_QUERY, { tab, locationId }),
+  );
   protected readonly rows = computed(() =>
     this.orders.hasValue() ? this.orders.value().items : [],
   );

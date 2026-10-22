@@ -21,6 +21,7 @@ import { CellDef, DataTable } from '../../../shared/components/data-table/data-t
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ListQuery } from '../../../shared/data-access/list-query';
+import { COUNT_QUERY, tabCounts } from '../../../shared/data-access/tab-counts';
 import { endOfDayIso, startOfDayIso } from '../../../shared/forms/dates';
 import { QtyPipe } from '../../../shared/pipes/pipes';
 import { CustomerOption, CustomerShipmentsApi } from '../data-access/sales-api';
@@ -65,6 +66,10 @@ const TABS: readonly { value: Tab; label: string }[] = [
           [active]="current() === option.value"
         >
           {{ option.label }}
+          @let count = counts.value()[option.value];
+          @if (count !== undefined) {
+            <span class="tab-count">{{ count }}</span>
+          }
         </a>
       }
     </nav>
@@ -164,16 +169,14 @@ export class ShipmentsListPage {
 
   protected readonly shipments = rxResource({
     params: () => ({ query: this.query(), tab: this.current(), filters: this.applied() }),
-    stream: ({ params }) => {
-      const f = params.filters;
-      return this.api.list(params.query, {
-        tab: params.tab,
-        customerId: f.customer && typeof f.customer === 'object' ? f.customer.id : null,
-        from: startOfDayIso(f.from),
-        to: endOfDayIso(f.to),
-      });
-    },
+    stream: ({ params }) =>
+      this.api.list(params.query, this.filterParams(params.tab, params.filters)),
   });
+  protected readonly counts = tabCounts(
+    ['ToDispatch', 'ToDeliver'] as const,
+    () => this.applied(),
+    (tab, filters) => this.api.list(COUNT_QUERY, this.filterParams(tab, filters)),
+  );
   protected readonly rows = computed(() =>
     this.shipments.hasValue() ? this.shipments.value().items : [],
   );
@@ -186,5 +189,14 @@ export class ShipmentsListPage {
       this.applied.set(this.filters.getRawValue());
       this.query.update((x) => ({ ...x, page: 1 }));
     });
+  }
+
+  private filterParams(tab: Tab, f: ReturnType<typeof this.filters.getRawValue>) {
+    return {
+      tab,
+      customerId: f.customer && typeof f.customer === 'object' ? f.customer.id : null,
+      from: startOfDayIso(f.from),
+      to: endOfDayIso(f.to),
+    };
   }
 }

@@ -233,3 +233,16 @@ input.pan-uppercase.mat-mdc-input-element {
     break-inside: avoid;
   }
 }
+
+// How many rows a list tab holds, next to its label (shared/data-access/tab-counts.ts).
+.tab-count {
+  min-width: 24px;
+  margin-left: 8px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+  font: var(--mat-sys-label-medium);
+  line-height: 22px;
+  text-align: center;
+}

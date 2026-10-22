@@ -26,6 +26,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { ProgressMeter } from '../../../shared/components/progress-meter/progress-meter';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ListQuery } from '../../../shared/data-access/list-query';
+import { COUNT_QUERY, tabCounts } from '../../../shared/data-access/tab-counts';
 import { toIsoDate } from '../../../shared/forms/dates';
 import { ENUM_LABELS } from '../../../shared/pipes/labels';
 import { CustomerOption, CustomerOrdersApi } from '../data-access/sales-api';
@@ -84,6 +85,10 @@ const TABS: readonly { value: Tab; label: string }[] = [
           [active]="current() === option.value"
         >
           {{ option.label }}
+          @let count = counts.value()[option.value];
+          @if (count !== undefined) {
+            <span class="tab-count">{{ count }}</span>
+          }
         </a>
       }
     </nav>
@@ -196,18 +201,14 @@ export class CustomerOrdersListPage {
 
   protected readonly orders = rxResource({
     params: () => ({ query: this.query(), tab: this.current(), filters: this.applied() }),
-    stream: ({ params }) => {
-      const f = params.filters;
-      const customer = f.customer && typeof f.customer === 'object' ? f.customer.id : null;
-      return this.api.list(params.query, {
-        tab: params.tab,
-        customerId: customer,
-        from: toIsoDate(f.from),
-        to: toIsoDate(f.to),
-        status: f.status,
-      });
-    },
+    stream: ({ params }) =>
+      this.api.list(params.query, this.filterParams(params.tab, params.filters)),
   });
+  protected readonly counts = tabCounts(
+    ['ToFulfill', 'Drafts'] as const,
+    () => this.applied(),
+    (tab, filters) => this.api.list(COUNT_QUERY, this.filterParams(tab, filters)),
+  );
   protected readonly rows = computed(() =>
     this.orders.hasValue() ? this.orders.value().items : [],
   );
@@ -220,5 +221,15 @@ export class CustomerOrdersListPage {
       this.applied.set(this.filters.getRawValue());
       this.query.update((x) => ({ ...x, page: 1 }));
     });
+  }
+
+  private filterParams(tab: Tab, f: ReturnType<typeof this.filters.getRawValue>) {
+    return {
+      tab,
+      customerId: f.customer && typeof f.customer === 'object' ? f.customer.id : null,
+      from: toIsoDate(f.from),
+      to: toIsoDate(f.to),
+      status: f.status,
+    };
   }
 }

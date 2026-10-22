@@ -18,6 +18,7 @@ import { CellDef, DataTable } from '../../../shared/components/data-table/data-t
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ListQuery } from '../../../shared/data-access/list-query';
+import { COUNT_QUERY, tabCounts } from '../../../shared/data-access/tab-counts';
 import { TransferListItem, TransferTab, TransfersApi } from '../data-access/logistics-api';
 
 const TABS: readonly { value: TransferTab; label: string }[] = [
@@ -64,6 +65,10 @@ const TABS: readonly { value: TransferTab; label: string }[] = [
           [active]="current() === option.value"
         >
           {{ option.label }}
+          @let count = counts.value()[option.value];
+          @if (count !== undefined) {
+            <span class="tab-count">{{ count }}</span>
+          }
         </a>
       }
     </nav>
@@ -140,6 +145,11 @@ export class TransfersListPage {
     stream: ({ params }) =>
       this.api.list(params.query, { tab: params.tab, locationId: params.locationId }),
   });
+  protected readonly counts = tabCounts(
+    ['ToDispatch', 'InTransit', 'Received'] as const,
+    () => ({ locationId: this.location()?.id }),
+    (tab, { locationId }) => this.api.list(COUNT_QUERY, { tab, locationId }),
+  );
   protected readonly rows = computed(() =>
     this.transfers.hasValue() ? this.transfers.value().items : [],
   );

@@ -26,6 +26,7 @@ import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { ProgressMeter } from '../../../shared/components/progress-meter/progress-meter';
 import { StatusTag } from '../../../shared/components/status-tag/status-tag';
 import { ListQuery } from '../../../shared/data-access/list-query';
+import { COUNT_QUERY, tabCounts } from '../../../shared/data-access/tab-counts';
 import { toIsoDate } from '../../../shared/forms/dates';
 import { ENUM_LABELS } from '../../../shared/pipes/labels';
 import { QtyPipe, StatusLabelPipe } from '../../../shared/pipes/pipes';
@@ -94,6 +95,10 @@ function options<K extends 'Shift' | 'ProductionOrderSource'>(kind: K) {
           [active]="current() === option.value"
         >
           {{ option.label }}
+          @let count = counts.value()[option.value];
+          @if (count !== undefined) {
+            <span class="tab-count">{{ count }}</span>
+          }
         </a>
       }
     </nav>
@@ -266,22 +271,22 @@ export class OrdersListPage {
       filters: this.applied(),
       importId: this.importId(),
     }),
-    stream: ({ params }) => {
-      const f = params.filters;
-      return this.api.list(
-        { ...params.query, q: f.q.trim() || undefined },
-        {
-          tab: params.tab,
-          from: toIsoDate(f.from),
-          to: toIsoDate(f.to),
-          factoryId: f.factoryId,
-          shift: f.shift,
-          source: f.source,
-          importId: params.importId,
-        },
-      );
-    },
+    stream: ({ params }) =>
+      this.api.list(
+        { ...params.query, q: params.filters.q.trim() || undefined },
+        this.filterParams(params.tab, params.filters, params.importId),
+      ),
   });
+  /** How many orders each tab holds with the same filters (only its `total`, one row per call). */
+  protected readonly counts = tabCounts(
+    ['ToProduce', 'InProgress', 'Drafts'] as const,
+    () => ({ filters: this.applied(), importId: this.importId() }),
+    (tab, { filters, importId }) =>
+      this.api.list(
+        { ...COUNT_QUERY, q: filters.q.trim() || undefined },
+        this.filterParams(tab, filters, importId),
+      ),
+  );
   protected readonly rows = computed(() =>
     this.orders.hasValue() ? this.orders.value().items : [],
   );
@@ -296,6 +301,22 @@ export class OrdersListPage {
       this.applied.set(this.filters.getRawValue());
       this.query.update((x) => ({ ...x, page: 1 }));
     });
+  }
+
+  private filterParams(
+    tab: Tab,
+    f: ReturnType<typeof this.filters.getRawValue>,
+    importId?: string,
+  ) {
+    return {
+      tab,
+      from: toIsoDate(f.from),
+      to: toIsoDate(f.to),
+      factoryId: f.factoryId,
+      shift: f.shift,
+      source: f.source,
+      importId,
+    };
   }
 
   protected clearImport(): void {
